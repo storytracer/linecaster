@@ -1,5 +1,6 @@
-"""OmniDocBench's formats (opendatalab/OmniDocBench, its end-to-end evaluation), so that its own harness can score a
-linecaster run against any linecaster ground truth (``linecaster.scoring.harness``):
+"""OmniDocBench's formats (opendatalab/OmniDocBench, its end-to-end evaluation), so that its own evaluation, run by
+whoever exports, scores a linecaster run against any linecaster ground truth (``export``, ``linecaster export
+omnidocbench``); linecaster runs none of OmniDocBench's code:
 
 * ``truth_page``: a ground truth's page as one entry of OmniDocBench's ground-truth JSON: its elements in reading
   order (``layout_dets``: ``category_type``, ``order``, ``anno_id``, ``ignore``, the text, a table's ``html``, a display
@@ -13,10 +14,22 @@ linecaster run against any linecaster ground truth (``linecaster.scoring.harness
   heading ``#`` at its level, a table as HTML, a formula region ``$$…$$`` and so a line a formula fills (as in
   ``truth_page``: the same rule on both sides); furniture written as it is (the harness
   sets aside what matches the ground truth's furniture). A transcription without regions (a VLM's completion read as
-  lines) is its text as the model wrote it.
+  lines) is its text as the model wrote it. Its tables follow the same rule as the ground truth's: with
+  ``tables="data"`` a contents list or layout table is its text.
+* ``export``: a folder OmniDocBench's evaluation reads: ``truth.json``, ``predictions/<page id>.md`` (a page the run
+  lacks or failed on: an empty prediction), ``export.yaml`` (what was exported, with what) and a ``README.md`` naming
+  OmniDocBench's own command. A ``strategy`` (``nfc``, say) is applied to every text of both sides alike.
 
 Figures and what a model writes about them (descriptions) are in neither; hidden lines (``Transcription.hidden_lines``)
-neither."""
+neither.
+
+What OmniDocBench's evaluation (at 7ddb8df) measures, so that its results are read rightly: its text score keeps
+only ``\w`` characters and CJK ideographs, so combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew
+points, Thai vowels), punctuation and spaces are not compared, and nothing is put in NFC (``nfc`` as the export's
+``strategy`` makes both sides alike); predicted text that matches no ground-truth element, and predicted tables that
+match no ground-truth table, are not counted; captions and footnotes are matched but not scored; its "overall" needs
+its formula metric CDM (TeX Live) and pages with tables and formulas. It runs on Python before 3.12, in an
+environment of its own. linecaster's own scorer (``linecaster.scoring``) is the measure for scripts with marks."""
 from __future__ import annotations
 
 import re
@@ -164,8 +177,11 @@ def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT
                           "image_path": f"{page_id}.png", "page_attribute": dict(attributes or {})}}
 
 
-def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAULT_POLICY) -> str:
-    """A run's page ``t`` as Markdown (module docstring); an empty string for a page the run lacks."""
+def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAULT_POLICY, tables: str = "data") -> str:
+    """A run's page ``t`` as Markdown (module docstring); an empty string for a page the run lacks. ``tables``: as
+    ``truth_page``'s, so that both sides write a table alike."""
+    from ..scoring.tables import table_kind
+
     if t is None:
         return ""
     if not t.regions:                                               # a completion read as lines: as the model wrote it
@@ -173,7 +189,10 @@ def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAU
     out: list[str] = []
     for region, role, what in reading_blocks(t, policy):
         if isinstance(what, Table):
-            out.append(table_html(what))
+            if tables == "all" or table_kind(what) == "data":
+                out.append(table_html(what))
+            elif table_text(what).strip():
+                out.append(table_text(what))
         elif not isinstance(what, list):
             out.append(f"$$\n{what.latex.strip()}\n$$")
         elif CATEGORIES.get(role or "") == "figure":
@@ -198,3 +217,77 @@ def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAU
             if "\n".join(run).strip():
                 out.append("\n".join(run).strip())
     return "\n\n".join(out)
+
+
+def page_attributes(gt: Transcription) -> dict[str, str]:
+    """A ground-truth page's slices (``linecaster.scoring.slices``) as OmniDocBench page attributes (``yes``/``no``),
+    by which its evaluation groups its page results."""
+    from ..scoring.slices import page_slices
+
+    sl = page_slices(gt)
+    return {k: "yes" if k in sl else "no" for k in ("tables", "formulas")}
+
+
+README = """# An export for OmniDocBench's evaluation
+
+Written by linecaster ({producer}); what it holds is in `export.yaml`. OmniDocBench (opendatalab/OmniDocBench) scores
+it with its own code: in a checkout of OmniDocBench, with its environment (Python before 3.12), point its end-to-end
+config (`configs/end2end.yaml`) at this folder, `ground_truth.data_path: {folder}/truth.json` and
+`prediction.data_path: {folder}/predictions`, and run `python pdf_validation.py --config configs/end2end.yaml`.
+
+Its text score compares only letters, digits and CJK ideographs: combining marks, punctuation and spaces are not
+compared; extra predicted text and unmatched predicted tables are not counted. linecaster's own scorer is the measure
+for scripts with combining marks.
+"""
+
+
+def export(folder, truth_rows: dict[str, dict], run_rows: dict[str, dict | None], transcription: str = "ocr_new",
+           truth_transcription: str = "ground_truth", tables: str = "data", strategy: str | None = None,
+           policy: RenderingPolicy = DEFAULT_POLICY) -> dict:
+    """``truth_rows`` (page records by id) and the run's rows of the same pages (``run_rows``; a page without a row, or
+    with errors, an empty prediction) as a folder OmniDocBench's evaluation reads (module docstring). ``strategy``: an
+    output strategy (``nfc``) applied to every text of both sides. Returns the counts written to ``export.yaml``."""
+    import datetime as dt
+    import json
+    from pathlib import Path
+
+    import yaml
+
+    from ..data import Page
+    from ..data.transcription import producer
+    from ..data.upgrade import upgrade
+
+    write = (lambda s: s) if not strategy else _written(strategy)
+    folder = Path(folder)
+    (folder / "predictions").mkdir(parents=True, exist_ok=True)
+    pages, missing, failed = [], 0, 0
+    for pid, row in truth_rows.items():
+        gt = Page.model_validate(upgrade(row)["page"]).transcriptions[truth_transcription]
+        page = truth_page(pid, gt, policy, attributes=page_attributes(gt), tables=tables)
+        for det in page["layout_dets"]:
+            for key in ("text", "html", "latex"):
+                if det.get(key):
+                    det[key] = write(det[key])
+        pages.append(page)
+        out_row = run_rows.get(pid)
+        t = None
+        if out_row is not None and not out_row.get("errors"):
+            t = Page.model_validate(upgrade(out_row)["page"]).transcriptions.get(transcription)
+        missing += out_row is None
+        failed += out_row is not None and bool(out_row.get("errors"))
+        (folder / "predictions" / f"{pid}.md").write_text(write(prediction_markdown(t, policy, tables)),
+                                                          encoding="utf-8")
+    (folder / "truth.json").write_text(json.dumps(pages, ensure_ascii=False), encoding="utf-8")
+    counts = {"pages": len(pages), "missing": missing, "failed": failed}
+    record = {"schema": "linecaster.omnidocbench-export/1", "producer": producer(), "date": dt.date.today().isoformat(),
+              "transcription": transcription, "truth_transcription": truth_transcription, "tables": tables,
+              "strategy": strategy or "literal", "policy": policy.ref, "counts": counts}
+    (folder / "export.yaml").write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    (folder / "README.md").write_text(README.format(producer=producer(), folder=folder.resolve()), encoding="utf-8")
+    return counts
+
+
+def _written(strategy: str):
+    from ..catalog.registry import catalog
+
+    return catalog().strategy(strategy, use="output").text

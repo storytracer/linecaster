@@ -13,6 +13,12 @@ records a language and where *Changed outputs* says.
 
 ### Upgrade notes
 
+- **linecaster runs no external benchmark's code: OmniDocBench is an export.** The pipeline `harness.v1`
+  (`pipelines/harness.py`), `linecaster harness`, the blocks `OmniDocBenchScorer` and `OmniDocBenchWriter`,
+  `linecaster.scoring.omnidocbench`, `linecaster.scoring.harness` and the extra `omnidocbench` (all 0.10.5) are gone.
+  *Who:* anyone scoring runs with OmniDocBench through linecaster. *What to do:* `linecaster export omnidocbench OUT
+  --truth TRUTH --pages RUN` and OmniDocBench's own evaluation on `OUT` (its `README.md` says how), in OmniDocBench's
+  environment.
 - **Word metrics keep combining marks and joiners.** 0.10's word metrics cut words at every combining mark and
   format character, so Devanagari, vocalized Arabic, pointed Hebrew and Thai words fell apart; they are whole now
   (version 2 of the word metrics' rules). *Who:* anyone comparing word metrics of such texts with earlier scores.
@@ -29,6 +35,10 @@ records a language and where *Changed outputs* says.
 
 ### Added
 
+- **`linecaster export omnidocbench`** (`linecaster.formats.omnidocbench.export`): a ground truth and a run as the
+  folder OmniDocBench's own evaluation reads (`truth.json`, `predictions/`), with `export.yaml` and a `README.md`;
+  `--strategy` applies an output strategy (`nfc`) to both sides; a run's tables follow the ground truth's rule
+  (`--tables`).
 - **Tokenizers for the word metrics**: `whitespace` (the default), `uax29` (Unicode's word boundaries: Chinese and
   Japanese by character, Katakana runs whole) and `characters` (grapheme clusters), `linecaster.scoring.tokens`. A
   benchmark names its tokenizer (`words`; a benchmark that names the default keeps its hash), score rows name it
@@ -81,11 +91,6 @@ records a language and where *Changed outputs* says.
   pin). `tesseract.recognition.v1` reads a line recorded as vertical in
   page segmentation mode 5 and takes the option `preserve_interword_spaces` (set by the Thai, Hangul, Chinese and
   Japanese presets: without it Tesseract spaces their letters; NOTES.md).
-- **Omni Parse Bench** (`pipelines/omniparsebench.py`, `omniparsebench.v1`; the extra `omniparsebench`): a run's
-  pages written as Omni Parse Bench predictions (`OmniParseBenchPredictionWriter`,
-  `linecaster.formats.omniparsebench`) and graded by Omni Parse Bench's own code on any Omni Parse Bench dataset,
-  its unit-test scorer in its own process pool (`--grade-workers`). linecaster makes no tests: they are the
-  dataset's.
 - `linecaster.formats.omnidocbench.reading_blocks`: a page's blocks in reading order (was private).
 
 ### Changed outputs
@@ -108,15 +113,13 @@ records a language and where *Changed outputs* says.
 - An IIIF annotation page's edit of a span targets those characters of the line's annotation (a
   `TextPositionSelector`), and an edit of a word the word's annotation; they targeted the whole line's annotation,
   so the span was lost (an ALTO page's divided words, for example).
-- **OmniDocBench scoring counts only data tables as tables** (`--tables data`, the default; `--tables all` as
-  before): a ground-truth table is `data` (printed as a table: at least two rows and two columns of filled cells,
-  text or numbers alike), `contents` (a table of contents or an index laid out as a table: titles or entries with
-  page, chapter or section references) or `layout` (one row, one column or one cell, a table that is one column in
-  practice, a brace grouping lines), by `linecaster.scoring.tables.table_kind`, computed from the table alone. A
+- **The OmniDocBench export writes only data tables as tables** (`--tables data`, the default; `--tables all` as
+  before), on both sides alike: a table is `data` (printed as a table: at least two rows and two columns of filled
+  cells, text or numbers alike), `contents` (a table of contents or an index laid out as a table: titles or entries
+  with page, chapter or section references) or `layout` (one row, one column or one cell, a table that is one column
+  in practice, a brace grouping lines), by `linecaster.scoring.tables.table_kind`, computed from the table alone. A
   contents or layout table is exported as its text, so its words are still scored as text. On English Wikisource's
   ground truth: 3,028 data, 1,466 contents and 16,924 layout tables of 21,418.
-- **`harness.yaml` reports no TEDS-S** (structure-only TEDS): TEDS and edit distance are the table scores; the
-  harness's full result (`result.json`) keeps it.
 - **The slice `tables`** counts only data tables, and the slice `table-heavy` is gone (also as an OmniDocBench page
   attribute): a table is a data table, wherever it is on the page. `page_slices(gt)` takes the ground truth alone.
 

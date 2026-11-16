@@ -405,9 +405,6 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
             "pages": {"ids": ["elsewhere"], "sha256": listing_sha256(["elsewhere"])}}), {}),
         (writers.RejectWriter(str(out / "rejects")), {}),
         (writers.ScoreWriter(str(out / "scores")), {}),
-        (scoring.OmniDocBenchScorer(str(tmp_path / "truth"), ids=["elsewhere"]), {}),   # outside its pages: passed on
-        (writers.OmniDocBenchWriter(str(out / "omnidocbench")), {}),
-        (writers.OmniParseBenchPredictionWriter(str(out / "omniparsebench")), {}),
         (writers.ResourceFilesWriter(str(out / "resources")), {}),
         (writers.ResourceRecordWriter(str(out / "resources" / "records")), {}),
         (writers.ItemTextWriter(str(out / "texts")), {"docs": item_docs}),
@@ -429,8 +426,7 @@ BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordRea
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
           "TranscriptionImporter", "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
           "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
-          "PageFileWriter", "ImageFilesWriter", "PageScorer", "RejectWriter", "ScoreWriter", "OmniDocBenchScorer", "OmniDocBenchWriter",
-          "OmniParseBenchPredictionWriter", "ResourceFilesWriter",
+          "PageFileWriter", "ImageFilesWriter", "PageScorer", "RejectWriter", "ScoreWriter", "ResourceFilesWriter",
           "ResourceRecordWriter",
           "ItemTextWriter", "ItemDocumentWriter",
           "ModularTranscriber")

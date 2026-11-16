@@ -1,14 +1,12 @@
 """OmniDocBench's formats: a linecaster ground truth as its ground-truth JSON, a run's page as its Markdown prediction,
-and the harness's config and summary (``linecaster.scoring.harness``; the harness itself runs in its own environment,
-not in the tests)."""
+and the export folder its own evaluation reads (which runs in its own environment, never in linecaster)."""
 from __future__ import annotations
 
 import json
 
 from linecaster.data import Annotator, Source, Transcription
 from linecaster.data.transcription import Cell, Formula, Table
-from linecaster.formats.omnidocbench import prediction_markdown, table_html, truth_page
-from linecaster.scoring.harness import config, summarize, write_shard
+from linecaster.formats.omnidocbench import export, prediction_markdown, table_html, truth_page
 
 
 def _page(blocks: list[tuple[str, list[str]]]) -> Transcription:
@@ -71,84 +69,32 @@ def test_a_prediction_is_markdown_blocks_and_a_completion_stays_as_written():
     assert prediction_markdown(None) == ""
 
 
-def test_a_shard_is_the_truth_json_and_one_prediction_per_page(tmp_path):
+def test_an_export_is_the_truth_json_one_prediction_per_page_and_what_made_them(tmp_path):
+    import yaml
+
     from linecaster.data import Page
 
     def row(pid, name, t):
         page = Page(page_id=pid, item_id="item", transcriptions={name: t})
         return {"schema": "linecaster.page/5", "id": pid, "text": t.text, "page": page.record()}
 
-    gt = {f"p{i}": _page([("paragraph", [f"page {i}"])]) for i in range(3)}
+    gt = {f"p{i}": _page([("paragraph", [f"page {i} cafe\u0301"])]) for i in range(3)}
     truth = {pid: row(pid, "ground_truth", t) for pid, t in gt.items()}
     run = {pid: row(pid, "ocr_new", gt[pid]) for pid in ("p0", "p1")}               # p2: the run lacks it
     run["p1"]["errors"] = [{"error": "timeout"}]                                     # p1: failed, an empty prediction
-    counts = write_shard(tmp_path / "s", truth, run)
-    assert counts == {"pages": 3, "missing": 1}
+    counts = export(tmp_path / "s", truth, run, strategy="nfc")
+    assert counts == {"pages": 3, "missing": 1, "failed": 1}
     pages = json.loads((tmp_path / "s/truth.json").read_text())
     assert [p["page_info"]["image_path"] for p in pages] == ["p0.png", "p1.png", "p2.png"]
     assert pages[0]["page_info"]["page_attribute"] == {"tables": "no", "formulas": "no"}
-    assert [(tmp_path / f"s/predictions/p{i}.md").read_text() for i in range(3)] == ["page 0", "", ""]
+    assert pages[0]["layout_dets"][0]["text"] == "page 0 caf\u00e9"                 # the strategy on both sides
+    assert [(tmp_path / f"s/predictions/p{i}.md").read_text() for i in range(3)] == ["page 0 caf\u00e9", "", ""]
+    record = yaml.safe_load((tmp_path / "s/export.yaml").read_text())
+    assert (record["strategy"], record["tables"], record["counts"]) == ("nfc", "data", counts)
+    assert "pdf_validation.py" in (tmp_path / "s/README.md").read_text()
 
 
-def test_the_config_names_every_module_and_cdm_only_when_asked(tmp_path):
-    import yaml
-
-    cfg = yaml.safe_load(config(tmp_path, cdm=False, workers=4).read_text())["end2end_eval"]
-    assert cfg["metrics"]["display_formula"]["metric"] == ["Edit_dist"]
-    assert cfg["metrics"]["table"]["metric"] == ["TEDS", "Edit_dist"] and cfg["dataset"]["match_method"] == "quick_match"
-    assert cfg["dataset"]["prediction"]["data_path"] == str(tmp_path / "predictions")
-    assert "CDM" in yaml.safe_load(config(tmp_path, cdm=True, workers=4).read_text())[
-        "end2end_eval"]["metrics"]["display_formula"]["metric"]
-
-
-def test_the_summary_reads_the_harness_result():
-    result = {"text_block": {"all": {"Edit_dist": {"ALL_page_avg": 0.1}},
-                             "page": {"Edit_dist": {"ALL": 0.1, "tables: yes": 0.3}}},
-              "table": {"all": {"TEDS": {"all": 0.8}, "TEDS_structure_only": {"all": 0.9},
-                                "Edit_dist": {"ALL_page_avg": 0.2}}},
-              "display_formula": {"all": {"Edit_dist": {"ALL_page_avg": 0.25}}},
-              "reading_order": {"all": {"Edit_dist": {"ALL_page_avg": 0.05}}}}
-    s = summarize(result)
-    assert (s["text_edit"], s["table_teds"], s["formula_edit"]) == (0.1, 0.8, 0.25) and "table_teds_s" not in s
-    assert "formula_cdm" not in s and s["groups"] == {"tables: yes": {"text_edit": 0.3}}
-
-
-def _harness_source():
-    import pytest
-
-    from linecaster.scoring.harness import HARNESSES, envs_root
-
-    root = envs_root() / f"omnidocbench-{HARNESSES['omnidocbench']['commit'][:8]}"
-    if not (root / ".linecaster-source").exists():
-        pytest.skip("OmniDocBench's source is not fetched here (linecaster.scoring.harness.source)")
-    pytest.importorskip("apted")
-    return root
-
-
-def test_in_process_a_ground_truth_against_itself_is_perfect_and_tasks_do_not_matter():
-    """OmniDocBench's own code in linecaster's process: a page against itself scores text and formula edit 0 and
-    TEDS 1; two pages scored in one task or in two and then put together give the same result."""
-    from linecaster.formats.omnidocbench import truth_page
-    from linecaster.scoring.harness import summarize
-    from linecaster.scoring.omnidocbench import aggregate, page_summary, score_pages
-
-    _harness_source()
-    a = _page([("paragraph", ["the forces", "$F_{1}dq_{1}$", "where $n$ is"]), ("table", ["x"])])
-    a.formulas.append(Formula(annotator=0, target="r0_l1[0:13]", latex="F_{1}dq_{1}"))
-    a.tables.append(Table(**{**_grid().model_dump(), "target": "r1"}))
-    b = _page([("heading", ["CHAPTER I."]), ("paragraph", ["We shall use Hamilton's form."])])
-    pages = [truth_page("pa", a), truth_page("pb", b)]
-    together = score_pages([(p, prediction_markdown(t)) for p, t in zip(pages, (a, b))])
-    r = summarize(aggregate(together, [page_summary(p) for p in pages]))
-    assert (r["text_edit"], r["formula_edit"], r["table_teds"]) == (0.0, 0.0, 1.0)
-    apart = {}
-    for p, t in zip(pages, (a, b)):
-        for element, ss in score_pages([(p, prediction_markdown(t))]).items():
-            apart.setdefault(element, []).extend(ss)
-    assert summarize(aggregate(apart, [page_summary(p) for p in pages])) == r
-
-
-def test_only_data_tables_are_tables_to_the_harness_the_rest_is_their_text():
+def test_only_data_tables_are_tables_on_both_sides_the_rest_is_their_text():
     from linecaster.formats.omnidocbench import table_text
 
     t = _page([("table", ["x"]), ("table", ["y"])])
@@ -160,4 +106,27 @@ def test_only_data_tables_are_tables_to_the_harness_the_rest_is_their_text():
     got = [(d["category_type"], d.get("html") or d.get("text")) for d in truth_page("p", t)["layout_dets"]]
     assert got == [("table", table_html(_grid())), ("text_block", "Executive Mansion, }")]
     assert [d["category_type"] for d in truth_page("p", t, tables="all")["layout_dets"]] == ["table", "table"]
+    md = prediction_markdown(t)                                       # the run's tables by the same rule
+    assert md == table_html(_grid()) + "\n\nExecutive Mansion, }"
+    assert prediction_markdown(t, tables="all").count("<table>") == 2
     assert table_text(_grid()) == "Officers & offices\nSarah C. Mink President\nEmma R. Wallace Secretary"
+
+
+def test_linecaster_export_omnidocbench_reads_page_records_and_writes_the_folder(tmp_path, capsys):
+    from linecaster.cli import main
+    from linecaster.data import Page
+
+    def write(folder, name, ts):
+        folder.mkdir()
+        lines = [json.dumps({"schema": "linecaster.page/5", "id": pid, "text": t.text,
+                             "page": Page(page_id=pid, item_id="item", transcriptions={name: t}).record()})
+                 for pid, t in ts.items()]
+        (folder / "00000.jsonl").write_text("\n".join(lines) + "\n")
+
+    gt = {f"p{i}": _page([("paragraph", [f"page {i}"])]) for i in range(2)}
+    write(tmp_path / "truth", "ground_truth", gt)
+    write(tmp_path / "run", "ocr_new", {"p0": gt["p0"]})
+    main(["export", "omnidocbench", str(tmp_path / "out"), "--truth", str(tmp_path / "truth"),
+          "--pages", str(tmp_path / "run")])
+    assert "pages 2, missing 1, failed 0" in capsys.readouterr().out
+    assert sorted(p.name for p in (tmp_path / "out/predictions").iterdir()) == ["p0.md", "p1.md"]

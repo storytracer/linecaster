@@ -411,19 +411,19 @@ def main(argv: list[str] | None = None) -> None:
     sc.add_argument("--preset", help="the preset measured (its id), when the run follows no recipe")
     sc.add_argument("--context", help="for a preset measured inside a pipeline: the rest of it")
     sc.add_argument("--out", help="where scores.parquet and evidence.yaml go; default RUN/scores")
-    hs = sub.add_parser("harness", help="a benchmark's own harness scoring a run against a linecaster ground truth "
-                                        "(omnidocbench: text, tables by TEDS, formulas, reading order)")
-    hs.add_argument("name", choices=["omnidocbench"], help="the harness")
-    hs.add_argument("out", help="where the harness's inputs, results and harness.yaml go")
-    hs.add_argument("--pages", required=True, help="the run's page records (a folder: local or fsspec URI)")
-    hs.add_argument("--truth", required=True, help="the ground truth's page records")
-    hs.add_argument("--transcription", default="ocr_new", help="the run's transcription scored")
-    hs.add_argument("--truth-transcription", default="ground_truth", help="the ground truth's transcription")
-    hs.add_argument("--ids", help="a file of page ids (one per line): only these pages")
-    hs.add_argument("--cdm", action="store_true", help="formulas by CDM too (needs TeX Live, ImageMagick, Ghostscript)")
-    hs.add_argument("--workers", type=int, default=8, help="processes for the export and the harness's stages")
-    hs.add_argument("--tables", choices=["data", "all"], default="data",
-                    help="which ground-truth tables are tables: data (printed as tables; linecaster.scoring.tables) or all")
+    ex = sub.add_parser("export", help="a ground truth and a run in an external benchmark's formats, for its own "
+                                       "evaluation to score (omnidocbench)")
+    ex.add_argument("format", choices=["omnidocbench"], help="the benchmark's formats")
+    ex.add_argument("out", help="the folder the export goes to (its README says how to score it)")
+    ex.add_argument("--truth", required=True, help="the ground truth's page records (a folder: local or fsspec URI)")
+    ex.add_argument("--pages", required=True, help="the run's page records")
+    ex.add_argument("--transcription", default="ocr_new", help="the run's transcription")
+    ex.add_argument("--truth-transcription", default="ground_truth", help="the ground truth's transcription")
+    ex.add_argument("--ids", help="a file of page ids (one per line): only these pages")
+    ex.add_argument("--tables", choices=["data", "all"], default="data",
+                    help="which tables are tables, on both sides: data (printed as tables; linecaster.scoring.tables) "
+                         "or all")
+    ex.add_argument("--strategy", help="an output strategy applied to every text of both sides (e.g. nfc)")
     ev = sub.add_parser("evidence", help="evidence records: check (validate) or compare (side by side, only those "
                                          "scored the same way)")
     ev.add_argument("action", choices=["check", "compare"])
@@ -486,25 +486,26 @@ def main(argv: list[str] | None = None) -> None:
             _score(a)
         elif a.command == "evidence":
             _evidence(a)
-        elif a.command == "harness":
-            _harness(a)
+        elif a.command == "export":
+            _export(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))
 
 
 
-def _harness(a) -> None:
+def _export(a) -> None:
     from pathlib import Path
 
-    from .scoring.harness import run
+    from .formats.omnidocbench import export
+    from .scoring.run import read_truth, truth_ids
 
-    ids = set(Path(a.ids).read_text().split()) if a.ids else None
-    r = run(a.name, a.out, a.pages, a.truth, a.transcription, a.truth_transcription, ids, a.cdm, a.workers, a.tables)
-    for k, v in r["metrics"].items():
-        if k != "groups":
-            print(f"{k:22} {v:.4f}")
-    print(f"pages {r['counts']['pages']:,}, missing {r['counts']['missing']:,}; {a.out}/harness.yaml")
+    ids = set(Path(a.ids).read_text().split()) if a.ids else truth_ids(a.truth)
+    counts = export(a.out, read_truth(a.truth, ids), read_truth(a.pages, ids), a.transcription, a.truth_transcription,
+                    a.tables, a.strategy)
+    print(f"pages {counts['pages']:,}, missing {counts['missing']:,}, failed {counts['failed']:,}; {a.out}/README.md "
+          f"says how OmniDocBench scores it")
+
 
 if __name__ == "__main__":
     main()

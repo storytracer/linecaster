@@ -1,15 +1,11 @@
-"""Writers: page records, per-page files, page images, item documents and texts, rejects, resources, scores, OmniDocBench
-samples, Omni Parse Bench predictions."""
+"""Writers: page records, per-page files, page images, item documents and texts, rejects, resources, scores."""
 from .files import PageFileWriter
 from .images import ImageFilesWriter
 from .items import ItemDocumentWriter, ItemTextWriter, item_texts
-from .omnidocbench import OmniDocBenchWriter
-from .omniparsebench import OmniParseBenchPredictionWriter
 from .records import PageJsonlWriter, PageParquetWriter
 from .rejects import RejectWriter
 from .resources import ResourceFilesWriter, ResourceRecordWriter
 from .scores import ScoreWriter
 
-__all__ = ["ImageFilesWriter", "ItemDocumentWriter", "ItemTextWriter", "OmniDocBenchWriter", "OmniParseBenchPredictionWriter", "PageFileWriter", "PageJsonlWriter",
-           "PageParquetWriter", "RejectWriter", "ResourceFilesWriter", "ResourceRecordWriter", "ScoreWriter",
-           "item_texts"]
+__all__ = ["ImageFilesWriter", "ItemDocumentWriter", "ItemTextWriter", "PageFileWriter", "PageJsonlWriter",
+           "PageParquetWriter", "RejectWriter", "ResourceFilesWriter", "ResourceRecordWriter", "ScoreWriter", "item_texts"]

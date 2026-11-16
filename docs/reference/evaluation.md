@@ -199,82 +199,42 @@ codepoint`, marked not comparable with evidence/3 where a hash is missing); `lin
 file of any version, and `linecaster evidence compare` puts evidence records side by side, only those scored the same
 way (benchmark, policy, output strategy, lanes by hash, unit, word metrics).
 
-## Omni Parse Bench (`pipelines/omniparsebench.py`)
+## Export to OmniDocBench (`linecaster export omnidocbench`)
 
-[Omni Parse Bench](https://github.com/datalab-to/omni_parse_bench) grades a parse by unit tests: yes/no facts about
-a page (a passage is there, one passage comes before another, a value sits in a table cell under its heading, a
-formula renders the same), each from its dataset's gold files. **linecaster writes the predictions; Omni Parse Bench
-grades them, its code unchanged** (the package `omni-parse-bench`, the extra `omniparsebench`). The tests are the
-dataset's, made by whoever owns the ground truth: a folder of `manifest.parquet` and `gold/<page_id>.json`
-(Omni Parse Bench's `docs/API.md`), checked by `opb check --dataset DATASET`.
+linecaster runs no external benchmark's code: it writes a ground truth and a run in the benchmark's formats, and the
+benchmark's own evaluation scores them, where and how its owners run it. For OmniDocBench (opendatalab/OmniDocBench,
+its end-to-end evaluation):
 
-    uv run pipelines/omniparsebench.py OUT --pages RUN/pages --dataset DATASET --tasks 32     # omniparsebench.v1
-    ... --no-grade                     # only the predictions; then: opb grade OUT --dataset DATASET
+    linecaster export omnidocbench OUT --truth TRUTH/pages --pages RUN/pages [--ids IDS] [--tables data] [--strategy nfc]
 
-Each task writes its pages as predictions (`OmniParseBenchPredictionWriter`): `OUT/predictions/<page_id>.json`,
-`{"pages": [{"html": ...}]}`, the page's Markdown (as for OmniDocBench below: blocks in reading order, tables as
-HTML, formulas as `$$…$$`, nothing normalized) through Omni Parse Bench's own Markdown converter; a page an earlier
-block failed on is `OUT/records/<page_id>.json` with its failure, which Omni Parse Bench counts as the system's. When
-every task is done, Omni Parse Bench's own grading (`Benchmark.grade`, what `opb grade` runs) writes
-`OUT/unit_tests/` (`summary.json`, `scores.jsonl`, `details/`); its unit-test scorer scores `--grade-workers` pages
-at once in its own process pool (omni-bench-core's `Scorer.workers`, 1 under `opb grade`), with the same results.
-`OUT/omniparsebench.yaml` records the dataset (and its `dataset.yaml`), the packages' versions and the headline.
-OUT and the dataset are local folders: Omni Parse Bench reads files.
-
-## OmniDocBench's own evaluation (`pipelines/harness.py`)
-
-linecaster's scorer is literal and page-based; OmniDocBench scores the way it publishes its numbers. linecaster runs
-**OmniDocBench's own code** on a linecaster run against **any linecaster ground truth**, in its own process
-(`linecaster.scoring.omnidocbench`): the harness's source at a pinned commit (opendatalab/OmniDocBench `7ddb8df`),
-fetched once into `LINECASTER_HARNESS_ENVS` (default `~/.cache/linecaster/harnesses`) and imported. linecaster writes
-the two sides in its formats, in memory, and calls its functions: its matching per page
-(`End2EndDataset.process_get_matched_elements`, on a matcher with its defaults), its sample assembly and metric
-classes per task (`get_matched_elements`, `Edit_dist`, `TEDS`), and its aggregation when every task is done
-(`get_full_labels_results`, `get_page_split`, the corpus averages of `call_Edit_dist` and `call_TEDS`).
-
-    uv run pipelines/harness.py OUT --pages RUN/pages --truth TRUTH/pages --tasks 100     # harness.v1
-    ... --on ray --tasks 1024
-    linecaster harness omnidocbench OUT --pages RUN/pages --truth TRUTH/pages --ids IDS    # the reference
-
-Each task of `harness.v1` scores its pages (`OmniDocBenchScorer`) and writes their samples (`OmniDocBenchWriter`,
-`OUT/samples/`); at the end the ground truth's pages the run lacks are scored as empty predictions, and
-`OUT/result.json` (the harness's metric result: per module `all`, `group`, `page`) and `OUT/harness.yaml` are
-written. A page of the run that no task scored stops the aggregation (a task failed). The harness matches and scores
-each page alone, so the result does not depend on the tasks: it equals one run of the harness on every page.
-**The reference**, `linecaster harness`, runs the pinned harness itself, unchanged, in its own environment of its
-own pins (Python 3.11, NumPy 1.24) and one process: the reference to check the in-process scoring against,
-value for value (its packages there are today's, NumPy 2 and pandas 3; such a check holds them to its pins' results). CDM (`--cdm`) runs only in
-the reference: it needs TeX Live, ImageMagick and Ghostscript.
-
-| Module | Metrics |
-|---|---|
-| text (`text_block`) | edit distance, page-averaged |
-| tables (`table`) | TEDS, edit distance (the harness's structure-only TEDS-S stays in `result.json`, not in the summary) |
-| display formulas (`display_formula`) | edit distance |
-| reading order (`reading_order`) | edit distance |
-
-**Which tables are tables** (`--tables`, default `data`; `linecaster.scoring.tables`): a ground truth's table is
-`data` (printed as a table: at least two rows and two columns of filled cells, text or numbers alike), `contents` (a
-table of contents or an index laid out as a table: entries with page, chapter or section references, the references
-rising or the entries in alphabetical order) or `layout` (one row, one column or one cell, one column in practice, a
-brace grouping lines). Only data tables are tables to the harness; the others are their text. A source like
-Wikisource lays out far more than it tabulates (English Wikisource: 3,028 data tables of 21,418), and a table metric
-means something only on what is printed as a table. `--tables all` counts every table.
+`OUT` holds `truth.json` (OmniDocBench's ground-truth JSON), `predictions/<page id>.md` (a page the run lacks or failed
+on: an empty prediction), `export.yaml` (what was exported and with what) and a `README.md` naming OmniDocBench's own
+command; OmniDocBench runs in an environment of its own (Python before 3.12).
 
 **The formats** (`linecaster.formats.omnidocbench`): the ground truth's regions in reading order become its
 elements, their roles its categories (paragraphs `text_block`, headings `title`, running heads and feet `header`
 and `footer`, page numbers `page_number`, footnotes `page_footnote`, captions `figure_caption`, tables `table` with
 their HTML, formula regions `equation_isolated`); a line a formula fills (an equation number may follow) is its own
-`equation_isolated`, an inline formula stays in its text as `$…$`. No boxes are written: the harness scores by
+`equation_isolated`, an inline formula stays in its text as `$…$`. No boxes are written: OmniDocBench scores by
 text and order. A run's page is Markdown: blocks in reading order, a heading `#` at its level, tables as HTML,
 formula regions `$$…$$`; a transcription without regions (a VLM's completion) as the model wrote it. Pages carry
-the attributes `tables` (data tables) and `formulas` (`yes`/`no`, the [slices](#aggregation)), by which the harness
+the attributes `tables` (data tables) and `formulas` (`yes`/`no`, the [slices](#aggregation)), by which OmniDocBench
 groups its page results.
 
-Its text score keeps only letters and digits (punctuation and spaces go) and leaves out running heads and feet,
-page numbers, footnotes and captions: another view than the literal lanes, not one of them. Its reading-order
-distance is not 0 for a page scored against itself where its matching splits or merges blocks, nor for a page with
-no body text (1); its own demo against itself gives 0.059.
+**Which tables are tables** (`--tables`, default `data`; `linecaster.scoring.tables`), on both sides alike: a table is
+`data` (printed as a table: at least two rows and two columns of filled cells, text or numbers alike), `contents` (a
+table of contents or an index laid out as a table: entries with page, chapter or section references, the references
+rising or the entries in alphabetical order) or `layout` (one row, one column or one cell, one column in practice, a
+brace grouping lines). Only data tables are written as tables; the others are their text. `--tables all` writes every
+table as a table. `--strategy` applies an output strategy to every text of both sides (`nfc` puts both in one form).
+
+**What OmniDocBench measures** (at 7ddb8df): its text score keeps only letters, digits and CJK ideographs (`\w`), so
+combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew points, Thai vowels), punctuation and spaces are
+not compared, and nothing is put in NFC; predicted text that matches no ground-truth element and predicted tables that
+match no ground-truth table are not counted; captions and footnotes are matched but not scored; its "overall" needs
+its formula metric CDM (TeX Live) and pages with tables and formulas. Its reading-order distance is not 0 for a page
+against itself where its matching splits or merges blocks. Its results are another view than linecaster's own
+scoring, not one of its lanes; for scripts with combining marks linecaster's scoring is the measure.
 
 ## Run records
 

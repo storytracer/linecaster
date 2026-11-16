@@ -177,6 +177,22 @@ def score_run(run: str | Path, truth: str | Path, benchmark: Benchmark, transcri
 _ID = re.compile(r'"id":\s*"((?:[^"\\]|\\.)*)"')
 
 
+def truth_ids(folder: str) -> set[str]:
+    """Every page id in a folder of page records (local path or fsspec URI; JSON Lines, gzipped or not), read from
+    each line's start without decoding the line."""
+    from datatrove.io import get_datafolder
+
+    df = get_datafolder(folder)
+    found: set[str] = set()
+    for name in df.list_files(glob_pattern="**/*.jsonl*"):
+        with df.open(name, "rt", compression="gzip" if name.endswith(".gz") else None, encoding="utf-8") as fh:
+            for line in fh:
+                m = _ID.search(line, 0, 400)
+                if m:
+                    found.add(json.loads(f'"{m.group(1)}"'))
+    return found
+
+
 def read_truth(folder: str, ids: set[str]) -> dict[str, dict]:
     """The rows of ``ids`` from a folder of page records (local path or fsspec URI; JSON Lines, gzipped or not):
     every file streamed once, only the lines of those ids decoded (the id read from the line's start)."""
