@@ -339,7 +339,7 @@ class RecipeDoc(_Doc):
 USES = ("output", "comparison")
 #: the rules a normalization may hold, exactly one each: on characters (``text``), or on a document's structure
 #: (the source's edits, divided words, division marks, flow)
-TEXT_RULES = ("unicode", "map", "patterns", "case", "keep", "whitespace")
+TEXT_RULES = ("unicode", "map", "patterns", "case", "keep", "whitespace", "latex")
 STRUCTURE_RULES = ("edits", "divided_words", "division_marks", "flow")
 
 
@@ -377,6 +377,8 @@ class Rule(_Doc):
     case: Literal["fold", "lower"] | None = Field(None, description="Unicode case folding, or lowercasing")
     keep: Keep | None = Field(None, description="only these characters; every run of others one space")
     whitespace: Literal["collapse"] | None = Field(None, description="every run of whitespace one space, trimmed")
+    latex: Literal["text"] | None = Field(None, description="each LaTeX formula as the characters it prints "
+                                                       "(linecaster.text.latex), for comparison")
     edits: list[Literal["corrected", "expanded", "regularized"]] | None = Field(
         None, description="the source's own edits of these kinds, applied (a document's edit spans)")
     divided_words: Literal["source"] | None = Field(
@@ -585,6 +587,16 @@ class EvidenceScoring3(_Doc):
     scorer: str = Field(description="the linecaster that scored (linecaster.scoring.scorer())")
 
 
+class EvidenceSlice(_Doc):
+    """The rates of a run on one slice of a benchmark's pages (``linecaster.scoring.slices``)."""
+
+    definition: str = Field(description="what puts a page in the slice")
+    pages: int = Field(description="the benchmark's pages in it")
+    metrics: dict[str, Metric]
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class Evidence3(_Doc):
     """One measurement of a preset or recipe (``linecaster.evidence/3``): ``evidence/2`` with entries named by id and
     hash (the release versions the catalog), the scoring's output strategy, lanes and unit. Kept by an evaluation,
@@ -602,6 +614,8 @@ class Evidence3(_Doc):
     dataset: str | None = Field(None, description="for claims without a benchmark: repo@revision or a description")
     scoring: EvidenceScoring3 | None = None
     metrics: dict[str, Metric]
+    slices: dict[str, EvidenceSlice] = Field(default_factory=dict, description="the rates on slices of the pages: "
+                                             "those with tables, formulas, neither (linecaster.scoring.slices)")
     counts: dict[str, int] = Field(default_factory=dict, description="pages scored, missing, failed, ...")
     date: dt.date
     hardware: EvidenceHardware | None = None

@@ -201,6 +201,36 @@
       "title": "EvidenceScoring3",
       "type": "object"
     },
+    "EvidenceSlice": {
+      "additionalProperties": false,
+      "description": "The rates of a run on one slice of a benchmark's pages (``linecaster.scoring.slices``).",
+      "properties": {
+        "definition": {
+          "description": "what puts a page in the slice",
+          "title": "Definition",
+          "type": "string"
+        },
+        "pages": {
+          "description": "the benchmark's pages in it",
+          "title": "Pages",
+          "type": "integer"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Metric"
+          },
+          "title": "Metrics",
+          "type": "object"
+        }
+      },
+      "required": [
+        "definition",
+        "pages",
+        "metrics"
+      ],
+      "title": "EvidenceSlice",
+      "type": "object"
+    },
     "Metric": {
       "additionalProperties": false,
       "properties": {
@@ -408,6 +438,14 @@
         "$ref": "#/$defs/Metric"
       },
       "title": "Metrics",
+      "type": "object"
+    },
+    "slices": {
+      "additionalProperties": {
+        "$ref": "#/$defs/EvidenceSlice"
+      },
+      "description": "the rates on slices of the pages: those with tables, formulas, neither (linecaster.scoring.slices)",
+      "title": "Slices",
       "type": "object"
     },
     "counts": {

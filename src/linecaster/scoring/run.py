@@ -22,6 +22,7 @@ from ..data.upgrade import upgrade
 from .aggregate import rates, role_rates
 from .benchmark import Benchmark
 from .metrics import score_page
+from .slices import SLICES
 
 SCORE_SCHEMA = "linecaster.score/1"
 
@@ -84,17 +85,22 @@ def score_pair(pid: str, truth_row: dict, out_row: dict | None, benchmark: Bench
     records = [{"schema": SCORE_SCHEMA, "page_id": pid, "item_id": item_id, **r, **flags, "run_id": run_id,
                 "benchmark": benchmark.ref, "benchmark_sha256": benchmark.sha256, "policy": policy.ref,
                 "output": benchmark.output, "scorer": scorer()} for r in got["rows"]]
+    from .render import text as render_text
+    from .slices import page_slices
+
     summary = {"page_id": pid, "item_id": item_id, "roles": got["roles"] if roles else {},
                "confusion": got.get("confusion", []), "missing": out_row is None,
-               "failed": flags["error"] is not None}
+               "failed": flags["error"] is not None, "slices": page_slices(gt, render_text(gt, "full", policy))}
     return records, summary
 
 
 def summarize(records: list[dict], pages: list[dict], benchmark: Benchmark, warn: bool = True) -> dict[str, Any]:
     """The run's result from its pages' score records and summaries (``score_pair``'s, every page of the benchmark
     once): ``rates`` (metric name -> value, interval, ``n``), ``roles`` (per role precision and recall), the counts
-    ``pages_scored``, ``missing``, ``failed`` and ``eligible``, and ``conventions`` (lane -> the ground truth's
-    declared normalizations it does not apply, on any page: the conventions check; each one warned of)."""
+    ``pages_scored``, ``missing``, ``failed`` and ``eligible``, ``conventions`` (lane -> the ground truth's
+    declared normalizations it does not apply, on any page: the conventions check; each one warned of), and
+    ``slices`` (``linecaster.scoring.slices``: per slice its definition, pages and the rates on its pages; empty for
+    page summaries written before 0.10.4, which name no slices)."""
     b = benchmark.bootstrap
     by: dict[tuple[str, str], list[dict]] = {}
     for r in records:
@@ -106,6 +112,20 @@ def summarize(records: list[dict], pages: list[dict], benchmark: Benchmark, warn
             for metric in ("cer", "token_recall", "over_extraction"):
                 if metric in benchmark.metrics:
                     out_rates[f"{metric}_{name}_{ln}"] = rates(sel, metric, b.seed, b.resamples, b.level)
+    slices: dict[str, Any] = {}
+    in_slice: dict[str, set[str]] = {}
+    for p in pages:
+        for name in p.get("slices") or ():
+            in_slice.setdefault(name, set()).add(p["page_id"])
+    for name in (n for n in SLICES if n in in_slice):
+        ids, sl_rates = in_slice[name], {}
+        for text_name in benchmark.texts:
+            for ln in benchmark.lanes:
+                sel = [r for r in by.get((text_name, ln), []) if r["page_id"] in ids]
+                for metric in ("cer", "token_recall"):
+                    if metric in benchmark.metrics:
+                        sl_rates[f"{metric}_{text_name}_{ln}"] = rates(sel, metric, b.seed, b.resamples, b.level)
+        slices[name] = {"definition": SLICES[name], "pages": len(ids), "rates": sl_rates}
     conventions: dict[str, list[str]] = {}
     for r in records:
         if r.get("conventions"):
@@ -118,7 +138,7 @@ def summarize(records: list[dict], pages: list[dict], benchmark: Benchmark, warn
     roles = bool(benchmark.supports.roles) and "role_words" in benchmark.metrics
     missing = sum(1 for p in pages if p.get("missing"))
     failed = sum(1 for p in pages if p.get("failed"))
-    return {"records": records, "pages": pages, "rates": out_rates, "conventions": conventions,
+    return {"records": records, "pages": pages, "rates": out_rates, "slices": slices, "conventions": conventions,
             "roles": role_rates([p["roles"] for p in pages]) if roles else {},
             "pages_scored": len(pages), "missing": missing, "failed": failed, "eligible": missing == 0}
 

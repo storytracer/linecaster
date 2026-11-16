@@ -50,7 +50,8 @@ benchmark. Two texts per page are scored:
 | `full` | body, furniture | everything printed on the page, in reading order |
 | `body` | body | the page without its furniture (running heads, page numbers, catchwords, signature marks) |
 
-Each is the page's literal text as laid out (its lines' readings in reading order, tables as Markdown or HTML),
+Each is the page's literal text as laid out (its lines' readings in reading order, tables as Markdown or HTML, a
+formula region as `$LaTeX$` in place of its lines, as a ground truth writes a formula),
 then the benchmark's **output strategy**'s rules on characters (`output`, default `literal`: nothing changed): what
 a model writes about a figure (descriptions) is in neither. A ground truth's `corrected` edits are not applied: the
 output is compared with what is printed. Its `illegible` spans become U+FFFD, one per character.
@@ -66,8 +67,8 @@ paragraphs, are equal), case, punctuation, ſ, ligatures, diacritics and markup 
 | Lane | Normalizations |
 |---|---|
 | `diplomatic` (default) | NFC; whitespace runs to one space, trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
-| `reading` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's |
-| `alnum` | markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space |
+| `reading` | formulas as the characters they print (`latex-text`: `$\frac{1}{2}$` as `1⁄2`, which NFKC makes of `½` too; `$\alpha$` as `α`; sub- and superscripts as their characters); markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's |
+| `alnum` | formulas as the characters they print (`latex-text`); markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space |
 | `alnum-nonmark` | NFC; casefolded; only letters and digits kept (0.9's `alnum@1`) |
 | `ascii-alnum` | HTML tags removed; lowercased; only the ASCII letters and digits kept (accented letters, ſ and ligatures separate words) |
 
@@ -176,6 +177,7 @@ One measurement per file, kept by the evaluation:
 | `benchmark` | `id@edition` and its `sha256` |
 | `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `scorer` (the linecaster that scored, version and commit) |
 | `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `recall_header`, ... (`<metric>_<text>_<lane>`, `<metric>_<role>`) |
+| `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has tables (`tables`, `table-heavy`: a table of at least 2 x 2 with 6 cells or more, its cells at least 30 % of the page's text), formulas (`formulas`), or neither (`plain`); `linecaster.scoring.slices` |
 | `hardware` | `gpu` (model and count), `driver`, `cuda`, `cpu`, from the run record |
 | `software` | the server's version (vLLM, ...), the engine packages' versions |
 | `date`, `notes` | |

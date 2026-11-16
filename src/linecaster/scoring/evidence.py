@@ -66,6 +66,10 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
                     "lanes": [{"id": ln, "sha256": resolve(ln).sha256} for ln in benchmark.lanes],
                     "unit": benchmark.unit, "scorer": scorer()},
         "metrics": metrics,
+        "slices": {name: {"definition": sl["definition"], "pages": sl["pages"],
+                          "metrics": {k: {key: v.get(key) for key in ("value", "lo", "hi", "n") if key in v}
+                                      for k, v in sl["rates"].items()}}
+                   for name, sl in (result.get("slices") or {}).items()},
         "counts": {k: int(result[k]) for k in ("pages_scored", "missing", "failed")},
         "date": date or dt.date.today(), "hardware": hw, "software": software, "notes": notes})
 

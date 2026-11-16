@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../schemas/normalization.json
+schema: linecaster.normalization
+id: latex-text
+description: "Each LaTeX formula ($…$, $$…$$, \\(…\\), \\[…\\]) as the characters it prints, its delimiters and TeX's whitespace gone: a formula compares equal to the same text typed (\\frac{1}{2} and ½, \\alpha and α, x^{2} and x², once compatibility forms are folded). For comparison: the structure is lost."
+scripts:
+- '*'
+languages: []
+use:
+- comparison
+subsumes: []
+rule:
+  latex: text

@@ -173,11 +173,11 @@ record.
 | `scripts`, `languages` | the ISO 15924 scripts it is meant for (`*` any); BCP 47 tags (a language-specific one is never in a default) |
 | `use` | `output` (a text written), `comparison` (a lane), or both |
 | `subsumes` | normalizations whose effect this one includes (`nfkc`: `nfc`, `long-s`, `ligatures`), for the conventions check of scoring |
-| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
+| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`), `latex` (`text`: each LaTeX formula as the characters it prints); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
 
 The catalog ships the normalizations of the strategies below and of the lanes: `nfc`, `nfkc`, `long-s`,
 `ligatures`, `r-rotunda`, `superscript-e`, `quotes`, `dashes`, `invisible`, `whitespace`, `casefold`, `lowercase`,
-`markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`, `editors-corrections`,
+`latex-text`, `markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`, `editors-corrections`,
 `editors-expansions`, `editors-regularizations`, `divided-words`, `unicode-marks`, `flow`. None is applied unless
 a strategy names it: dividing words, dehyphenating, modernizing letter forms are a strategy's choice, never a default.
 

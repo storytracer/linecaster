@@ -6,6 +6,7 @@ import pytest
 
 from linecaster.catalog.registry import catalog
 from linecaster.errors import CatalogError
+from linecaster.text.latex import latex_text
 from linecaster.text.normalize import StructureRule, apply_rule
 
 # ---- the lanes as linecaster 0.9 computed them (frozen here: the reference the strategies must match) ----
@@ -94,15 +95,17 @@ def corpus(n=300, seed=7):
 @pytest.mark.parametrize("strategy, old", [("diplomatic", lanes._diplomatic), ("alnum", lanes._alnum2),
                                            ("alnum-nonmark", lanes._alnum), ("ascii-alnum", lanes._ascii_alnum)])
 def test_the_lanes_rebuilt_from_normalizations_are_the_old_lanes(strategy, old):
+    """The old lanes, on every text without a formula (0.10.4 put ``latex-text`` first in ``reading`` and ``alnum``)."""
     s = catalog().strategy(strategy, use="comparison")
     for text in corpus():
-        assert s.text(text) == old(text), repr(text)
+        if latex_text(text) == text:
+            assert s.text(text) == old(text), repr(text)
 
 
 def test_reading_is_the_old_lane_without_its_hyphen_join():
     s = catalog().strategy("reading", use="comparison")
     for text in corpus():
-        if not any(c in text for c in "-‐‑‒–—―"):     # no hyphen to join
+        if not any(c in text for c in "-‐‑‒–—―") and latex_text(text) == text:     # no hyphen to join, no formula
             assert s.text(text) == lanes._reading(text), repr(text)
     assert s.text("de-\npends") == "de- pends" and lanes._reading("de-\npends") == "depends"
 
@@ -163,3 +166,26 @@ def test_strategies_literal_ad_hoc_and_their_uses():
 def test_a_language_specific_normalization_says_so():
     assert catalog().normalization("superscript-e").languages == ("de",)
     assert all(not catalog().normalization(n).languages for n in ("nfc", "nfkc", "long-s", "ligatures", "flow"))
+
+
+@pytest.mark.parametrize("raw, want", [
+    ("$\\frac{1}{2}$ inch", "1\u20442 inch"), ("$1\\frac{1}{2}$", "11\u20442"),
+    ("a vein ($Cu_{2}$) which", "a vein (Cu2) which"), ("($ Cu_2 $)", "(Cu2)"),
+    ("costs $5 or $10", "costs $5 or $10"), ("$n$ degrees", "$n$ degrees"),         # printed dollars; a bare letter
+    ("writing $q_{1},\\ldots q_{n}$ for", "writing q1,\u2026qn for"),
+    ("writing $ q_1, \\ldots q_n $ for", "writing q1,\u2026qn for"),
+    ("${\\dot {q}}_{1}$", "q\u03071"), ("45$^{\\circ}$ N", "45\u00b0 N"), ("$\\alpha$", "\u03b1"),
+    ("$$\np_1 = \\frac{d\\epsilon_p}{dq_1}, \\quad \\text{etc.},\n$$", "p1=d\u03b5p\u2044dq1, etc.,"),
+    ("$\\sqrt[3]{x^2}$", "\u221ax2"), ("$\\unknownmacro{x}$", "\\unknownmacrox"),
+])
+def test_latex_text_is_what_a_formula_prints(raw, want):
+    assert latex_text(raw) == want
+
+
+def test_a_formula_and_the_same_text_typed_compare_equal_in_reading_and_alnum():
+    for lane in ("reading", "alnum"):
+        s = catalog().strategy(lane, use="comparison")
+        for formula, typed in [("$\\frac{1}{2}$", "\u00bd"), ("$1\\frac{1}{4}$ inches", "1\u00bc inches"),
+                               ("$x^{2}$", "x\u00b2"), ("$Cu_{2}$", "Cu\u2082"), ("$\\alpha$-rays", "\u03b1-rays")]:
+            assert s.text(formula) == s.text(typed), (lane, formula)
+    assert catalog().strategy("diplomatic", use="comparison").text("$\\frac{1}{2}$") == "$\\frac{1}{2}$"  # diplomatic: as written

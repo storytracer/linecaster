@@ -22,6 +22,23 @@ the tags; the first is `v0.1.0`.
   `lightonocr-3-0.8b-plain` and `lightonocr-3-4b-plain`, with the hashes the bare ids had. The `-grounding` ids
   resolve to the bare ones with a warning (`RenamedWarning`); `lightonocr-3-0.8b@N` from before 0.10 resolves to
   `lightonocr-3-0.8b-plain`, the mode it ran.
+- **The lanes `reading` and `alnum`** start with the new normalization `latex-text`: each LaTeX formula (`$…$`,
+  `$$…$$`, `\(…\)`, `\[…\]`) as the characters it prints, so a formula compares equal to the same text typed
+  (`$\frac{1}{2}$` and `½`, `$\alpha$` and `α`, `$x^{2}$` and `x²` once NFKC folds them; `$5 or $10` stays text).
+  Without a formula both lanes are as before. `diplomatic` is unchanged: a formula there is compared as written.
+- **The scored text of a formula region** is its LaTeX, `$LaTeX$` as a ground truth writes a formula, in place of
+  what the line recogniser read there (squiddle's display formulas were scored as their line text, or not at all
+  when the region had no lines). A table or formula region without lines takes its place in the regions' reading
+  order. On the 836 Wikisource pages with formulas, squiddle's CER (full page, `diplomatic`) goes from 16.9 % to
+  13.8 %.
+
+### Added
+
+- **Page slices in the evidence** (`linecaster.scoring.slices`): each page is in the slices its ground truth
+  meets: `plain` (no table, no formula), `tables`, `table-heavy` (a table of at least 2 x 2 with 6 cells or more,
+  its cells at least 30 % of the page's full text) and `formulas`; the evidence record's `slices` give each
+  slice's definition, pages and CER and word recall on them, with intervals (an added field: `evidence/3`
+  stays). The page summaries name their slices.
 
 ### Changed
 

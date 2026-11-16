@@ -103,6 +103,38 @@ def test_a_removed_region_is_in_no_text_and_illegible_spans_are_replaced():
     assert text(t, "full") == "keep \ufffd\ufffdis"
 
 
+def test_a_formula_region_is_its_latex_in_reading_order_with_or_without_lines():
+    """A layout's formula read by a formula model is ``$LaTeX$`` in place of what the line recogniser read; one
+    without lines takes its place in the regions' order (before the next region's first line)."""
+    from linecaster.data.transcription import Formula
+
+    t = _page([("paragraph", "the equations"), ("formula", "F1 d . . . Fn"), ("paragraph", "where e denotes")])
+    t.formulas.append(Formula(annotator=0, target="r1", latex="F_{1}dq_{1}+F_{n}dq_{n}"))
+    t.add_region(0, "r3", [0, 250, 1000, 40], role="formula")              # no lines, before the last paragraph
+    t.formulas.append(Formula(annotator=0, target="r3", latex=" p_{1}=\\frac{d\\epsilon}{dq} "))
+    t.orders.clear()
+    t.add_order(0, ["r0", "r1", "r3", "r2"], ["l0", "l1", "l2"])
+    assert text(t, "full") == ("the equations\n$F_{1}dq_{1}+F_{n}dq_{n}$\n$p_{1}=\\frac{d\\epsilon}{dq}$\n"
+                               "where e denotes")
+    t.formulas.append(Formula(annotator=0, target="l0[4:9]", latex="x"))  # an inline formula: the line's own text
+    assert text(t, "body").startswith("the equations\n")
+
+
+def test_a_page_is_in_every_slice_its_ground_truth_meets():
+    from linecaster.data.transcription import Cell, Formula, Table
+    from linecaster.scoring.slices import page_slices
+
+    t = _page([("paragraph", "Body text."), ("table", "x")])
+    assert page_slices(t, text(t, "full")) == ["plain"]
+    grid = [Cell(start_row=r, end_row=r + 1, start_col=c, end_col=c + 1, text=f"cell {r}{c}")
+            for r in range(3) for c in range(2)]
+    t.tables.append(Table(annotator=0, target="r1", num_rows=3, num_cols=2, cells=grid))
+    assert page_slices(t, "short") == ["tables", "table-heavy"]
+    assert page_slices(t, "x" * 1000) == ["tables"]                                  # cells under 30 % of the text
+    t.formulas.append(Formula(annotator=0, target="l0[0:4]", latex="x"))
+    assert page_slices(t, "x" * 1000) == ["tables", "formulas"]
+
+
 def test_score_page_counts_each_text_and_lane_and_the_roles():
     truth = _page([("header", "THE HISTORY"), ("paragraph", "The ship sailed."), ("page_number", "12")])
     out = _page([("paragraph", "THE HISTORY"), ("paragraph", "The shjp sailed."), ("footer", "12")])

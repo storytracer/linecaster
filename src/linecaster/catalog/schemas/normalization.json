@@ -170,6 +170,20 @@
           "description": "every run of whitespace one space, trimmed",
           "title": "Whitespace"
         },
+        "latex": {
+          "anyOf": [
+            {
+              "const": "text",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "each LaTeX formula as the characters it prints (linecaster.text.latex), for comparison",
+          "title": "Latex"
+        },
         "edits": {
           "anyOf": [
             {

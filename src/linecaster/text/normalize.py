@@ -11,6 +11,7 @@ texts are compared:
 - ``keep``: only the characters of the given Unicode categories, ranges and further characters; every run of others
   becomes one space;
 - ``whitespace``: every run of whitespace one space, the text trimmed.
+- ``latex``: each LaTeX formula as the characters it prints (``text``: ``linecaster.text.latex``), for comparison.
 
 The structure rules (the source's edits, divided words, division marks, flow) act on a document's blocks
 (``linecaster.document.strategy``); on a plain string they are an error. Nothing here is a default: a text changes only
@@ -82,6 +83,10 @@ def apply_rule(text: str, rule: dict[str, Any]) -> str:
         return "".join(c if kept(c) else " " for c in text)
     if kind == "whitespace":
         return _WS.sub(" ", text).strip()
+    if kind == "latex":
+        from .latex import latex_text
+
+        return latex_text(text)
     raise StructureRule(f"the rule {kind!r} acts on a document's structure, not on a string")
 
 
