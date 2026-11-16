@@ -116,8 +116,18 @@ the rules of Omni Parse Bench's `omni_parse_bench.normalize.fold` (Apache-2.0).
   come from a pilot review, as in Omni Parse Bench's recipe.
 - **Open**: measure the thresholds on reviewed tags; a review page for `linecaster.tagging-review/1`; corrections
   applied last; the audit (the panel asked about the rules' decisions); a fixed review sample; a tagging slot in the
-  pipelines. The definition of the status `suppressed` ("content the source records but itself keeps out of the
-  page's text") was written for the vocabulary and needs the maintainer's check.
+  pipelines.
+
+### Working choices, until there is a reason to change them (2026-11-16; the maintainer has no preference yet)
+
+- **`suppressed`** means content the source records but itself keeps out of the page's text (a library's label in
+  the scan); `removed` is a linecaster step's decision to drop something. Written for the vocabulary, since nothing
+  defined it before.
+- **The model tagger ships no preset**: its panel waits for a pilot review of the models' answers.
+- **TEI `unclear` stays `illegible`**: its text is kept, but scoring writes it as U+FFFD, so no model is scored
+  against a reading its transcriber doubted, at the cost of counting those characters as errors even when read
+  right. An `uncertain` status (rendered, and counted or not by a benchmark) is the alternative if that cost shows
+  in an evaluation.
 
 ### Descriptions in the body
 
@@ -625,9 +635,8 @@ written, the run record naming `squiddle@1` and its hash.
     lookup; ISO 15924 by its shape, since ISO lists more codes than Unicode's Script property: `Jpan`, `Latf`),
     resolved through what encloses a target; inference (`linecaster.text.scripts`) only on request, never stored.
     PAGE-XML, ALTO, hOCR, HTML, documents and IIIF read and write them.
-  - The PAGE language table (`linecaster.formats._languages`) was generated once from the PAGE 2019 schema and SIL's
-    ISO 639-3 code table (`iso-639-3.tab`, used with attribution; SIL is the ISO 639-3 registration authority); 30
-    PAGE names were mapped by hand (listed in the module). ALTO's and hOCR's three-letter codes are recorded as the
+  - The PAGE language table (`linecaster.formats._languages`) was generated once from the PAGE 2019 schema and the
+    ISO 639-3 code table (`iso-639-3.tab`); 30 PAGE names were mapped by hand (listed in the module). ALTO's and hOCR's three-letter codes are recorded as the
     ISO 639-1 code where one exists (BCP 47's canonical form; `eng` is well-formed but no valid tag).
   - 3: tokenizers `whitespace` (marks and joiners kept), `uax29`, `characters`; dictionary segmentation for Thai,
     Lao, Khmer and Myanmar is not there. Options: ICU's dictionary break iterator (PyICU: a native build, as an

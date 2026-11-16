@@ -4,10 +4,9 @@ and the ISO 639 two-letter code of a three-letter one (BCP 47 takes the two-lett
 ``eng``, ``deu`` and ``ger`` read as ``en`` and ``de``).
 
 The tables were generated on 2026-11-15 from the enumerations of the PAGE 2019-07-15 schema
-(``tests/schemas/pagecontent-2019-07-15.xsd``) and the ISO 639-3 code table of SIL International, the ISO 639-3
-registration authority (``iso-639-3.tab``, https://iso639-3.sil.org/code_tables/download_tables), used with
-attribution: a PAGE name matched by its reference name gives the ISO 639-1 code where there is one, else the ISO 639-3
-code. The names SIL names otherwise were mapped by hand: Abkhaz ab, Bihari bh (ISO 639-1's collective code), Cambodian
+(``tests/schemas/pagecontent-2019-07-15.xsd``) and the ISO 639-3 code table (``iso-639-3.tab``): a PAGE name
+matched by its ISO 639-3 reference name gives the ISO 639-1 code where there is one, else the ISO 639-3 code. The
+names ISO 639-3 names otherwise were mapped by hand: Abkhaz ab, Bihari bh (ISO 639-1's collective code), Cambodian
 km, Cantonese yue, Divehi dv, Fula ff, Gaelic gd (Scottish Gaelic), Greek el (Modern Greek), Guaraní gn, Interlingua
 ia, Inuktitut iu, Kirundi rn, Kwanyama kj, Kyrgyz ky, Limburgish li, Malay ms, Māori mi, Nepali ne, Nuosu ii, Occitan
 oc, Ojibwe oj, Old Church Slavonic cu, Oriya or, Ossetian os, Pāli pi, Pashto ps, Punjabi pa, Slovene sl, Swahili sw,
