@@ -572,6 +572,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scoring-many-pages-pipelinesscorepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Scoring many pages (<code>pipelines/score.py</code>)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#benchmarks-linecasterbenchmark2" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1039,6 +1050,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scoring-many-pages-pipelinesscorepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Scoring many pages (<code>pipelines/score.py</code>)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#benchmarks-linecasterbenchmark2" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1265,6 +1287,17 @@ counts, so corpus rates are exact.</p>
 <li><strong>Eligibility</strong>: a run is scored only on exactly the benchmark's page set; a page the run failed counts as an empty
   output, and the evidence says how many there were. A run that lacks pages of the set is not eligible.</li>
 </ul>
+<h2 id="scoring-many-pages-pipelinesscorepy">Scoring many pages (<code>pipelines/score.py</code>)<a class="headerlink" href="#scoring-many-pages-pipelinesscorepy" title="Permanent link">&para;</a></h2>
+<p><code>linecaster score</code> scores a run in one process. <code>pipelines/score.py</code> (the pipeline <code>score.v1</code>) scores the same way over
+many tasks, here (<code>--workers</code>) or on a Ray cluster (<code>--on ray</code>), like every other pipeline:</p>
+<div class="highlight"><pre><span></span><code>uv run pipelines/score.py RUN/scores --pages RUN/pages --truth TRUTH --benchmark benchmark.yaml --tasks 32
+</code></pre></div>
+<p>Each task scores a share of the run's page records (<code>PageScorer</code>: its pages' ground truth read in one pass, only
+their lines decoded) and writes their score records and page summaries (<code>ScoreWriter</code>: <code>OUT/records</code>, <code>OUT/pages</code>).
+When every task is done, the driver puts them together (<code>linecaster.scoring.run.aggregate</code>): the pages the run lacks
+are scored as empty outputs, then the rates, intervals and conventions check as above, into <code>OUT/scores.parquet</code> and
+<code>OUT/evidence.yaml</code>. The score records are the ones <code>linecaster score</code> writes, page for page. A task reads whole
+page-record files, so a run written by N tasks scores in at most N tasks.</p>
 <h2 id="benchmarks-linecasterbenchmark2">Benchmarks (<code>linecaster.benchmark/2</code>)<a class="headerlink" href="#benchmarks-linecasterbenchmark2" title="Permanent link">&para;</a></h2>
 <p>A benchmark definition is a YAML file in the evaluation's repository:</p>
 <table>

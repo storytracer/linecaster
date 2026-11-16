@@ -848,8 +848,7 @@ checkpoint).</p>
   the same image, prompt and <code>top_p</code>. The page keeps the first completion that finished (<code>stop</code>), otherwise its first
   one. The second repair is linecaster's addition to the reference script's one; CHANGELOG.md names the evidence.
   <code>--set recognition.repair_max_tokens=0</code> turns the passes off.</li>
-<li>vLLM 0.30.0: LightOn's repository says 0.27.1 makes these models loop. The HF Jobs image is therefore
-  <code>vllm/vllm-openai:v0.30.0</code>.</li>
+<li>linecaster's vLLM, 0.30.0 or later: LightOn's repository says 0.27.1 makes these models loop.</li>
 <li>The completion is stored verbatim; <code>--gpu-memory-utilization</code> is the deployment's choice. Experimental.</li>
 </ul>
 <p>Editions: 1 served with <code>--max-model-len 16384</code> (linecaster's choice then); 2 serves with LightOn's 18000, so that a

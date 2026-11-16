@@ -841,8 +841,7 @@ checkpoint).</p>
   server-side (<code>--default-chat-template-kwargs</code>).</li>
 <li>Serve flags: <code>--max-model-len 16384</code> (linecaster's choice; a 2048-px page is at most 4096 image tokens), one
   image and no video per prompt, no multimodal processor cache, no prefix caching; no <code>--trust-remote-code</code>.</li>
-<li>vLLM 0.30.0: LightOn's repository says 0.27.1 makes these models loop. The HF Jobs image is therefore
-  <code>vllm/vllm-openai:v0.30.0</code>.</li>
+<li>linecaster's vLLM, 0.30.0 or later: LightOn's repository says 0.27.1 makes these models loop.</li>
 <li>The completion is stored verbatim; <code>--gpu-memory-utilization</code> is the deployment's choice. Experimental.</li>
 </ul>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>lightonocr-3-4b<span class="w"> </span>IMAGES<span class="w"> </span>OUT

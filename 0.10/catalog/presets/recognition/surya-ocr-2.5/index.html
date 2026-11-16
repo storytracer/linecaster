@@ -836,8 +836,8 @@ and its full-page path, the call its <code>surya_ocr</code> command makes (<code
 full_page=True)</code>), with the package's parser, blank-region filter and block-mode fallback. The engine
 (<code>surya.recognition.v1</code>, package <code>linecaster-surya</code>) reimplements none of it.</p>
 <ul>
-<li>The server: the package would start <code>vllm/vllm-openai:v0.25.1</code> with <code>docker run</code>. <code>ServiceServer</code> starts <code>vllm
-  serve</code> on the pinned checkpoint instead (fetched, every pinned file checked, and served under the package's model
+<li>The server: the package would start <code>vllm/vllm-openai:v0.25.1</code> with <code>docker run</code>. <code>ServiceServer</code> starts
+  linecaster's vLLM (validated on 0.25.1) on the pinned checkpoint instead (fetched, every pinned file checked, and served under the package's model
   name <code>datalab-to/surya-ocr-2.5</code>), with the flags the package's launcher passes for <code>VLLM_GPU_TYPE=a100-80</code> (an
   A100 80 GB): <code>--max-num-seqs 104 --max-num-batched-tokens 16384</code>, the package's dtype, model length, memory share,
   prefix caching and image limits; no MTP flag (the checkpoint has no MTP head). The engine attaches through
@@ -887,11 +887,11 @@ full_page=True)</code>), with the package's parser, blank-region filter and bloc
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.25.1</td>
+<td>vllm 0.30.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.25.1@sha256:e4f88a835143cd22aee2397a26ec6bb80b3a4a6fe0c882bcbc63822904766089</code></td>
+<td><code>vllm/vllm-openai:v0.30.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

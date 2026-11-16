@@ -844,7 +844,7 @@ with the <code>ocr_layout</code> prompt of the CLI. Where linecaster departs fro
 <li>Serve flags: <code>--max-model-len 20480</code> (linecaster's choice, where the vendor's launcher has 18000: 6144 visual
   tokens at the cap + 12384 + the prompt do not fit in 18000), the vendor's <code>--mm-processor-kwargs</code> pixel bounds
   and <code>--dtype bfloat16</code>, one image and no video per prompt, no multimodal processor cache, no prefix caching; no
-  <code>--trust-remote-code</code>. vLLM 0.26.0 (linecaster's choice; the vendor's launcher pins 0.17.0).</li>
+  <code>--trust-remote-code</code>. linecaster's vLLM (validated on 0.26.0; the vendor's launcher pins 0.17.0).</li>
 <li>The model answers with HTML layout blocks (<code>&lt;div data-bbox=.. data-label=..&gt;</code>), stored verbatim; converting them
   to Markdown (the vendor's <code>parse_markdown</code>) is left to whoever reads the output. <code>--gpu-memory-utilization</code> is
   the deployment's choice.</li>
@@ -881,11 +881,11 @@ with the <code>ocr_layout</code> prompt of the CLI. Where linecaster departs fro
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.26.0</td>
+<td>vllm 0.30.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.26.0</code></td>
+<td><code>vllm/vllm-openai:v0.30.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

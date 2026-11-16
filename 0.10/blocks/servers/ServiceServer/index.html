@@ -931,6 +931,12 @@
 <td><code>1800</code></td>
 <td>seconds the service may take until it is ready.</td>
 </tr>
+<tr>
+<td><code>server_env</code></td>
+<td><code>str</code></td>
+<td><code>'path'</code></td>
+<td>for <code>server: vllm</code>, where vLLM comes from: <code>"path"</code> (<code>vllm</code> above) or <code>"uv"</code> (the preset's vLLM release, linecaster's <code>VLLM_VERSION</code> unless it names another, in an environment uv builds once per machine: <code>linecaster.blocks.servers.provision</code>), its <code>bin</code> first on the service's <code>PATH</code>, or <code>"auto"</code>: the <code>vllm</code> on <code>PATH</code> when it is that release, else uv's.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>

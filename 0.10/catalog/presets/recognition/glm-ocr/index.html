@@ -839,7 +839,7 @@
 <li>Temperature 0.01, top_p 1e-05, repetition_penalty 1.1 (the authors' SDK values, via the recipe), max_tokens
   8192 (card).</li>
 <li>Serve flags: <code>--max-model-len 32768</code>, no prefix caching, no multimodal processor cache, one image per prompt;
-  no <code>--trust-remote-code</code> (the architecture is in vLLM). vLLM 0.26.0, a release, where the card uses a nightly
+  no <code>--trust-remote-code</code> (the architecture is in vLLM). linecaster's vLLM (validated on 0.26.0), a release, where the card uses a nightly
   (linecaster's choice).</li>
 <li>The completion is stored verbatim.</li>
 </ul>
@@ -875,11 +875,11 @@
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.26.0</td>
+<td>vllm 0.30.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.26.0</code></td>
+<td><code>vllm/vllm-openai:v0.30.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

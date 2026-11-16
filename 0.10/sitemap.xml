@@ -79,6 +79,9 @@
         <loc>https://storytracer.github.io/linecaster/0.10/blocks/recognition/TableRecognizer/</loc>
       </url>
       <url>
+        <loc>https://storytracer.github.io/linecaster/0.10/blocks/scoring/PageScorer/</loc>
+      </url>
+      <url>
         <loc>https://storytracer.github.io/linecaster/0.10/blocks/servers/ChatModelServer/</loc>
       </url>
       <url>
@@ -119,6 +122,9 @@
       </url>
       <url>
         <loc>https://storytracer.github.io/linecaster/0.10/blocks/writers/ResourceRecordWriter/</loc>
+      </url>
+      <url>
+        <loc>https://storytracer.github.io/linecaster/0.10/blocks/writers/ScoreWriter/</loc>
       </url>
       <url>
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/</loc>
@@ -422,6 +428,9 @@
       </url>
       <url>
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/pipelines/import_transcriptions.v1/</loc>
+      </url>
+      <url>
+        <loc>https://storytracer.github.io/linecaster/0.10/catalog/pipelines/score.v1/</loc>
       </url>
       <url>
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/pipelines/transcribe_modular.v1/</loc>

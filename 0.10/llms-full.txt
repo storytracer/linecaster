@@ -309,7 +309,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.10.2`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.10.3`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -2677,7 +2677,7 @@ are written by `linecaster catalog pin`.
 | `settings` | prompts, sampling and other request settings (chat presets; `repair`: the repair pass's `max_tokens`, 0 for off, and `temperature`) |
 | `labels` | native layout label → region label, from which the layout step classifies each region's content role (the native label stays the region's `label`); unmapped labels are `text` |
 | `by_script` | a by-script engine's strategies: ISO 15924 script code → preset `id` of the same step, and `"*"` → the default for every other script (required) |
-| `serve` | the server it was validated with: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version`, `image` (with digest, for HF Jobs), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
+| `serve` | the server it runs on: `server` (`vllm`, `sglang`, `linecaster`, `vendor`), `version` (vLLM: linecaster's, `VLLM_VERSION`, 0.30.0, unless the preset names another), `image` (for HF Jobs; vLLM: that release's `vllm/vllm-openai` image unless named), `flags`, `env`, `revision_flag`, `pin_ignore`, `server_packages`, `draft` (speculative decoding); a vendor's service also `command`, `health`, `weights_dir` ([page engines](#page-engines-and-their-services)) |
 | `capabilities` | `unit` (`line`, `region`, `page`, `item`) and `produces` (the parts it adds, vocabulary `PARTS`) |
 | `provenance` | `derived_from` (sources of the settings, each at a commit or revision), `authored_by`, `created` |
 | `support`, `superseded_by` | see Support |
@@ -3576,6 +3576,20 @@ counts, so corpus rates are exact.
 - **Eligibility**: a run is scored only on exactly the benchmark's page set; a page the run failed counts as an empty
   output, and the evidence says how many there were. A run that lacks pages of the set is not eligible.
 
+## Scoring many pages (`pipelines/score.py`)
+
+`linecaster score` scores a run in one process. `pipelines/score.py` (the pipeline `score.v1`) scores the same way over
+many tasks, here (`--workers`) or on a Ray cluster (`--on ray`), like every other pipeline:
+
+    uv run pipelines/score.py RUN/scores --pages RUN/pages --truth TRUTH --benchmark benchmark.yaml --tasks 32
+
+Each task scores a share of the run's page records (`PageScorer`: its pages' ground truth read in one pass, only
+their lines decoded) and writes their score records and page summaries (`ScoreWriter`: `OUT/records`, `OUT/pages`).
+When every task is done, the driver puts them together (`linecaster.scoring.run.aggregate`): the pages the run lacks
+are scored as empty outputs, then the rates, intervals and conventions check as above, into `OUT/scores.parquet` and
+`OUT/evidence.yaml`. The score records are the ones `linecaster score` writes, page for page. A task reads whole
+page-record files, so a run written by N tasks scores in at most N tasks.
+
 ## Benchmarks (`linecaster.benchmark/2`)
 
 A benchmark definition is a YAML file in the evaluation's repository:
@@ -3930,6 +3944,14 @@ Every public block, by family: one page each with its contract, backends, option
 | [`ModelServer`](servers/ModelServer.md) | Starts `linecaster serve` inside the task for its served model blocks, through saturate's `Engine`. |
 | [`ServiceServer`](servers/ServiceServer.md) | Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through. |
 
+## Scoring
+
+`linecaster.blocks.scoring`
+
+| Block | What it does |
+|---|---|
+| [`PageScorer`](scoring/PageScorer.md) | Scores each page of the stream against its ground truth, by a benchmark. |
+
 ## Writers
 
 `linecaster.blocks.writers`
@@ -3945,6 +3967,7 @@ Every public block, by family: one page each with its contract, backends, option
 | [`RejectWriter`](writers/RejectWriter.md) | Writes every page that carries errors to the task's rejects file and passes every page on. |
 | [`ResourceFilesWriter`](writers/ResourceFilesWriter.md) | Writes each resource's bytes as they came, one file per resource. |
 | [`ResourceRecordWriter`](writers/ResourceRecordWriter.md) | Writes each resource's record (`doc.metadata["resource"]`, with its errors) as a JSON line, to `<output_folder>/<rank>.jsonl.gz`: one file per task, a failed resource included (`error`, `errors`). |
+| [`ScoreWriter`](writers/ScoreWriter.md) | Writes each page's score records and summary (`doc.metadata["score"]`) and passes the page on. |
 
 ## Composites
 
@@ -3986,6 +4009,7 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`convert.v1`](pipelines/convert.v1.md) | image |
 | [`harvest.v1`](pipelines/harvest.v1.md) |  |
 | [`import_transcriptions.v1`](pipelines/import_transcriptions.v1.md) | import |
+| [`score.v1`](pipelines/score.v1.md) |  |
 | [`transcribe_modular.v1`](pipelines/transcribe_modular.v1.md) | layout, lines, recognition, tables, formulas, typography, recomposition, composition |
 | [`transcribe_page.v1`](pipelines/transcribe_page.v1.md) | recognition |
 | [`transcribe_vlm.v1`](pipelines/transcribe_vlm.v1.md) | recognition, layout |

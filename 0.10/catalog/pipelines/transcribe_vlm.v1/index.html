@@ -836,7 +836,7 @@ region it finds (<code>RegionRecognizer</code>, a region preset), on the <code>C
 (<code>ChatModelServer</code>, last in the pipeline) unless --recognition-endpoint names a running server; with --layout it also
 serves the layout model (<code>--backend</code>, <code>--endpoint</code> as for any engine). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.</p>
-<div class="highlight"><pre><span></span><code>uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr                     # needs `vllm` on PATH
+<div class="highlight"><pre><span></span><code>uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr                     # vLLM here, else built by uv
 uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
 uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
 uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit &lt;sha&gt; --recognition unlimited-ocr-2
@@ -847,6 +847,10 @@ uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --comm
 uv run pipelines/transcribe_vlm.py OUT2 --pages OUT/pages --repair-only --recognition lightonocr-3-0.8b
                                                       # the repair pass over page records written before
 </code></pre></div>
+<p>The server is the preset's release (vLLM: linecaster's <code>VLLM_VERSION</code> unless the preset names another; SGLang:
+its <code>serve.version</code>, with the preset's <code>server_packages</code>): the one on <code>PATH</code> or in the image when it is that
+release (<code>--server-env auto</code>, the default: vLLM's image at linecaster's pin serves every preset on it), else in an
+environment uv builds once per machine (<code>--server-env uv</code> always; <code>path</code> takes the one there, whatever it is).</p>
 <p>--recognition takes a chat preset of the catalog (<code>linecaster models</code>; <code>id</code> or <code>id@edition</code>) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
 in the Job's image: the one the preset was validated with (its <code>serve.image</code>) unless --image is given. It

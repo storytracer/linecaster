@@ -848,8 +848,10 @@ region type. Here the layout comes from linecaster's layout step and <code>Regio
   PaddleX's <code>CropByBoxes</code> does, pixels outside the region's polygon white.</li>
 <li>Serve flags from OpenBMB's SDK tutorial, served as <code>minicpm-ocr</code>; DSpark speculative decoding with the matching
   draft model (<code>minicpm-ocr-1.0-dspark</code>, 15 speculative tokens; <code>--no-speculative</code> in the recipe turns it off).</li>
-<li>vLLM nightly 5d35ce3 (<code>0.32.1rc1.dev602+g5d35ce393</code>) with transformers at OpenBMB's pin, the image named in
-  <code>serve.image</code>. <code>ninja</code> must be on PATH or the engine fails at startup.</li>
+<li>vLLM 0.33.0, not linecaster's 0.30.0, which has no <code>--trust-request-mm-kwargs</code> (2026-11-16, the top-15 run on
+  an A40); 0.33.0 is the first release after the nightly the preset was validated on, 5d35ce3
+  (<code>0.32.1rc1.dev602+g5d35ce393</code>, with transformers at OpenBMB's pin, in the image
+  <code>cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3</code>), which is not on PyPI. <code>ninja</code> must be on PATH or the engine fails at startup.</li>
 <li><code>linecaster.adapters.minicpm_ocr.assemble_markdown</code> assembles the page with the SDK's own code (extra
   <code>linecaster[minicpm-ocr]</code>), keeping <code>footnote</code> and <code>aside_text</code>.</li>
 </ul>
@@ -886,11 +888,11 @@ with its own containment suppression. Experimental.</p>
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.32.1rc1.dev602+g5d35ce393</td>
+<td>vllm 0.33.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3</code></td>
+<td><code>vllm/vllm-openai:v0.33.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

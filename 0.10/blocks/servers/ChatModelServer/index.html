@@ -955,6 +955,12 @@
 <td><code>'python3'</code></td>
 <td>the Python that has SGLang (default <code>python3</code>, looked up on the server's <code>PATH</code>, then in the usual image locations).</td>
 </tr>
+<tr>
+<td><code>server_env</code></td>
+<td><code>str</code></td>
+<td><code>'path'</code></td>
+<td>where the server comes from: <code>"path"</code> (the command on <code>PATH</code>, or the image's Python, as above), <code>"uv"</code> (its release, <code>spec.server_version</code>, with the preset's <code>server_packages</code>, in an environment uv builds once per machine: <code>linecaster.blocks.servers.provision</code>; the server then runs outside this interpreter's environment, its environment's <code>bin</code> first on <code>PATH</code>), or <code>"auto"</code>: the one on <code>PATH</code> when it is the preset's release (an image at linecaster's vLLM pin), else uv's.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h2>

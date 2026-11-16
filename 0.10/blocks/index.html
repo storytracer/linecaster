@@ -837,6 +837,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Scoring
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#writers" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1062,6 +1073,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         Servers
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Scoring
       </span>
     </span>
   </a>
@@ -1340,6 +1362,22 @@
 </tr>
 </tbody>
 </table>
+<h2 id="scoring">Scoring<a class="headerlink" href="#scoring" title="Permanent link">&para;</a></h2>
+<p><code>linecaster.blocks.scoring</code></p>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="scoring/PageScorer/"><code>PageScorer</code></a></td>
+<td>Scores each page of the stream against its ground truth, by a benchmark.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="writers">Writers<a class="headerlink" href="#writers" title="Permanent link">&para;</a></h2>
 <p><code>linecaster.blocks.writers</code></p>
 <table>
@@ -1385,6 +1423,10 @@
 <tr>
 <td><a href="writers/ResourceRecordWriter/"><code>ResourceRecordWriter</code></a></td>
 <td>Writes each resource's record (<code>doc.metadata["resource"]</code>, with its errors) as a JSON line, to <code>&lt;output_folder&gt;/&lt;rank&gt;.jsonl.gz</code>: one file per task, a failed resource included (<code>error</code>, <code>errors</code>).</td>
+</tr>
+<tr>
+<td><a href="writers/ScoreWriter/"><code>ScoreWriter</code></a></td>
+<td>Writes each page's score records and summary (<code>doc.metadata["score"]</code>) and passes the page on.</td>
 </tr>
 </tbody>
 </table>

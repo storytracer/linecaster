@@ -844,7 +844,7 @@ the uv-scripts recipe <code>dots-mocr.py</code>.</p>
   full-size page is at most 14400 image tokens, 14400 + 16384 &lt; 32768).</li>
 <li>Serve flags: <code>--max-model-len 32768 --trust-remote-code --chat-template-content-format string</code> (the card's
   <code>vllm serve</code> line), no prefix caching, no multimodal processor cache, one image per prompt.</li>
-<li>The completion is stored verbatim. vLLM 0.26.0; <code>--gpu-memory-utilization</code> is the deployment's choice.
+<li>The completion is stored verbatim. linecaster's vLLM (validated on 0.26.0); <code>--gpu-memory-utilization</code> is the deployment's choice.
   Experimental.</li>
 </ul>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>dots-mocr<span class="w"> </span>IMAGES<span class="w"> </span>OUT
@@ -879,11 +879,11 @@ the uv-scripts recipe <code>dots-mocr.py</code>.</p>
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.26.0</td>
+<td>vllm 0.30.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.26.0</code></td>
+<td><code>vllm/vllm-openai:v0.30.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

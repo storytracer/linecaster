@@ -841,7 +841,7 @@
   card's no-repeat n-gram guard per request (<code>vllm_xargs</code>, the single-image setting) with its logits processor
   registered at boot, last on the command line (the flag takes a list).</li>
 <li>Serve flags: <code>--max-model-len 32768 --trust-remote-code</code>, no prefix caching, no multimodal processor cache,
-  one image per prompt. vLLM 0.26.0: the card's dedicated <code>vllm/vllm-openai:unlimited-ocr</code> image is obsolete,
+  one image per prompt. linecaster's vLLM (validated on 0.26.0): the card's dedicated <code>vllm/vllm-openai:unlimited-ocr</code> image is obsolete,
   the architecture is registered.</li>
 <li>The completion (grounded output, <code>&lt;|det|&gt;type [bbox]&lt;|/det|&gt;</code> headers) is stored verbatim. A response without content is an error, not an empty page.</li>
 </ul>
@@ -877,11 +877,11 @@
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.26.0</td>
+<td>vllm 0.30.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.26.0</code></td>
+<td><code>vllm/vllm-openai:v0.30.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

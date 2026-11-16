@@ -1692,7 +1692,7 @@ are written by <code>linecaster catalog pin</code>.</p>
 </tr>
 <tr>
 <td><code>serve</code></td>
-<td>the server it was validated with: <code>server</code> (<code>vllm</code>, <code>sglang</code>, <code>linecaster</code>, <code>vendor</code>), <code>version</code>, <code>image</code> (with digest, for HF Jobs), <code>flags</code>, <code>env</code>, <code>revision_flag</code>, <code>pin_ignore</code>, <code>server_packages</code>, <code>draft</code> (speculative decoding); a vendor's service also <code>command</code>, <code>health</code>, <code>weights_dir</code> (<a href="#page-engines-and-their-services">page engines</a>)</td>
+<td>the server it runs on: <code>server</code> (<code>vllm</code>, <code>sglang</code>, <code>linecaster</code>, <code>vendor</code>), <code>version</code> (vLLM: linecaster's, <code>VLLM_VERSION</code>, 0.30.0, unless the preset names another), <code>image</code> (for HF Jobs; vLLM: that release's <code>vllm/vllm-openai</code> image unless named), <code>flags</code>, <code>env</code>, <code>revision_flag</code>, <code>pin_ignore</code>, <code>server_packages</code>, <code>draft</code> (speculative decoding); a vendor's service also <code>command</code>, <code>health</code>, <code>weights_dir</code> (<a href="#page-engines-and-their-services">page engines</a>)</td>
 </tr>
 <tr>
 <td><code>capabilities</code></td>

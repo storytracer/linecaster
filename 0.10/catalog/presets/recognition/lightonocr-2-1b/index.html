@@ -842,7 +842,9 @@
   architecture is registered in vLLM.</li>
 <li>The completion is stored verbatim. <code>--gpu-memory-utilization</code> is the deployment's choice.</li>
 </ul>
-<p>Sampling at temperature 0.2 makes runs differ. Experimental.</p>
+<p>Sampling at temperature 0.2 makes runs differ. Experimental.
+- vLLM 0.26.0, the release it was validated on, not linecaster's 0.30.0: 0.30.0's LightOnOCR model imports
+  <code>PixtralRotaryEmbedding</code>, which the transformers it resolves (5.17) no longer has (2026-11-16, the top-15 run).</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>lightonocr-2-1b<span class="w"> </span>IMAGES<span class="w"> </span>OUT
 </code></pre></div>
 <table>

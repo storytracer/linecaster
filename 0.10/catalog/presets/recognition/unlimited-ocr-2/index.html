@@ -847,8 +847,10 @@
 <li>max_tokens 8000, temperature 0.0, <code>skip_special_tokens</code> false, <code>images_config {"crop_mode": true}</code> (gundam,
   the card's single-page default), and the card's no-repeat n-gram guard as an SGLang custom logit processor
   (<code>DeepseekOCRNoRepeatNGramLogitProcessor</code>, by its dill pickle reference) with its parameters.</li>
-<li>The completion (<code>&lt;BLOCK&gt;type[x1, y1, x2, y2]&lt;FORK&gt;text</code> blocks) is stored verbatim; Baidu's own Markdown
-  converter is left to whoever reads the output. A response without content is an error.</li>
+<li>The completion (<code>&lt;BLOCK&gt;type[x1, y1, x2, y2]&lt;FORK&gt;text</code> blocks) is stored verbatim and read into the
+  transcription by linecaster's HTML importer (<code>linecaster.adapters.unlimited_ocr.read_blocks</code>): the running head and
+  foot, page numbers and footnotes by their labels, titles as headings, the text literally. A response without
+  content is an error.</li>
 <li>The card's flags are for an 80 GB A800 (<code>--mem-fraction-static 0.7</code>, CUDA graphs up to 16384 prefill tokens);
   they also run on a 96 GB card.</li>
 </ul>
