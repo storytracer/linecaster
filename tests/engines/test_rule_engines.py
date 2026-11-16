@@ -15,8 +15,8 @@ from linecaster.catalog.schema import RULE_STEPS, STEPS, Capabilities
 from linecaster.data import Transcription
 from linecaster.engines import scripts
 
-#: built-in engines of model steps: in-process only too
-MODEL_STEP_ENGINES = {"layout.single-region.v1"}
+#: built-in engines called as the model steps' engines are (an image and a transcription): in-process only too
+MODEL_STEP_ENGINES = {"layout.single-region.v1", "tagging.geometry.v1", "tagging.chat.v1"}
 RULE_ENGINES = sorted(set(BUILTIN_ENGINES) - SERVED_ONLY - MODEL_STEP_ENGINES)
 #: engines whose options have no defaults (a by-script engine's strategies come from its preset)
 NEEDS_OPTIONS = {"image.convert.v1", "recomposition.by-script.v1"}

@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: rotated
+description: Whether the content's text is turned or tilted enough that a reader notices, as seen in the image.
+targets:
+- line
+- region
+- page
+values:
+  yes:
+    definition: The content's text is turned or tilted enough that a reader notices, as seen in the image, by about 90
+      or 180 degrees, set vertically, or tilted by about 5 degrees or more.
+    counts:
+    - a page turned on its side or upside down
+    - vertical text
+    - a table set sideways
+    - a page photographed at a clear slant
+    does_not_count:
+    - a slight tilt under about 5 degrees, as a scanner leaves it
+    - italic text
+  no:
+    definition: The content's text runs level, or tilted by less than about 5 degrees.
+answers:
+  yes: rotated
+  no: not_rotated
+provenance:
+- 'Omni Parse Bench: the definition of its rotated tag (vocab.TAG_DEFINITIONS), adapted'

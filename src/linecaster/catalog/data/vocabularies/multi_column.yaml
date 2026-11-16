@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: multi_column
+description: Whether the content sits inside one column of a page laid out in two or more columns side by side.
+targets:
+- region
+values:
+  yes:
+    definition: The content sits inside one column of a page laid out in two or more columns side by side, a
+      paragraph, heading, list, table or figure that fits within one column.
+    counts:
+    - either column of a two-column article
+    - a sidebar beside the body text
+    - either page of a scan or photograph that shows two facing pages
+    does_not_count:
+    - content that runs across the full width, such as a title, or a table or figure spanning all columns
+    - the columns of a table on a page that is not laid out in columns
+  no:
+    definition: The content runs across the page's full text width, or the page is not laid out in columns.
+answers:
+  yes: in_columns
+  no: not_in_columns
+provenance:
+- 'Omni Parse Bench: the definition of its multi_column tag (vocab.TAG_DEFINITIONS), adapted'

@@ -1,7 +1,8 @@
 """Loading, resolving, indexing and verifying the catalog (``docs/reference/catalog.md``).
 
 A catalog directory holds ``models/<id>/model.yaml`` (+ ``upstream/<revision>/``), ``presets/<step>/<id>.yaml``,
-``recipes/<id>.yaml``, ``policies/<id>.yaml``, ``conventions/<format>/<id>.yaml`` and ``catalog.index`` (no evidence
+``recipes/<id>.yaml``, ``policies/<id>.yaml``, ``conventions/<format>/<id>.yaml``, ``normalizations/<id>.yaml``,
+``strategies/<id>.yaml``, ``vocabularies/<scheme>.yaml`` and ``catalog.index`` (no evidence
 records: an evaluation keeps those); a model, preset or recipe may have its prose in a Markdown file next to it
 (``model.md``, ``<id>.md``), which only the docs read.
 
@@ -35,6 +36,7 @@ from ..markup.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
 from ..markup.resolve import ConventionsError, ResolvedConventions, resolve
 from .schema import (SCHEMA_DIR, ModelDoc, NormalizationDoc, PolicyDoc, PresetDoc, RecipeDoc, StrategyDoc,
                      json_schemas, schema_file)
+from .vocabulary import VocabularyDoc
 
 CORE = Path(__file__).resolve().parent / "data"
 #: the rendering policy a block renders with unless it is given another
@@ -167,6 +169,7 @@ KINDS: tuple[EntryKind, ...] = (
     EntryKind("normalization", "normalizations/*.yaml", NormalizationDoc, lambda path: path.stem, None,
               "normalizations"),
     EntryKind("strategy", "strategies/*.yaml", StrategyDoc, lambda path: path.stem, None, "strategies"),
+    EntryKind("vocabulary", "vocabularies/*.yaml", VocabularyDoc, lambda path: path.stem, None, "vocabularies"),
 )
 KIND = {k.name: k for k in KINDS}
 #: the headings every conventions entry's prose has
@@ -212,6 +215,10 @@ class Directory:
     @property
     def strategies(self) -> dict[str, StrategyDoc]:
         return self.entries["strategy"]
+
+    @property
+    def vocabularies(self) -> dict[str, VocabularyDoc]:
+        return self.entries["vocabulary"]
 
     @classmethod
     def load(cls, root: str | Path) -> "Directory":
@@ -301,6 +308,21 @@ class Catalog:
     @property
     def strategies(self) -> dict[str, tuple[Directory, StrategyDoc]]:
         return self.index["strategy"]
+
+    @property
+    def vocabularies(self) -> dict[str, tuple[Directory, VocabularyDoc]]:
+        return self.index["vocabulary"]
+
+    def vocabulary(self, scheme: str) -> VocabularyDoc:
+        """The vocabulary of classification scheme ``scheme`` (``vocabularies/<scheme>.yaml``)."""
+        if scheme not in self.vocabularies:
+            raise CatalogError(f"no vocabulary for scheme {scheme!r}; vocabularies: {sorted(self.vocabularies)}")
+        return self.vocabularies[scheme][1]
+
+    def vocabulary_sha256(self, scheme: str) -> str:
+        """The hash of vocabulary ``scheme``'s functional content (``VocabularyDoc.functional``), as the index lists
+        it."""
+        return canonical_sha256(self.vocabulary(scheme).functional())
 
     # ------------------------------------------------------------------------------ normalizations, strategies
 
@@ -508,6 +530,8 @@ class Catalog:
                     table[eid] = self.normalization(eid).sha256
                 elif kind.name == "strategy":
                     table[eid] = self.strategy(eid).sha256
+                elif kind.name == "vocabulary":
+                    table[eid] = canonical_sha256(doc.functional())
                 else:
                     table[eid] = canonical_sha256(self.conventions_functional(doc))
             if table:
@@ -639,9 +663,34 @@ class Catalog:
                 unknown = [x for x in doc.subsumes if x not in self.normalizations]
                 if unknown:
                     problems.append(f"normalization {nid}: subsumes unknown normalizations {unknown}")
+            problems += vocabulary_problems(d)
             if not problems:
                 problems += self._index_problems(d, pipelines)
         return problems
+
+
+def vocabulary_problems(d: Directory) -> list[str]:
+    """The vocabularies against the data model: each defines a scheme of ``linecaster.data.SCHEMES``; the role,
+    status and property vocabularies list exactly the data model's content roles (``ROLES``), statuses
+    (``STATUSES``) and reasons (``REASONS``), and yes and no (``PROPERTIES``)."""
+    from ..data.policy import ROLES
+    from ..data.transcription import PROPERTIES, REASONS, SCHEMES, STATUSES
+
+    problems = []
+    expected = {"role": (tuple(ROLES), ()), "status": (STATUSES, tuple(REASONS)),
+                **{p: (("yes", "no"), ()) for p in PROPERTIES}}
+    for scheme, doc in sorted(d.vocabularies.items()):
+        if scheme not in SCHEMES:
+            problems.append(f"vocabulary {scheme}: no classification scheme of the data model ({', '.join(SCHEMES)})")
+        if scheme in expected:
+            values, reasons = expected[scheme]
+            for what, have, want in (("values", tuple(doc.values), values), ("reasons", tuple(doc.reasons), reasons)):
+                if set(have) != set(want):
+                    problems.append(f"vocabulary {scheme}: {what} differ from the data model's (missing "
+                                    f"{sorted(set(want) - set(have))}, unknown {sorted(set(have) - set(want))})")
+        if scheme in PROPERTIES and not doc.answers:
+            problems.append(f"vocabulary {scheme}: a property scheme names its answers")
+    return problems
 
 
 def _function(rule) -> dict:
@@ -827,6 +876,8 @@ BUILTIN_ENGINES = {
     "recomposition.unicode.v1": "linecaster.engines:UnicodeRecompositionEngine",
     "recomposition.by-script.v1": "linecaster.engines:ByScriptRecompositionEngine",
     "composition.linked.v1": "linecaster.engines:LinkedCompositionEngine",
+    "tagging.geometry.v1": "linecaster.engines:GeometryTaggingEngine",
+    "tagging.chat.v1": "linecaster.engines:ChatTaggingEngine",
     **{eid: f"linecaster.engines:{cls.__name__}" for eid, cls in IMPORTERS.items()},
 }
 SERVED_ONLY = {"chat.v1"}

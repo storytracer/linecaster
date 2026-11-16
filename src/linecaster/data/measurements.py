@@ -65,6 +65,15 @@ MEASUREMENTS: dict[str, str] = {
     "continuations": "paragraphs continued into the next region or page",
     "marks_removed": "division marks removed",
     "marks_kept": "hyphens at a row end kept",
+    # tagging
+    "tagged": "a tagger: the classifications it recorded, scheme -> value -> how many",
+    "undecided": "a tagger: targets it recorded nothing for, its evidence not enough, scheme -> how many",
+    "body_line_height": "the geometry tagger: the median height of the page's body text lines across their "
+                        "direction, in pixels (what tiny compares with)",
+    "asked": "the model tagger: requests sent, panel member -> how many (answers from the cache not counted)",
+    "cached": "the model tagger: answers read from its cache, panel member -> how many",
+    "agreed": "the model tagger: questions the panel's two members answered alike",
+    "settled": "the model tagger: splits the third member and the scheme's rule decided",
 }
 
 

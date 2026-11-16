@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: degraded
+description: Whether the content is harder to read in the image than in a clean scan, because of the image's condition.
+targets:
+- line
+- region
+- page
+values:
+  yes:
+    definition: The content is harder to read in the image than in a clean scan, because of the image's condition.
+      Judge the image's condition, not the writing; handwriting that is also blurred, faded or noisy counts.
+    counts:
+    - blur
+    - fading
+    - noise or speckle
+    - stains
+    - bleed-through from the other side of the leaf
+    - heavy compression artifacts
+    - very low resolution
+    - a photocopy of a photocopy
+    does_not_count:
+    - small print alone (the property tiny)
+    - neat handwriting in a clean image
+    - a clean scan on a colored or yellowed background
+  no:
+    definition: The content is as easy to read in the image as in a clean scan.
+answers:
+  yes: degraded
+  no: not_degraded
+provenance:
+- 'Omni Parse Bench: the definition of its degraded tag (vocab.TAG_DEFINITIONS), adapted'

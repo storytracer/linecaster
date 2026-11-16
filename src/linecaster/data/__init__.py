@@ -7,14 +7,14 @@ from .page import PAGE_KEY, PAGE_SCHEMA, Item, Page, PageImage
 from .source import SourceDocument
 from .policy import DEFAULT_POLICY, LAYERS, ROLES, MarkdownRules, RenderingPolicy, RenderingRule, TableRules
 from .transcription import (
-    DECISIONS, EDITS, LINKS, REASONS, SCHEMES, STATUSES, Anchor, Annotation, AnnotationSet, Annotator, Box, Cell, Classification,
+    DECISIONS, EDITS, LINKS, PROPERTIES, REASONS, SCHEMES, STATUSES, Anchor, Annotation, AnnotationSet, Annotator, Box, Cell, Classification,
     Decision, Description, DocumentRange, Edit, Formatting, Formula, Glyph, Line, Link, Paragraph, ParagraphRow, Point,
     Range, RawOutput, Reading, ReadingOrder, Ref, Region, Shape, Source, Table, Transcription, Word, Zone,
 )
 
 __all__ = [
     "DECISIONS", "DEFAULT_POLICY", "EDITS", "FINISH_REASONS", "LAYERS", "LINKS", "MEASUREMENTS", "PAGE_KEY",
-    "PAGE_SCHEMA", "REASONS", "ROLES", "SCHEMES", "STATUSES", "Anchor", "Annotation", "AnnotationSet", "Annotator",
+    "PAGE_SCHEMA", "PROPERTIES", "REASONS", "ROLES", "SCHEMES", "STATUSES", "Anchor", "Annotation", "AnnotationSet", "Annotator",
     "Box", "Cell", "Classification", "Decision", "Description", "DocumentRange", "Edit", "Formatting", "Formula",
     "Glyph", "Item", "Line", "Link", "MarkdownRules", "Page", "PageImage", "Paragraph", "ParagraphRow", "Point",
     "Range", "RawOutput", "Reading", "ReadingOrder", "Ref", "Region", "RenderingPolicy", "RenderingRule", "Shape",

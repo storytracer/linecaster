@@ -240,7 +240,8 @@
         "typography",
         "recomposition",
         "composition",
-        "import"
+        "import",
+        "tagging"
       ],
       "title": "Step",
       "type": "string"

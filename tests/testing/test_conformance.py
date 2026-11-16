@@ -217,7 +217,11 @@ def _builtin_options(engine: str) -> dict:
     return {}
 
 
-@pytest.mark.parametrize("engine", sorted(set(BUILTIN_ENGINES) - SERVED_ONLY))
+#: built-in engines that are clients of chat servers: they conform against a fake one (tests/engines/test_tagging.py)
+CHAT_CLIENTS = {"tagging.chat.v1"}
+
+
+@pytest.mark.parametrize("engine", sorted(set(BUILTIN_ENGINES) - SERVED_ONLY - CHAT_CLIENTS))
 def test_every_builtin_engine_conforms(engine):
     if engine == "import.docling.v1":
         pytest.importorskip("docling_core")                # the docling extra
@@ -341,7 +345,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
     """One block of every public block class (and the composite), runnable here: fake engines, a fake chat server,
     sample inputs; with the ``check_block`` arguments each needs, by a label (the class, and what is special)."""
     from linecaster.blocks import binding, composites, composition, conversion, layout, lines, readers, recognition
-    from linecaster.blocks import scoring, servers, validation, writers
+    from linecaster.blocks import scoring, servers, tagging, validation, writers
     from linecaster.blocks.composition import Composer
     from linecaster.data.sample import listing_sha256
 
@@ -388,6 +392,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (composition.Recomposer("unicode-recomposition", unit="item"), {}),
         (composition.Composer("linked-composition"), {}),
         (composition.Composer("linked-composition", unit="item"), {}),
+        (tagging.Tagger("geometry-tags"), {}),
         (binding.Binder(), {}),
         (binding.Splitter(), {}),
         (validation.PageValidator(required=("ocr_new",)), {}),
@@ -424,7 +429,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
 BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader", "ResourceReader",
           "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "TableRecognizer", "FormulaRecognizer",
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
-          "TranscriptionImporter", "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
+          "TranscriptionImporter", "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Tagger", "Binder", "Splitter", "PageValidator",
           "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
           "PageFileWriter", "ImageFilesWriter", "PageScorer", "RejectWriter", "ScoreWriter", "ResourceFilesWriter",
           "ResourceRecordWriter",

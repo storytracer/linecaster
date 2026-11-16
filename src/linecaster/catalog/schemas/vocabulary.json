@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Term": {
+      "additionalProperties": false,
+      "description": "One value (or reason) of a vocabulary: what it is, what counts as it and what does not.",
+      "properties": {
+        "definition": {
+          "description": "what the value means, as one or two sentences that stand on their own",
+          "title": "Definition",
+          "type": "string"
+        },
+        "counts": {
+          "description": "cases that are this value, each a short phrase",
+          "items": {
+            "type": "string"
+          },
+          "title": "Counts",
+          "type": "array"
+        },
+        "does_not_count": {
+          "description": "cases that are not, though they may look like it, each a short phrase that names what they are instead where it can",
+          "items": {
+            "type": "string"
+          },
+          "title": "Does Not Count",
+          "type": "array"
+        }
+      },
+      "required": [
+        "definition"
+      ],
+      "title": "Term",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A classification scheme's vocabulary. Its functional content (hashed in ``catalog.index``) is everything but\n``description`` and ``provenance``: a definition is what a model tagger is shown, so a changed definition changes\nwhat it answers.",
+  "properties": {
+    "schema": {
+      "const": "linecaster.vocabulary",
+      "title": "Schema",
+      "type": "string"
+    },
+    "scheme": {
+      "description": "the classification scheme it defines (linecaster.data.SCHEMES), also its id",
+      "title": "Scheme",
+      "type": "string"
+    },
+    "description": {
+      "description": "what the scheme classifies, in a sentence (not functional)",
+      "title": "Description",
+      "type": "string"
+    },
+    "targets": {
+      "description": "what the scheme classifies, narrowest first: span, word, line, region, page",
+      "items": {
+        "enum": [
+          "span",
+          "word",
+          "line",
+          "region",
+          "page"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Targets",
+      "type": "array"
+    },
+    "values": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Term"
+      },
+      "description": "the closed list of values, by value",
+      "title": "Values",
+      "type": "object"
+    },
+    "open": {
+      "default": false,
+      "description": "the values are not listed: each matches pattern (language, script)",
+      "title": "Open",
+      "type": "boolean"
+    },
+    "pattern": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "an open scheme's values, as a regular expression",
+      "title": "Pattern"
+    },
+    "answers": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "a property scheme (values yes and no): the answer that means each value, named after the property (yes: degraded, no: not_degraded)",
+      "title": "Answers",
+      "type": "object"
+    },
+    "reasons": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Term"
+      },
+      "description": "status only: the values of a classification's reason, why something present in a source is no text of the page",
+      "title": "Reasons",
+      "type": "object"
+    },
+    "provenance": {
+      "description": "where the definitions come from or what they are adapted from (not functional)",
+      "items": {
+        "type": "string"
+      },
+      "title": "Provenance",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "scheme",
+    "description",
+    "targets"
+  ],
+  "title": "VocabularyDoc",
+  "type": "object"
+}

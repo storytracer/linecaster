@@ -292,9 +292,12 @@ class Formula(Annotation):
                                                  "(a wiki's formula as its software normalizes it)")
 
 
+#: the property schemes: yes/no classifications of what content is like (a tagger's, ``linecaster.engines.tagging``),
+#: each defined by its vocabulary in the catalog (``vocabularies/<scheme>.yaml``)
+PROPERTIES = ("degraded", "tiny", "rotated", "multi_column", "form")
 #: classification schemes
 SCHEMES = ("role", "production", "heading_level", "language", "script", "direction", "status", "picture_class",
-           "code_language")
+           "code_language", *PROPERTIES)
 STATUSES = ("illegible", "gap", "suppressed", "duplicate", "removed")
 #: why something present in a source is not text of the page (a ``status`` classification's ``reason``)
 REASONS: dict[str, str] = {
@@ -496,9 +499,12 @@ class AnnotationSet(_Extensible):
 
     def classify(self, annotator: int, target: Ref, scheme: str, value: Any, **fields) -> Classification:
         """Adds a classification; a ``language``, ``script`` or ``direction`` that is none
-        (``linecaster.data.writing.check``) is a ``ValueError``."""
+        (``linecaster.data.writing.check``), and a property scheme's value other than ``yes`` or ``no``
+        (``PROPERTIES``), is a ``ValueError``."""
         from .writing import check
 
+        if scheme in PROPERTIES and str(value) not in ("yes", "no"):
+            raise ValueError(f"{scheme} is a property scheme: its values are yes and no, not {value!r}")
         c = Classification(annotator=annotator, target=target, scheme=scheme, value=check(scheme, str(value)),
                            **fields)
         self.classifications.append(c)

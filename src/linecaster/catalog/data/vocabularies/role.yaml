@@ -1,0 +1,322 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: role
+description: What a zone or range is, its content role, whatever layer a rendering puts it in.
+targets:
+- line
+- region
+values:
+  paragraph:
+    definition: Running text of the page's content, read as part of its main text.
+    counts:
+    - a paragraph of prose
+    - a stanza or a block of verse
+    - a block quotation
+    - the text of a letter, a dialogue or a speech
+    does_not_count:
+    - a heading or a title (heading, title)
+    - an item of a list (list_item)
+    - a note keyed to a mark (footnote, endnote)
+    - text in the margin beside the main text (marginalia)
+    - text set apart in a sidebar or box (floating)
+  heading:
+    definition: A heading that names a section of the content that follows it, set on its own line or lines.
+    counts:
+    - a chapter, section or subsection heading
+    - a numbered heading, such as "3.2 Methods"
+    - a heading inside an article, a letter or a list of entries
+    does_not_count:
+    - the title of the document, an article or a chapter as a whole (title)
+    - a table's column or row headings (table)
+    - bold or spaced words that begin a paragraph (paragraph)
+    - a running title in the top margin (header)
+  title:
+    definition: The title of a whole document, article, chapter or story, set as its main heading.
+    counts:
+    - a book's title on its title page
+    - an article's title on its first page
+    - a newspaper article's headline
+    - a chapter's title where it opens the chapter
+    does_not_count:
+    - a heading of a section within the work (heading)
+    - the work's title repeated as a running title in the margin (header)
+    - the name of a periodical in its masthead's running line (header)
+  caption:
+    definition: Text that names or describes a table, figure, picture, chart or map, set next to it.
+    counts:
+    - a figure's or table's caption, such as "Table 2. ..." or "Fig. 3 ..."
+    - the legend under a photograph or a plate
+    does_not_count:
+    - notes under a table, keyed to marks in it (footnote)
+    - text drawn inside the figure (part of the picture, chart or map)
+    - a line naming the photographer or rights holder (credit)
+  list_item:
+    definition: One entry of a list, with its bullet, number or letter where the zone holds it.
+    counts:
+    - an entry of a bulleted, numbered or lettered list
+    - a step of a numbered procedure
+    - an entry of a glossary or a list of names
+    does_not_count:
+    - an entry of a reference list or bibliography (reference)
+    - an entry of a table of contents or an index (toc_entry)
+    - a numbered heading (heading)
+    - a row of a table (table)
+    - a paragraph that merely begins with a number (paragraph)
+  list_label:
+    definition: The bullet, number or letter of a list item, set apart from the item's text in a zone of its own.
+    counts:
+    - a numeral or bullet a layout gives its own zone, left of the item's text
+    does_not_count:
+    - a label inside the zone of the item's text (list_item)
+  toc_entry:
+    definition: An entry of a table of contents or an index, naming a part of the work or a term, usually with where it
+      is found.
+    counts:
+    - a line of a table of contents with its page number
+    - an entry of an index with its page references
+    - an entry of a list of figures or tables
+    does_not_count:
+    - an entry of a reference list (reference)
+    - a heading of the table of contents itself, such as "Contents" (heading)
+  footnote:
+    definition: A note keyed to a mark in the text, set at the foot of the page or under the table it belongs to.
+    counts:
+    - a footnote with its mark
+    - a note under a table keyed to a mark in it, such as "a P < 0.05"
+    - a source line under a table
+    does_not_count:
+    - the part of a footnote carried over from an earlier page or column (footnote_continued)
+    - a note gathered at the end of a chapter or book (endnote)
+    - a running footer (footer)
+    - a note in the margin (marginalia)
+  footnote_continued:
+    definition: The rest of a footnote begun on an earlier page or column, continued here without its mark.
+    counts:
+    - footnote text at the foot of a page that starts without a mark and finishes a note from before
+    does_not_count:
+    - a footnote that begins here with its mark (footnote)
+  endnote:
+    definition: A note keyed to a mark in the text, gathered with the others at the end of a chapter, article or book.
+    counts:
+    - an entry of a "Notes" section at the end of a chapter or book
+    does_not_count:
+    - a note at the foot of the page it belongs to (footnote)
+    - an entry of a reference list (reference)
+  marginalia:
+    definition: A note in the margin beside the main text, printed or written there.
+    counts:
+    - a printed side note or shoulder note
+    - a gloss beside the text
+    - a reader's handwritten note in the margin
+    does_not_count:
+    - a running header or footer (header, footer)
+    - a page number (page_number)
+    - a column of the main text (paragraph)
+  drop_capital:
+    definition: An enlarged first letter of a paragraph or chapter, set into or beside several of its lines.
+    counts:
+    - a large initial that sinks into the first lines of the text
+    - a decorated or historiated initial that begins the text
+    does_not_count:
+    - a capital letter in the size of the text (part of its line)
+    - a large first word or line set on one line (part of the paragraph or title)
+  credit:
+    definition: A line that names who made or owns a piece of the content.
+    counts:
+    - 'a photograph''s or illustration''s credit, such as "Photo: ..."'
+    - an article's byline
+    - a copyright or rights holder's line under a picture
+    does_not_count:
+    - a caption that describes the picture (caption)
+    - a copyright line of the publication in the bottom margin (footer)
+  floating:
+    definition: Text set apart from the main flow of the page and placed where the layout had room for it.
+    counts:
+    - a sidebar or a boxed text
+    - a pull quote
+    - a short notice inserted between articles
+    does_not_count:
+    - a column of the main text (paragraph)
+    - a note in the margin (marginalia)
+    - an advertisement (advert)
+  reference:
+    definition: An entry of a reference list or bibliography, describing one work cited.
+    counts:
+    - an entry of a "References" or "Bibliography" section
+    - a numbered entry of a list of works cited
+    does_not_count:
+    - a footnote or endnote that cites a work (footnote, endnote)
+    - a citation within the text (part of its paragraph)
+  code:
+    definition: Source code, a command, a configuration or other text set as code, usually in a monospaced font or a
+      code block.
+    counts:
+    - a program listing
+    - a command line with its output
+    - a configuration file's text
+    does_not_count:
+    - a name of a variable or a file in ordinary prose that is not set as code (part of its paragraph)
+    - text that is typewritten (its production, not its role)
+  table:
+    definition: A table, a grid of cells in which a heading is shared by several cells, so that a cell is read by the
+      column heading above it, the row label beside it, or both.
+    counts:
+    - a table with its header cells, body cells, row labels and section rows
+    - a grid with no printed headings whose rows repeat the same columns, such as a price list or a data sheet
+    does_not_count:
+    - a form whose fields each have their own label (form)
+    - pairs of labels and values side by side (key_value)
+    - the table's caption or its notes (caption, footnote)
+    - two columns of prose (paragraph)
+    - a table of contents (toc_entry)
+  formula:
+    definition: Mathematical notation set apart from the text, as a display.
+    counts:
+    - a displayed equation, with its number
+    - a system or derivation of equations set on several lines
+    does_not_count:
+    - a formula within a line of text (part of its paragraph)
+    - chemical notation (chemistry)
+  chemistry:
+    definition: Chemical notation set apart from the text.
+    counts:
+    - a structural formula
+    - a reaction scheme or a chemical equation set as a display
+    does_not_count:
+    - a chemical formula written in a line of text, such as H2O (part of its paragraph)
+    - mathematical notation (formula)
+  music:
+    definition: Musical notation.
+    counts:
+    - staves with notes
+    - tablature or another notation of music, with the words set under it
+    does_not_count:
+    - the words of a song set as text without notation (paragraph)
+  picture:
+    definition: An image on the page, drawn, printed or photographed, that is none of a chart, a map or an
+      advertisement.
+    counts:
+    - a photograph, an engraving, a drawing, an illustration
+    - an ornament, a vignette, a printer's device, a logo
+    - a seal, a stamp or a signature taken as an image
+    - a diagram drawn as a picture
+    does_not_count:
+    - a chart or plot of data (chart)
+    - a map or plan (map)
+    - an advertisement (advert)
+    - a line or rule between parts of the page (separator)
+  chart:
+    definition: A chart or graph that shows data.
+    counts:
+    - a bar, line or pie chart
+    - a scatter plot, a histogram
+    does_not_count:
+    - a table of the same data (table)
+    - a drawing or diagram that shows no data (picture)
+    - a map (map)
+  map:
+    definition: A map or plan of a place, showing its area, routes or features.
+    counts:
+    - a map of a country, a town or the sea
+    - a plan of a site, a building or a battle
+    does_not_count:
+    - a chart of data (chart)
+    - a picture of a landscape (picture)
+  advert:
+    definition: An advertisement, a notice set apart as one unit that promotes a product, a service, an event or a
+      person.
+    counts:
+    - a display advertisement in a newspaper or magazine
+    - a classified advertisement
+    - a publisher's list of its other books at the end of a volume
+    does_not_count:
+    - an article about a product (paragraph, title)
+  form:
+    definition: A form, or a part of one, with fields to fill in or boxes to tick.
+    counts:
+    - a field's label with its blank, line, box or filled value
+    - checkboxes with their labels
+    - a questionnaire printed in a report
+    does_not_count:
+    - instructions on how to fill the form in (paragraph)
+    - pairs of labels and values set side by side with no field to fill in (key_value)
+    - a table read by its column headings (table)
+  key_value:
+    definition: Pairs of a label and its value set side by side, each label naming the value beside it.
+    counts:
+    - 'the lines of a data sheet, a receipt or a catalog record, such as "Date: 12 May"'
+    does_not_count:
+    - a form's fields to fill in (form)
+    - a table whose cells are read by shared headings (table)
+  header:
+    definition: A running header, text in the top margin that belongs to the publication rather than to the page's
+      content.
+    counts:
+    - a running title, the work's or chapter's name in the top margin
+    - a journal's name, an author's name or a date line in the top margin
+    does_not_count:
+    - the page number (page_number)
+    - the article's own title on its first page (title)
+    - a heading of the page's content (heading)
+  footer:
+    definition: A running footer, text in the bottom margin that belongs to the publication rather than to the page's
+      content.
+    counts:
+    - a journal's citation line or a copyright line in the bottom margin
+    - a running title set at the foot of the page
+    does_not_count:
+    - the page number (page_number)
+    - a footnote (footnote)
+    - a catchword or a signature mark (catch_word, signature_mark)
+    - a table's last row near the bottom of the page (table)
+  page_number:
+    definition: The number of the page, printed or written on it.
+    counts:
+    - a page number in the top or bottom margin
+    - a folio number written in the corner of a leaf
+    does_not_count:
+    - a number in the text or a table
+    - a page number given in a table of contents or an index (toc_entry)
+  catch_word:
+    definition: The first word or syllable of the next page, printed at the foot of this one below its last line.
+    counts:
+    - a catchword in the bottom right corner of a page of an early printed book
+    does_not_count:
+    - the last word of the page's text (part of its line)
+    - a signature mark (signature_mark)
+  signature_mark:
+    definition: A printer's mark at the foot of a page that numbers the sheets for folding and binding.
+    counts:
+    - a letter, a number or a symbol with a number, such as A2, B, 3*, at the foot of a page
+    does_not_count:
+    - a page number (page_number)
+    - a catchword (catch_word)
+  separator:
+    definition: A line or rule that separates parts of the page and carries no text.
+    counts:
+    - a rule between columns or articles
+    - a border or a frame around a part of the page
+    does_not_count:
+    - an ornament or a vignette (picture)
+    - a dotted leader in a table of contents (part of its entry)
+  noise:
+    definition: Marks in the image that are not content of the page.
+    counts:
+    - specks, stains or dirt
+    - a punch hole, a tear, the edge of the scanner, a finger
+    - a color chart or ruler photographed with the page
+    - bleed-through of the other side of the leaf
+    does_not_count:
+    - a stamp, a seal or a signature (picture)
+    - a reader's handwritten note (marginalia)
+  other:
+    definition: Content that none of the other roles describes.
+    counts:
+    - content the annotator could not place in any other role
+    does_not_count:
+    - content that one of the other roles describes
+provenance:
+- 'PAGE-XML: the region types and text region types, which the roles follow where PAGE has a name'
+- 'SegmOnto: the zone types of its controlled vocabulary for the layout of historical documents'
+- 'Omni Parse Bench: the definitions of its content tags (heading, caption, footnote, list, code, header and
+  footer, table, form)'

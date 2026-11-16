@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: production
+description: How the content was put on the page.
+targets:
+- word
+- line
+- region
+- page
+values:
+  printed:
+    definition: Made by a printing process, from type, plates or a printer.
+    counts:
+    - letterpress, lithography, offset, gravure
+    - a laser or ink-jet print of a typeset page
+    - a printed facsimile of a typeset page
+    does_not_count:
+    - text typed on a typewriter (typewritten)
+    - a hand stamp (stamped)
+    - a page rendered from a digital file and never printed (born_digital)
+  typewritten:
+    definition: Typed on a typewriter, letter by letter.
+    counts:
+    - a typescript, its carbon copy
+    - a duplicated typescript, such as a mimeograph or stencil copy
+    does_not_count:
+    - a computer's print in a typewriter-like font (printed)
+  handwritten:
+    definition: Written by hand, with a pen, pencil, brush or stylus.
+    counts:
+    - a manuscript, a letter, a diary
+    - handwritten values in a form, notes in a margin, a signature
+    - the handwriting a photograph or facsimile of a manuscript shows
+    does_not_count:
+    - a typeface that imitates handwriting (printed)
+    - a printed facsimile of a signature that is clearly typeset (printed)
+  stamped:
+    definition: Applied with a hand stamp, a seal or a die.
+    counts:
+    - an ink stamp of a date, an owner or a library
+    - an embossed or blind-stamped mark
+    does_not_count:
+    - a printed seal or ornament (printed)
+  born_digital:
+    definition: Never physical, rendered from a digital document rather than scanned or photographed.
+    counts:
+    - a page image rendered from a digital PDF
+    - a screenshot
+    does_not_count:
+    - a scan of a page printed by a computer (printed)
+provenance:
+- 'PAGE-XML: the production attribute of a text region (printed, typewritten, handwritten)'

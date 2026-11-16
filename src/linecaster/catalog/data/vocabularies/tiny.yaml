@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: tiny
+description: Whether the content is printed noticeably smaller than the page's ordinary body text.
+targets:
+- line
+- region
+values:
+  yes:
+    definition: The content is printed small, noticeably smaller than the page's ordinary body text, as fine print is,
+      about 6 pt or less on a printed page.
+    counts:
+    - footnotes and legal fine print set small
+    - dense small type in tables or forms
+    - small labels on drawings
+    does_not_count:
+    - text set a little smaller than the body text, such as a running header
+    - ordinary body text in a low-resolution image
+    - text that only looks small because the whole page is photographed from far away or, for a large sheet, shrunk
+      to fit the image
+  no:
+    definition: The content is about the size of the page's body text, or larger, or only a little smaller.
+answers:
+  yes: tiny
+  no: not_tiny
+provenance:
+- 'Omni Parse Bench: the definition of its tiny tag (vocab.TAG_DEFINITIONS), adapted'

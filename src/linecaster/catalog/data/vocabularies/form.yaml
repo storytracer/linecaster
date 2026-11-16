@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: form
+description: Whether the content is a field to fill in or a box to tick, or belongs to one.
+targets:
+- line
+- region
+values:
+  yes:
+    definition: The content is a field to fill in or a box to tick, or belongs to one, its label, its filled value, the
+      box, or the blank line. A label names what goes into one particular blank, box or checkbox next to it.
+    counts:
+    - such fields wherever they are, including a checklist in a manual or a survey printed in a report
+    does_not_count:
+    - instructions that tell how to fill the form in rather than naming a field
+    - a title heading a section of the form
+    - cells of a printed report's table
+  no:
+    definition: The content is no field to fill in and belongs to none.
+answers:
+  yes: form_field
+  no: not_form_field
+provenance:
+- 'Omni Parse Bench: the definition of its form tag (vocab.TAG_DEFINITIONS), adapted'

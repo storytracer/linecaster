@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=../../../schemas/preset.json
+schema: linecaster.preset
+id: geometry-tags
+step: tagging
+engine: tagging.geometry.v1
+options:
+  schemes:
+  - rotated
+  - tiny
+  - multi_column
+  decide_no: true
+  max_tilt: 5.0
+  elongation: 3.0
+  tiny: 0.6
+  min_body_lines: 5
+  body_roles:
+  - paragraph
+  - list_item
+  min_overlap: 0.25
+  max_overlap: 0.1
+  full_width: 0.8
+capabilities:
+  unit: page
+  produces:
+  - tags
+provenance:
+  created: 2026-11-16
+support: experimental

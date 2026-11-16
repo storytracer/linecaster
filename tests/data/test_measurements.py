@@ -14,6 +14,7 @@ SOURCES = [REPO / "src" / "linecaster", *sorted((REPO / "engines").glob("*/src")
 #: places whose keys are computed (file relative to the repository, the expression), each checked below
 COMPUTED = {("src/linecaster/engines/typography.py", "stats.counts()"),
             ("src/linecaster/engines/importers.py", "reading.coverage.measurements()"),
+            ("src/linecaster/engines/tagging.py", "tally.measurements()"),
             ("engines/mediawiki/src/linecaster_mediawiki/reader.py", "reading.coverage.measurements()")}
 
 
@@ -119,6 +120,12 @@ def test_computed_measurements_are_known():
 
     assert unknown_measurements(RetypeStats().counts()) == []
     assert unknown_measurements(Coverage().measurements()) == []
+    from linecaster.engines.tagging import _Tally
+
+    tally = _Tally()
+    tally.tag("tiny", "yes")
+    tally.skip("rotated")
+    assert tally.measurements() and unknown_measurements(tally.measurements()) == []
 
 
 def test_unknown_measurements():

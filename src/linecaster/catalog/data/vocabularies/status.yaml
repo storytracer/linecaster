@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=../../schemas/vocabulary.json
+schema: linecaster.vocabulary
+scheme: status
+description: Whether something on the page or in its source counts as the page's text, and why not.
+targets:
+- span
+- word
+- line
+- region
+values:
+  illegible:
+    definition: Text that is there but cannot be read, its characters too damaged, faded or obscured to make out.
+    counts:
+    - a ground truth's span marked unclear, scored as one U+FFFD per character
+    - a word worn away on the page whose length can still be seen
+    does_not_count:
+    - text the source leaves out entirely (gap)
+    - text that is legible but hard to read in this image (the property degraded)
+  gap:
+    definition: Text the source leaves out where the page has some; nothing is transcribed, and an empty span marks
+      the place.
+    counts:
+    - an editor's omission, such as TEI's gap
+    - a passage a ground truth did not transcribe, marked where it stands
+    does_not_count:
+    - text that is transcribed but cannot be read (illegible)
+    - content the source keeps but leaves out of the text (suppressed, removed)
+  suppressed:
+    definition: Content on the page that the source records but itself keeps out of the page's text; it stays in the
+      record and is rendered nowhere.
+    counts:
+    - a ground truth's zone it marks as not part of the transcription it counts, such as a library's label or shelf
+      mark in the image
+    does_not_count:
+    - content a step or an importer takes out (removed)
+    - a second copy of a zone (duplicate)
+  duplicate:
+    definition: A second copy of content another zone already holds, kept out of the text.
+    counts:
+    - a line detected twice, which the line assignment leaves out of the reading order
+    does_not_count:
+    - the same words printed twice on the page, such as a running title (each is the page's own text)
+  removed:
+    definition: Content a step or an importer took out of the page's text; it stays in the record, with its reason
+      where an importer kept it, and is rendered nowhere.
+    counts:
+    - a page number typography removes as uncertain
+    - text of a source's markup an importer keeps as a region with a reason (hidden, generated, editorial, ...)
+    does_not_count:
+    - content the source itself keeps out (suppressed)
+    - a second copy of a zone (duplicate)
+reasons:
+  hidden:
+    definition: A reader does not see it, and it takes no space on the page.
+    counts:
+    - markup a source's style hides, such as an element with display none
+  invisible:
+    definition: A reader does not see it, but it takes its space; a space or line break stays where it was.
+    counts:
+    - text a source's style makes transparent or white on white
+  generated:
+    definition: The source's software or markup draws it; the page does not print it.
+    counts:
+    - a number a wiki's template generates, a link icon, an automatic heading number the page lacks
+  editorial:
+    definition: The source's editors wrote it; the page does not print it.
+    counts:
+    - an editor's note, a header the edition adds, a correction note
+    does_not_count:
+    - an editor's correction of the page's own text (an edit, corrected)
+  error:
+    definition: A message of the source's software, not content.
+    counts:
+    - a template's or module's error message in the rendered markup
+  metadata:
+    definition: Markup that is not content of the page.
+    counts:
+    - style sheets, scripts, metadata elements
+  apparatus:
+    definition: The source's notation for something the page prints differently.
+    counts:
+    - a source's footnote mark where the page prints another mark or none
+  elsewhere:
+    definition: Printed text that belongs to another page or another place.
+    counts:
+    - a source's text of the next page's first line, carried over to this page's record
+  layout:
+    definition: Markup that only arranges the page and holds no text.
+    counts:
+    - an empty table row, a spacer

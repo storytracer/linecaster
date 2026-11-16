@@ -14,21 +14,23 @@ import re
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer, model_validator
 
 from ..data.page import PAGE_SCHEMA, Page
 from ..data.policy import RenderingPolicy
 from ..document.model import SCHEMA as DOCUMENT_SCHEMA, Document
 from ..markup.model import ConventionsDoc
+from .vocabulary import VocabularyDoc
 from ..scoring.benchmark import Benchmark
 from ..errors import CatalogError
 from ..runtime.record import RunRecord
 
 #: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``. The first five run models,
 #: the others rules (their engines are built in, ``linecaster.engines``, or come with an engine package); ``import``
-#: reads a source document (a transcription file, a source's markup) into a transcription
+#: reads a source document (a transcription file, a source's markup) into a transcription; ``tagging`` classifies
+#: zones in property schemes (``linecaster.engines.tagging``: rules, and a panel of models behind chat servers)
 STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "typography", "recomposition", "composition",
-         "import")
+         "import", "tagging")
 #: the steps whose engines are rules (strategies), in the pipeline's process only
 RULE_STEPS = ("image", "typography", "recomposition", "composition", "import")
 #: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``); steps without one are
@@ -43,6 +45,7 @@ OCRD_STEPS = {
     "image": "preprocessing/optimization",
     "typography": "layout/segmentation/classification",
     "composition": "layout/analysis",
+    "tagging": "layout/segmentation/classification",
 }
 #: what a preset can put into a transcription
 PRODUCES = ("regions", "reading_order", "lines", "baselines", "text", "words", "word_confidences",
@@ -50,7 +53,8 @@ PRODUCES = ("regions", "reading_order", "lines", "baselines", "text", "words", "
 #: the parts of a page record (or item record) that block contracts name: the page image and record, a library's own
 #: transcription file delivered with the page, what presets produce, and what the blocks without a model add
 #: (``docs/reference/pipelines.md``)
-PARTS = ("image", "metadata", "transcription_file", *PRODUCES, "line_regions", "hierarchy", "paragraphs", "document")
+PARTS = ("image", "metadata", "transcription_file", *PRODUCES, "line_regions", "hierarchy", "paragraphs", "document",
+         "tags")
 #: what an engine's work is done on, per call (``capabilities.unit``)
 UNITS = ("line", "region", "page", "item")
 SUPPORT = ("core", "experimental", "legacy")
@@ -344,18 +348,31 @@ STRUCTURE_RULES = ("edits", "divided_words", "division_marks", "flow")
 
 
 class Pattern(_Doc):
-    match: str = Field(description="a regular expression (Python's re)")
+    match: str = Field(description="a regular expression (Python's re, or the regex package's with engine regex)")
     flags: list[Literal["I", "M", "S"]] = Field(default_factory=list, description="re flags: I, M, S")
     replace: str = Field(" ", description="what a match becomes")
+    engine: Literal["re", "regex"] = Field("re", description="the engine: Python's re, or the regex package (Unicode "
+                                                            "properties such as \\p{Ll}, variable-width lookbehind)")
 
-    @field_validator("match")
-    @classmethod
-    def _compiles(cls, v):
+    @model_validator(mode="after")
+    def _compiles(self):
+        if self.engine == "regex":
+            import regex as engine
+        else:
+            engine = re
         try:
-            re.compile(v)
-        except re.error as e:
-            raise ValueError(f"pattern {v!r}: {e}") from None
-        return v
+            engine.compile(self.match)
+        except engine.error as e:
+            raise ValueError(f"pattern {self.match!r}: {e}") from None
+        return self
+
+    @model_serializer(mode="wrap")
+    def _default_engine_left_out(self, handler):
+        # Note: the default engine is left out, so that a pattern written before the field existed keeps its hash.
+        data = handler(self)
+        if data.get("engine") == "re":
+            del data["engine"]
+        return data
 
 
 class Keep(_Doc):
@@ -595,7 +612,26 @@ class EvidenceScoring3(_Doc):
     unit: Literal["grapheme", "codepoint"] = Field(description="what a character error counts")
     words: Words | None = Field(None, description="the word metrics' tokenizer and the version of their rules; absent "
                                                   "(records from before 0.11): whitespace, version 1")
+    elements: EvidenceElements | None = Field(None, description="how elements were matched, when the element "
+                                                               "metrics were scored")
     scorer: str = Field(description="the linecaster that scored (linecaster.scoring.scorer())")
+
+
+class EvidenceElements(_Doc):
+    """How the element metrics matched elements (``linecaster.scoring.matching``)."""
+
+    version: int = Field(description="the version of the element scorer's rules (linecaster.scoring.ELEMENTS_VERSION)")
+    lane: Named = Field(description="the lane elements were matched by")
+
+
+class EvidenceStratum(_Doc):
+    """The rates of a run on one stratum (``linecaster.scoring.strata``): elements or pages with one value."""
+
+    pages: int = Field(description="the pages with elements in it (page strata: its pages)")
+    elements: int = Field(0, description="the ground truth's and output's elements in it (page strata: 0)")
+    metrics: dict[str, Metric]
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class EvidenceSlice(_Doc):
@@ -627,6 +663,9 @@ class Evidence3(_Doc):
     metrics: dict[str, Metric]
     slices: dict[str, EvidenceSlice] = Field(default_factory=dict, description="the rates on slices of the pages: "
                                              "those with tables, formulas, neither (linecaster.scoring.slices)")
+    strata: dict[str, dict[str, EvidenceStratum]] = Field(default_factory=dict, description="the rates by stratum: "
+                                                          "dimension (pages:<dimension> for page rates) -> value -> "
+                                                          "rates (linecaster.scoring.strata)")
     counts: dict[str, int] = Field(default_factory=dict, description="pages scored, missing, failed, ...")
     date: dt.date
     hardware: EvidenceHardware | None = None
@@ -649,16 +688,18 @@ class Evidence3(_Doc):
         return self.preset or self.recipe
 
     def comparable(self, other: "Evidence3") -> bool:
-        """Scored the same way: the same benchmark (hash), policy, output strategy, lanes (by hash), unit and word
-        metrics (tokenizer and rules); a record with a hash missing (upgraded from evidence/2) is comparable to
-        none."""
+        """Scored the same way: the same benchmark (hash), policy, output strategy, lanes (by hash), unit, word
+        metrics (tokenizer and rules) and element metrics (rules and matching lane); a record with a hash missing
+        (upgraded from evidence/2) is comparable to none."""
         def key(e):
             sc = e.scoring
             named = [sc.policy, sc.output, *sc.lanes] if sc else []
             if e.benchmark is None or sc is None or any(n.sha256 is None for n in named):
                 return None
             words = sc.words or Words()
-            return (e.benchmark.sha256, *((n.id, n.sha256) for n in named), sc.unit, words.tokenizer, words.version)
+            el = (sc.elements.version, sc.elements.lane.id, sc.elements.lane.sha256) if sc.elements else None
+            return (e.benchmark.sha256, *((n.id, n.sha256) for n in named), sc.unit, words.tokenizer, words.version,
+                    el)
         a, b = key(self), key(other)
         return a is not None and a == b
 
@@ -706,6 +747,7 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.conventions": ConventionsDoc,
     "linecaster.normalization": NormalizationDoc,
     "linecaster.strategy": StrategyDoc,
+    "linecaster.vocabulary": VocabularyDoc,
     "linecaster.evidence/1": Evidence,
     "linecaster.evidence/2": Evidence2,
     "linecaster.evidence/3": Evidence3,
