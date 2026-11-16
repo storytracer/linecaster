@@ -12,7 +12,7 @@ harness's own aggregation into OUT/result.json (the harness's metric result: per
 
 The run's page records are read without their images; with more tasks than page-record files the tasks share each
 file (every k-th record), which spreads slow pages (dense formulas, large tables) over the tasks. The result equals
-the pinned harness run unchanged on every page (``linecaster harness``, the reference; the parity check).
+the pinned harness run unchanged on every page (``linecaster harness``, the reference to check it against).
 """
 from ..runtime import run
 

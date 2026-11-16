@@ -208,8 +208,8 @@ Each task of `harness.v1` scores its pages (`OmniDocBenchScorer`) and writes the
 written. A page of the run that no task scored stops the aggregation (a task failed). The harness matches and scores
 each page alone, so the result does not depend on the tasks: it equals one run of the harness on every page.
 **The reference**, `linecaster harness`, runs the pinned harness itself, unchanged, in its own environment of its
-own pins (Python 3.11, NumPy 1.24) and one process; the in-process scoring is checked against it value for value
-(the harness's packages there are today's: the check holds them to its pins' results). CDM (`--cdm`) runs only in
+own pins (Python 3.11, NumPy 1.24) and one process: the reference to check the in-process scoring against,
+value for value (its packages there are today's, NumPy 2 and pandas 3; such a check holds them to its pins' results). CDM (`--cdm`) runs only in
 the reference: it needs TeX Live, ImageMagick and Ghostscript.
 
 | Module | Metrics |

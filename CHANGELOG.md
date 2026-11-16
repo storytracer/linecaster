@@ -4,7 +4,7 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.10.5 (2026-11-16)
 
 ### Added
 
@@ -14,9 +14,9 @@ the tags; the first is `v0.1.0`.
   TEDS-S, display formulas, reading order) per task, its aggregation at the end, into `OUT/result.json` and
   `OUT/harness.yaml`. Blocks `OmniDocBenchScorer` and `OmniDocBenchWriter`; formats in
   `linecaster.formats.omnidocbench`; the extra `omnidocbench` (what its code imports). `linecaster harness` runs the
-  pinned harness itself, unchanged, in its own environment: the reference the in-process scoring is checked
-  against, value for value. Checked: a ground truth scored against itself gives text and formula edit distance 0
-  and TEDS 1.
+  pinned harness itself, unchanged, in its own environment: the reference to check the in-process scoring
+  against (not yet done on real pages). Checked: a ground truth scored against itself gives text and formula edit
+  distance 0 and TEDS 1, and the results do not depend on how pages are grouped into tasks.
 
 ## 0.10.4 (2026-11-16)
 

@@ -8,8 +8,8 @@ the metric classes (``Edit_dist``, ``TEDS``) on the task's pages, as the harness
 (``score_pages``); and when every task is done ``get_full_labels_results`` and ``get_page_split`` on every page's
 samples, with the corpus averages of ``call_Edit_dist`` and ``call_TEDS`` (``aggregate``). The harness's results do
 not depend on how its pages are grouped (it matches and scores each page alone), so they equal one run of the harness
-on every page; ``tests`` and the parity check (``linecaster harness``, the pinned harness unchanged in its own
-environment) hold it to that.
+on every page (``tests``); ``linecaster harness`` runs the pinned harness unchanged in its own environment, the
+reference to check that against on real pages.
 
 The harness's packages are its own pins' successors (the pipeline script lists them): Python 3.12, NumPy 2, pandas 3.
 Its import name is ``src``: it is loaded only in the scoring pipeline's environment.

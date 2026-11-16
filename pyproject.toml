@@ -1,6 +1,6 @@
 [project]
 name = "linecaster"
-version = "0.10.4"
+version = "0.10.5"
 description = "Modular text recognition for print and handwriting: layout, line, text, table and formula recognizers plus post-processing as datatrove pipelines"
 readme = "README.md"
 license = "Apache-2.0"
@@ -53,8 +53,8 @@ pypdfium2 = ["pypdfium2>=4.30"]
 # scoring against ground truths (linecaster.scoring): the codepoint alignment's edit operations; importers' anchors
 # into their source text (linecaster.markup.anchors)
 rapidfuzz = ["rapidfuzz>=3.9"]
-# OmniDocBench's evaluation, imported (linecaster.scoring.omnidocbench): what its code imports; the parity check
-# against its pinned harness holds these versions to its own pins' results
+# OmniDocBench's evaluation, imported (linecaster.scoring.omnidocbench): what its code imports, at today's
+# versions (its own pins are older: a check against the pinned harness, linecaster harness, compares the two)
 omnidocbench = ["apted>=1.0.3", "beautifulsoup4>=4.11", "evaluate>=0.4.3", "func-timeout>=4.3.5", "levenshtein>=0.25",
                 "lxml>=4.9", "numpy>=1.24", "pandas>=2.0", "pylatexenc==2.10", "scipy>=1.10", "tabulate>=0.9",
                 "tqdm>=4.66", "matplotlib>=3.7", "pillow>=10"]   # matplotlib, Pillow: imported by its CDM modules

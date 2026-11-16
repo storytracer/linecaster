@@ -926,7 +926,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.10.4"
+version = "0.10.5"
 source = { editable = "../" }
 dependencies = [
     { name = "cssselect" },
@@ -956,30 +956,44 @@ ray = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apted", marker = "extra == 'omnidocbench'", specifier = ">=1.0.3" },
+    { name = "beautifulsoup4", marker = "extra == 'omnidocbench'", specifier = ">=4.11" },
     { name = "cssselect", specifier = ">=1.2" },
     { name = "datatrove", extras = ["io", "s3"], specifier = ">=0.10.1,<0.11" },
     { name = "docling-core", marker = "extra == 'docling'", specifier = ">=2.95" },
+    { name = "evaluate", marker = "extra == 'omnidocbench'", specifier = ">=0.4.3" },
     { name = "fake-useragent", specifier = ">=2.2" },
+    { name = "func-timeout", marker = "extra == 'omnidocbench'", specifier = ">=4.3.5" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.28" },
     { name = "jsonpath-rfc9535", marker = "extra == 'jsonpath-rfc9535'", specifier = ">=2.0" },
+    { name = "levenshtein", marker = "extra == 'omnidocbench'", specifier = ">=0.25" },
     { name = "lxml", specifier = ">=5" },
+    { name = "lxml", marker = "extra == 'omnidocbench'", specifier = ">=4.9" },
+    { name = "matplotlib", marker = "extra == 'omnidocbench'", specifier = ">=3.7" },
     { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
+    { name = "numpy", marker = "extra == 'omnidocbench'", specifier = ">=1.24" },
     { name = "nvidia-nvimgcodec-cu13", extras = ["nvjpeg", "nvjpeg2k", "nvtiff"], marker = "extra == 'nvimgcodec'", specifier = ">=0.10,<0.11" },
     { name = "opentelemetry-api", specifier = ">=1.45.2" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
+    { name = "pandas", marker = "extra == 'omnidocbench'", specifier = ">=2.0" },
     { name = "pillow", specifier = ">=11" },
+    { name = "pillow", marker = "extra == 'omnidocbench'", specifier = ">=10" },
     { name = "pydantic", specifier = ">=2.10" },
+    { name = "pylatexenc", marker = "extra == 'omnidocbench'", specifier = "==2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "rapidfuzz", marker = "extra == 'rapidfuzz'", specifier = ">=3.9" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = "==2.59.0" },
     { name = "regex", specifier = ">=2024.11.6" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
+    { name = "scipy", marker = "extra == 'omnidocbench'", specifier = ">=1.10" },
+    { name = "tabulate", marker = "extra == 'omnidocbench'", specifier = ">=0.9" },
+    { name = "tqdm", marker = "extra == 'omnidocbench'", specifier = ">=4.66" },
     { name = "uniseg", specifier = ">=0.10" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "nvimgcodec", "pypdfium2", "rapidfuzz", "jsonpath-rfc9535", "docling"]
+provides-extras = ["minicpm-ocr", "ray", "nvimgcodec", "pypdfium2", "rapidfuzz", "omnidocbench", "jsonpath-rfc9535", "docling"]
 
 [package.metadata.requires-dev]
 dev = [
