@@ -12,8 +12,11 @@ the tags; the first is `v0.1.0`.
   the ground truth written in the harness's format, the run's pages as its predictions, the harness run unchanged
   at a pinned commit in an environment uv builds once. First harness: `omnidocbench` (OmniDocBench at `7ddb8df`:
   text edit distance, TEDS and TEDS-S, display formulas by edit distance, CDM with `--cdm`, reading order), with its
-  formats in `linecaster.formats.omnidocbench`; its results grouped by the page slices. Checked: a ground truth
-  scored against itself gives text and formula edit distance 0 and TEDS 1.
+  formats in `linecaster.formats.omnidocbench`; its results grouped by the page slices. Sharded as a pipeline
+  (`pipelines/harness.py`, `harness.v1`, block `HarnessWriter`): each task runs the harness on its pages, and the
+  shards' per-sample results are put together by the harness's own aggregation, equal value for value to one run
+  on every page (OmniDocBench's workers are threads: one process uses one core). Checked: a ground truth scored
+  against itself gives text and formula edit distance 0 and TEDS 1.
 
 ## 0.10.4 (2026-11-16)
 

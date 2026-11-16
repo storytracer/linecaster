@@ -256,6 +256,7 @@ def _one_of_each(tmp_path) -> list:
         "Composer": {"preset": "linked-composition", "options": {"sections": True}},
         "ImageConverter": {"output_folder": str(tmp_path / "webp"), "preset": "working-image"},
         "PageScorer": {"truth": str(tmp_path / "truth"), "benchmark": {"schema": "linecaster.benchmark/2"}},
+        "HarnessWriter": {"output_folder": str(tmp_path / "harness"), "truth": str(tmp_path / "truth")},
     }
     out = []
     for cls in block_classes():

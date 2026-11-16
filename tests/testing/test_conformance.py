@@ -405,6 +405,7 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
             "pages": {"ids": ["elsewhere"], "sha256": listing_sha256(["elsewhere"])}}), {}),
         (writers.RejectWriter(str(out / "rejects")), {}),
         (writers.ScoreWriter(str(out / "scores")), {}),
+        (writers.HarnessWriter(str(out / "harness"), str(tmp_path / "truth"), ids=["elsewhere"]), {}),   # passed on
         (writers.ResourceFilesWriter(str(out / "resources")), {}),
         (writers.ResourceRecordWriter(str(out / "resources" / "records")), {}),
         (writers.ItemTextWriter(str(out / "texts")), {"docs": item_docs}),
@@ -426,7 +427,7 @@ BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordRea
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
           "TranscriptionImporter", "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
           "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
-          "PageFileWriter", "ImageFilesWriter", "PageScorer", "RejectWriter", "ScoreWriter", "ResourceFilesWriter",
+          "PageFileWriter", "ImageFilesWriter", "PageScorer", "RejectWriter", "ScoreWriter", "HarnessWriter", "ResourceFilesWriter",
           "ResourceRecordWriter",
           "ItemTextWriter", "ItemDocumentWriter",
           "ModularTranscriber")

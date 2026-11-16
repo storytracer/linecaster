@@ -195,7 +195,15 @@ truth**: the ground truth is written in the harness's ground-truth format, the r
 the harness runs at a pinned commit in its own environment (built once by uv, under `LINECASTER_HARNESS_ENVS`,
 default `~/.cache/linecaster/harnesses`).
 
-    linecaster harness omnidocbench OUT --pages RUN/pages --truth TRUTH/pages [--ids IDS] [--cdm] [--workers N]
+    uv run pipelines/harness.py OUT --pages RUN/pages --truth TRUTH/pages --harness omnidocbench --tasks 100
+    linecaster harness omnidocbench OUT --pages RUN/pages --truth TRUTH/pages [--ids IDS] [--cdm]   # one process
+
+The work is sharded (`harness.v1`, a pipeline like every other: `--on local` or `--on ray`): each task writes its
+pages as a shard (`OUT/shards/<task>`) and runs the harness on it in one process; when every task is done the
+ground truth's pages no task had (the run lacks them) are one more shard of empty predictions, and the shards'
+per-sample results are put together by the harness's own aggregation (`OUT/result/merged_metric_result.json`),
+equal to one run on every page (checked value for value; OmniDocBench's own workers are threads, so one process
+uses about one core). CDM is not merged across shards: `--cdm` runs in one task.
 
 | Harness | Commit | What it scores |
 |---|---|---|
@@ -216,7 +224,7 @@ page numbers, footnotes and captions: another view than the literal lanes, not o
 distance is not 0 for a page scored against itself where its matching splits or merges blocks, nor for a page with
 no body text (1); its own demo against itself gives 0.059.
 
-`OUT/result/` holds the harness's results as it writes them; `OUT/harness.yaml` (`linecaster.harness-run/1`)
+`OUT/shards/*/result/` hold the harness's results as it writes them; `OUT/harness.yaml` (`linecaster.harness-run/1`)
 names the harness, its commit and the pins linecaster adds (packages it leaves open that have since moved past what
 it works with), the inputs, the page counts and the headline metrics, overall and per page group.
 

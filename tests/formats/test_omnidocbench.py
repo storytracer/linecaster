@@ -8,7 +8,7 @@ import json
 from linecaster.data import Annotator, Source, Transcription
 from linecaster.data.transcription import Cell, Formula, Table
 from linecaster.formats.omnidocbench import prediction_markdown, table_html, truth_page
-from linecaster.scoring.harness import config, export, summarize
+from linecaster.scoring.harness import config, summarize, write_shard
 
 
 def _page(blocks: list[tuple[str, list[str]]]) -> Transcription:
@@ -67,27 +67,23 @@ def test_a_prediction_is_markdown_blocks_and_a_completion_stays_as_written():
     assert prediction_markdown(None) == ""
 
 
-def test_export_writes_the_truth_json_and_one_prediction_per_page(tmp_path):
+def test_a_shard_is_the_truth_json_and_one_prediction_per_page(tmp_path):
     from linecaster.data import Page
 
-    def records(folder, name, ts):
-        folder.mkdir(parents=True)
-        with open(folder / "00000.jsonl", "w") as f:
-            for pid, t in ts.items():
-                page = Page(page_id=pid, item_id="item", transcriptions={name: t})
-                f.write(json.dumps({"schema": "linecaster.page/5", "id": pid, "text": t.text, "page": page.record()})
-                        + "\n")
+    def row(pid, name, t):
+        page = Page(page_id=pid, item_id="item", transcriptions={name: t})
+        return {"schema": "linecaster.page/5", "id": pid, "text": t.text, "page": page.record()}
 
     gt = {f"p{i}": _page([("paragraph", [f"page {i}"])]) for i in range(3)}
-    records(tmp_path / "gt", "ground_truth", gt)
-    records(tmp_path / "run", "ocr_new", {"p0": gt["p0"], "p1": gt["p1"]})           # p2: the run lacks it
-    counts = export(tmp_path / "h", str(tmp_path / "run"), str(tmp_path / "gt"), workers=1)
-    assert counts == {"pages": 3, "predictions": 2, "missing": 1}
-    truth = json.loads((tmp_path / "h/truth.json").read_text())
-    assert [p["page_info"]["image_path"] for p in truth] == ["p0.png", "p1.png", "p2.png"]
-    assert truth[0]["page_info"]["page_attribute"] == {"tables": "no", "formulas": "no", "table-heavy": "no"}
-    assert (tmp_path / "h/predictions/p1.md").read_text() == "page 1"
-    assert (tmp_path / "h/predictions/p2.md").read_text() == ""
+    truth = {pid: row(pid, "ground_truth", t) for pid, t in gt.items()}
+    run = {pid: row(pid, "ocr_new", gt[pid]) for pid in ("p0", "p1")}               # p2: the run lacks it
+    run["p1"]["errors"] = [{"error": "timeout"}]                                     # p1: failed, an empty prediction
+    counts = write_shard(tmp_path / "s", truth, run)
+    assert counts == {"pages": 3, "missing": 1}
+    pages = json.loads((tmp_path / "s/truth.json").read_text())
+    assert [p["page_info"]["image_path"] for p in pages] == ["p0.png", "p1.png", "p2.png"]
+    assert pages[0]["page_info"]["page_attribute"] == {"tables": "no", "table-heavy": "no", "formulas": "no"}
+    assert [(tmp_path / f"s/predictions/p{i}.md").read_text() for i in range(3)] == ["page 0", "", ""]
 
 
 def test_the_config_names_every_module_and_cdm_only_when_asked(tmp_path):
