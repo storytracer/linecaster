@@ -351,6 +351,132 @@ def _page(a, rest: list[str]) -> None:
     os.execvpe(cmd[0], cmd, env)
 
 
+def _fractions(specs: list[str]) -> dict[str, float] | None:
+    """``NAME:FRACTION`` options as named fractions, in order."""
+    out: dict[str, float] = {}
+    for spec in specs or ():
+        name, sep, value = spec.rpartition(":")
+        try:
+            out[name] = float(value)
+        except ValueError:
+            name = ""
+        if not sep or not name:
+            raise PipelineConfigError(f"--split {spec!r}: NAME:FRACTION (test:0.2)")
+    return out or None
+
+
+def _truth_check(a) -> None:
+    """``linecaster truth check``: what a ground truth's page records hold, per page and in total."""
+    from pathlib import Path
+
+    from .scoring.truth import check, render
+
+    ids = set(Path(a.ids).read_text(encoding="utf-8").split()) if a.ids else None
+    report = check(a.truth, a.transcription, ids)
+    if a.json:
+        Path(a.json).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(render(report))
+
+
+def _truth_publish(a) -> None:
+    """``linecaster truth publish``: a ground truth's page records as a Hub dataset (Parquet and a dataset card)."""
+    from .scoring.publish import publish
+
+    read_image = None
+    if a.images is None and not a.no_images:
+        from .blocks.conversion.images import read_uri
+
+        read_image = read_uri
+    got = publish(a.truth, a.out, a.transcription, images=a.images, read_image=read_image,
+                  splits=_fractions(a.split), seed=a.seed, license=a.license, name=a.name, shard_pages=a.shard_pages)
+    print(f"pages {got['pages']:,} (with an image {got['images']:,}); "
+          + ", ".join(f"{s} {n:,}" for s, n in got["splits"].items()) + f"; {a.out}/README.md")
+
+
+def _benchmark_init(a) -> None:
+    """``linecaster benchmark init``: a benchmark definition from a ground truth's page records."""
+    from .data.sample import SampleRule
+    from .scoring.truth import benchmark, write_benchmark
+
+    splits = _fractions(a.split)
+    limits = (a.sample, a.sample_items, a.sample_per_item, a.per_stratum)
+    rule = None
+    if any(x is not None for x in limits) or splits or a.stratify:
+        try:
+            rule = SampleRule(pages=a.sample, items=a.sample_items, per_item=a.sample_per_item, seed=a.seed,
+                              stratify=a.stratify, per_stratum=a.per_stratum, splits=splits,
+                              split=(a.in_split or next(iter(splits))) if splits else None)
+        except ValueError as e:
+            raise PipelineConfigError(f"benchmark init: {e}") from None
+    from pathlib import Path
+
+    try:
+        data, comments = benchmark(a.truth, a.id or Path(a.out).name.split(".")[0], a.transcription, rule,
+                                   dataset=a.dataset, importer=a.importer)
+    except ValueError as e:
+        raise PipelineConfigError(f"benchmark init: {e}") from None
+    write_benchmark(data, comments, a.out)
+    s = data["supports"]
+    print(f"{data['id']}: {len(data['pages']['ids']):,} pages ({data['pages']['sha256']}); supports roles "
+          f"{', '.join(s['roles']) or 'none'}, boxes {s['boxes']}, reading order {s['reading_order']}, notes "
+          f"{s['notes']}, continuations {s['continuations']}; {a.out}")
+
+
+def _ground_truth_parsers(sub) -> None:
+    """``linecaster truth check|publish`` and ``linecaster benchmark init``."""
+    tr = sub.add_parser("truth", help="ground truths' page records: check what they hold (check), publish them as a "
+                                      "Hugging Face dataset (publish) (docs/reference/evaluation.md)")
+    tsub = tr.add_subparsers(dest="action", required=True)
+    tc = tsub.add_parser("check", help="per page and in total: lines, boxes outside the image, reading order, "
+                                       "conventions' coverage, illegible characters, languages, scripts, directions, "
+                                       "duplicates, roles, tables, formulas")
+    tc.add_argument("truth", help="the ground truth's page records (a folder: local or fsspec URI)")
+    tc.add_argument("--transcription", default="ground_truth", help="the ground truth's transcription")
+    tc.add_argument("--ids", help="a file of page ids (one per line): only these pages")
+    tc.add_argument("--json", metavar="OUT", help="also write the report as JSON to OUT")
+    tc.set_defaults(handler=_truth_check)
+    tp = tsub.add_parser("publish", help="the page records as Hub-ready Parquet (a row per page: id, item, image, "
+                                         "text, the page record) with a generated dataset card")
+    tp.add_argument("truth", help="the ground truth's page records")
+    tp.add_argument("out", help="the dataset's folder (data/*.parquet, README.md)")
+    tp.add_argument("--transcription", default="ground_truth", help="the ground truth's transcription")
+    tp.add_argument("--images", metavar="FOLDER", help="the page images: the file of each image's name, else of the "
+                                                       "page id (default: read from the records' image addresses)")
+    tp.add_argument("--no-images", action="store_true", help="no image column values")
+    tp.add_argument("--split", action="append", default=[], metavar="NAME:FRACTION",
+                    help="a split of the items (all pages of an item in one), e.g. test:0.2; repeatable; default: "
+                         "every page in train")
+    tp.add_argument("--seed", type=int, default=0, help="the seed of the splits")
+    tp.add_argument("--license", help="the card's license, where the records record none (default: other)")
+    tp.add_argument("--name", help="the card's title (default: OUT's name)")
+    tp.add_argument("--shard-pages", type=int, default=1000, help="pages per Parquet file")
+    tp.set_defaults(handler=_truth_publish)
+    bm = sub.add_parser("benchmark", help="benchmark definitions: one from a ground truth's data (init)")
+    bsub = bm.add_subparsers(dest="action", required=True)
+    bi = bsub.add_parser("init", help="a linecaster.benchmark/2 definition: supports from the data, the page set "
+                                      "with its hash (all pages, or a sample, stratified, of a split), lanes "
+                                      "diplomatic and reading, a comment per script recorded")
+    bi.add_argument("truth", help="the ground truth's page records")
+    bi.add_argument("out", help="the definition's file (YAML)")
+    bi.add_argument("--id", help="the benchmark's id (default: OUT's name)")
+    bi.add_argument("--transcription", default="ground_truth", help="the ground truth's transcription")
+    bi.add_argument("--dataset", metavar="REPO@REVISION", help="the dataset (default: the one its sources name)")
+    bi.add_argument("--importer", help="what made the page records (default: the import annotator's preset or "
+                                       "engine, else the source's format)")
+    bi.add_argument("--sample", type=int, metavar="N", help="at most N pages (stratified: shared in proportion)")
+    bi.add_argument("--sample-items", type=int, metavar="M", help="at most M items")
+    bi.add_argument("--sample-per-item", type=int, metavar="K", help="at most K pages of each item")
+    bi.add_argument("--seed", "--sample-seed", type=int, default=0, help="the sample's and splits' seed")
+    bi.add_argument("--stratify", metavar="SCHEME", help="strata by a page value: a scheme recorded on the page "
+                                                         "(language, script, direction, ...), metadata.KEY or "
+                                                         "source.FIELD")
+    bi.add_argument("--per-stratum", type=int, metavar="K", help="K pages of each stratum")
+    bi.add_argument("--split", action="append", default=[], metavar="NAME:FRACTION",
+                    help="splits of the items, e.g. test:0.2 and train:0.8; the benchmark takes --in-split's pages")
+    bi.add_argument("--in-split", metavar="NAME", help="the split the benchmark takes (default: the first named)")
+    bi.set_defaults(handler=_benchmark_init)
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="linecaster")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -424,6 +550,7 @@ def main(argv: list[str] | None = None) -> None:
                     help="which tables are tables, on both sides: data (printed as tables; linecaster.scoring.tables) "
                          "or all")
     ex.add_argument("--strategy", help="an output strategy applied to every text of both sides (e.g. nfc)")
+    _ground_truth_parsers(sub)
     ev = sub.add_parser("evidence", help="evidence records: check (validate) or compare (side by side, only those "
                                          "scored the same way)")
     ev.add_argument("action", choices=["check", "compare"])
@@ -488,6 +615,8 @@ def main(argv: list[str] | None = None) -> None:
             _evidence(a)
         elif a.command == "export":
             _export(a)
+        elif a.command in ("truth", "benchmark"):
+            a.handler(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
         sys.exit(exit_code(e))

@@ -7,6 +7,7 @@ from linecaster.data import SourceDocument
 from linecaster.engines.importers import IMPORTERS
 from linecaster.formats import to_alto, to_hocr, to_page
 from linecaster.formats.iiif import to_annotation_page
+from linecaster.formats.omnidocbench import truth_page
 from linecaster.testing import check_engine, sample_transcription
 
 
@@ -26,6 +27,7 @@ def source(engine_id: str) -> SourceDocument:
         "import.html.v1": lambda: SourceDocument(data="<p>One <b>two</b></p><p>three</p>"),
         "import.iiif.v1": lambda: SourceDocument(data=json.dumps(to_annotation_page(
             sample_transcription(), "https://library.test/canvas/1", "https://library.test/anno/1"))),
+        "import.omnidocbench.v1": lambda: SourceDocument(data=json.dumps(truth_page("p1", sample_transcription()))),
         "import.tei.v1": lambda: SourceDocument(data='<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><p>One '
                                                      '<hi rend="bold">two</hi></p><p>three</p></body></text></TEI>'),
     }[engine_id]()

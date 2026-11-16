@@ -12,7 +12,8 @@ are ``linecaster.formats``; the importers are thin.
 
 Built in: ``import.alto.v1``, ``import.page.v1``, ``import.hocr.v1``, ``import.text.v1``, ``import.docling.v1``,
 ``import.html.v1`` (with a source's ``conventions``), ``import.tei.v1`` (one page of a TEI P5 document),
-``import.iiif.v1`` (an IIIF annotation page) and ``import.auto.v1`` (tells ALTO, PAGE-XML, hOCR, TEI, IIIF annotation
+``import.iiif.v1`` (an IIIF annotation page), ``import.omnidocbench.v1`` (a page of OmniDocBench's ground truth) and
+``import.auto.v1`` (tells ALTO, PAGE-XML, hOCR, TEI, IIIF annotation
 pages and text apart and reads each with its importer). Engine
 packages add importers for formats that need more (a wiki's wikitext: ``linecaster-mediawiki``).
 """
@@ -299,6 +300,39 @@ class AutoImporter(Importer):
         return self.BY_FORMAT[fmt](ground_truth=options.ground_truth).read(source, options)
 
 
+class OmniDocBenchImporter(Importer):
+    """One page of OmniDocBench's ground truth, an entry of its JSON list as JSON.
+
+    ``linecaster.formats.omnidocbench.from_omnidocbench`` reads it: its elements as regions with roles, lines,
+    tables, formulas and reading order, its page attributes on the source. It is scaled to the page image by the size
+    it states, except where that size is the image's transposed (width for height: the entry's coordinates are the
+    image's; the stated size kept as ``omnidocbench__stated_size``). ``linecaster.formats.omnidocbench.entries``
+    splits the JSON's list into its pages.
+
+    Args:
+        **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
+            ``options`` construct it."""
+
+    engine_id: ClassVar[str] = "import.omnidocbench.v1"
+    step: ClassVar[str] = "import"
+    format: ClassVar[str] = "omnidocbench"
+    capabilities: ClassVar[dict] = {"unit": "page", "produces": ["regions", "reading_order", "lines", "text", "tables",
+                                                                 "formulas"]}
+    scripts: ClassVar[tuple[str, ...]] = ("*",)
+
+    def read(self, source, options):
+        from ..formats.omnidocbench import from_omnidocbench
+
+        t = from_omnidocbench(source.as_text(), ground_truth=options.ground_truth, uri=source.uri)
+        w, h = t.source.image_width, t.source.image_height
+        if source.image_width and source.image_height and w and h and w != h and (w, h) == (
+                source.image_height, source.image_width):
+            # a page size stated transposed (width for height) is no other image: its coordinates are the image's
+            t.source.omnidocbench__stated_size = [w, h]
+            t.source.image_width, t.source.image_height = source.image_width, source.image_height
+        return t
+
+
 #: the built-in importers, by engine id
 IMPORTERS = {c.engine_id: c for c in (AltoImporter, PageXmlImporter, HocrImporter, TextImporter, DoclingImporter,
-                                       HtmlImporter, TeiImporter, IiifImporter, AutoImporter)}
+                                       HtmlImporter, TeiImporter, IiifImporter, AutoImporter, OmniDocBenchImporter)}

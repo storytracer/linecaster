@@ -24,7 +24,7 @@ Figures and what a model writes about them (descriptions) are in neither; hidden
 neither.
 
 What OmniDocBench's evaluation (at 7ddb8df) measures, so that its results are read rightly: its text score keeps
-only ``\w`` characters and CJK ideographs, so combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew
+only ``\\w`` characters and CJK ideographs, so combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew
 points, Thai vowels), punctuation and spaces are not compared, and nothing is put in NFC (``nfc`` as the export's
 ``strategy`` makes both sides alike); predicted text that matches no ground-truth element, and predicted tables that
 match no ground-truth table, are not counted; captions and footnotes are matched but not scored; its "overall" needs
@@ -32,13 +32,12 @@ its formula metric CDM (TeX Live) and pages with tables and formulas. It runs on
 environment of its own. linecaster's own scorer (``linecaster.scoring``) is the measure for scripts with marks."""
 from __future__ import annotations
 
-import re
-from collections.abc import Iterator
 from typing import Any
 
 from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.refs import parse
 from ..data.transcription import Table, Transcription
+# the traversal the scorer's elements share: both views cut a page alike
+from ..scoring.elements import SKIP, display_formula, reading_blocks, table_text  # noqa: F401
 
 #: linecaster content roles -> OmniDocBench's ``category_type`` (other roles: ``text_block``)
 CATEGORIES = {
@@ -50,10 +49,6 @@ CATEGORIES = {
     "table": "table", "formula": "equation_isolated", "chemistry": "equation_isolated",
     "picture": "figure", "chart": "figure", "map": "figure", "music": "figure", "advert": "figure",
 }
-#: roles with no text to score: never written
-SKIP = {"separator", "noise"}
-#: what may follow a formula on its line and still leave the line to it: punctuation, spaces, an equation number
-_TAIL = re.compile(r"[\s.,;:()\[\]0-9]*")
 
 
 def table_html(table: Table) -> str:
@@ -69,68 +64,10 @@ def table_html(table: Table) -> str:
     return "<table>" + "".join(f"<tr>{''.join(r)}</tr>" for _, r in sorted(rows.items())) + "</table>"
 
 
-def reading_blocks(t: Transcription, policy: RenderingPolicy) -> Iterator[tuple[str | None, str | None, Any]]:
-    """The page in reading order as (region, role, what): a region's ``Table``, its ``Formula`` (a formula region),
-    or the list of its lines; a table or formula region without lines in its place in the regions' order."""
-    tables = {tb.target: tb for tb in t.tables if tb.cells}
-    roles = {r.id: t.role(r.id) for r in t.regions}
-    formulas = {f.target: f for f in t.formulas if f.target in roles and f.latex.strip()}
-    rank = t.region_ranks()
-    with_lines = {t.region_of(ln) for ln in t.lines}
-    pending = [r.id for r in sorted(t.regions, key=lambda r: rank.get(r.id, len(rank)))
-               if (r.id in tables or r.id in formulas) and r.id not in with_lines]
-    done: set[str] = set()
-    current: tuple[str | None, list] | None = None
-
-    def whole(region):
-        return region, roles.get(region), tables.get(region) or formulas[region]
-
-    for ln in t.ordered_lines():
-        region = t.region_of(ln)
-        while pending and rank.get(pending[0], len(rank)) < rank.get(region, len(rank)):
-            if current:
-                yield current[0], roles.get(current[0]), current[1]
-                current = None
-            yield whole(pending.pop(0))
-        if roles.get(region) in SKIP or (region is not None and policy.layer_of(t, region) == "none"):
-            continue
-        if region in tables or region in formulas:
-            if region not in done:
-                if current:
-                    yield current[0], roles.get(current[0]), current[1]
-                    current = None
-                done.add(region)
-                yield whole(region)
-            continue
-        if current is None or current[0] != region:
-            if current:
-                yield current[0], roles.get(current[0]), current[1]
-            current = (region, [])
-        current[1].append(ln)
-    if current:
-        yield current[0], roles.get(current[0]), current[1]
-    for region in pending:
-        yield whole(region)
 
 
-def display_formula(t: Transcription, line_id: str, text: str) -> str | None:
-    """The LaTeX of a formula that fills its line (an equation number or punctuation may follow it), else None."""
-    for f in t.formulas:
-        ref = parse(f.target)
-        if ref.id == line_id and ref.span is not None:
-            a, b = ref.span
-            if not text[:a].strip() and _TAIL.fullmatch(text[b:]) and f.latex.strip():
-                return f.latex.strip()
-    return None
 
 
-def table_text(table: Table) -> str:
-    """A table's text as lines: each row's cells in order, separated by spaces (a table not scored as a table)."""
-    rows: dict[int, list] = {}
-    for c in sorted(table.cells, key=lambda c: (c.start_row, c.start_col)):
-        if (c.text or "").strip():
-            rows.setdefault(c.start_row, []).append(" ".join(c.text.split()))
-    return "\n".join(" ".join(r) for _, r in sorted(rows.items()))
 
 
 def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY,
@@ -291,3 +228,321 @@ def _written(strategy: str):
     from ..catalog.registry import catalog
 
     return catalog().strategy(strategy, use="output").text
+
+
+# ------------------------------------------------------------------------------------ reading its ground truth
+# ``from_omnidocbench``: one entry of OmniDocBench's ground-truth JSON (a page) read into a ground-truth transcription,
+# so that runs are scored on its pages by linecaster's own scorer (``import.omnidocbench.v1``, preset
+# ``omnidocbench-import``; ``entries`` splits the JSON's list into its pages).
+import re
+from collections.abc import Iterator
+from typing import NamedTuple
+
+#: OmniDocBench's ``category_type`` -> linecaster's content role (``CATEGORIES`` read back where it names one); the
+#: category stays the region's ``label``, verbatim; a category not listed is the role ``other``
+ROLES = {
+    "title": "heading", "text_block": "paragraph", "figure": "picture", "figure_caption": "caption",
+    "figure_footnote": "footnote", "table": "table", "table_caption": "caption", "table_footnote": "footnote",
+    "equation_isolated": "formula", "equation_caption": "other", "header": "header", "footer": "footer",
+    "page_number": "page_number", "page_footnote": "footnote", "abandon": "other", "code_txt": "code",
+    "code_txt_caption": "caption", "reference": "reference",
+}
+#: categories of content OmniDocBench's annotators discarded (``abandon``): classified ``status`` ``suppressed``, as an
+#: element marked ``ignore`` is, so that no text holds it
+DISCARDED = frozenset({"abandon"})
+#: OmniDocBench's language values (a page's ``language``, a block's ``text_language`` or a table's ``language``, without
+#: their ``text_`` or ``table_`` prefix) -> BCP 47; English and Chinese mixed is ``mul`` (BCP 47's multiple languages)
+LANGUAGES = {"en": "en", "english": "en", "simplified_chinese": "zh-Hans", "en_ch_mixed": "mul"}
+#: the keys of an element that its region, lines, table or formula hold; every other key is kept on the region as an
+#: extension field ``omnidocbench__<key>``
+_READ = frozenset({"category_type", "poly", "ignore", "order", "text", "html", "line_with_spans", "merge_list"})
+#: an inline formula in a block's text, where its spans do not say where they are: ``$…$``, as OmniDocBench writes one
+_INLINE = re.compile(r"(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)")
+_NAME = re.compile(r"[^a-z0-9_]+")
+
+
+def omnidocbench_language(value: Any) -> str | None:
+    """An OmniDocBench language value as a BCP 47 tag (``LANGUAGES``), else ``None``."""
+    if not isinstance(value, str):
+        return None
+    v = value.strip().lower()
+    for prefix in ("text_", "table_"):
+        v = v.removeprefix(prefix)
+    return LANGUAGES.get(v)
+
+
+def _extension(key: str) -> str | None:
+    name = _NAME.sub("_", str(key).lower()).strip("_")
+    return f"omnidocbench__{name}" if name and name[0].isalpha() else (f"omnidocbench__k{name}" if name else None)
+
+
+def _points(poly: Any) -> list[list[float]] | None:
+    """``poly`` (x1, y1, x2, y2, ...: OmniDocBench's corners) as points, or ``None``."""
+    if not isinstance(poly, list) or len(poly) < 6 or len(poly) % 2:
+        return None
+    try:
+        return [[float(poly[i]), float(poly[i + 1])] for i in range(0, len(poly), 2)]
+    except (TypeError, ValueError):
+        return None
+
+
+def _box(points: list[list[float]] | None) -> list[float] | None:
+    if not points:
+        return None
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
+    return [min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)]
+
+
+def _union(a: list[float], b: list[float]) -> list[float]:
+    x0, y0 = min(a[0], b[0]), min(a[1], b[1])
+    return [x0, y0, max(a[0] + a[2], b[0] + b[2]) - x0, max(a[1] + a[3], b[1] + b[3]) - y0]
+
+
+def _same_row(row: list[float], box: list[float]) -> bool:
+    """Whether a span's box lies on the row of ``row`` (the boxes of its spans so far): they overlap vertically by at
+    least half the lower of the two."""
+    overlap = min(row[1] + row[3], box[1] + box[3]) - max(row[1], box[1])
+    return overlap >= 0.5 * min(row[3], box[3]) and overlap > 0
+
+
+def _span_text(span: dict) -> str:
+    value = span.get("text")
+    if value is None:
+        value = span.get("latex")
+    return value.strip() if isinstance(value, str) else ""
+
+
+class _Line(NamedTuple):
+    """One line of a block as ``_text_lines`` cuts it: its text, box, inline formulas (``(start, end, LaTeX)``) and
+    the halves of divided words on it (``(start, end, the whole word)``)."""
+
+    text: str
+    box: list[float] | None
+    formulas: list[tuple[int, int, str]]
+    joined: list[tuple[int, int, str]]
+
+
+def _text_lines(text: str, spans: list[dict]) -> list[_Line]:
+    """A block's ``text`` as its lines. With spans (``line_with_spans``): each row of spans a line, its box their
+    union, cut from the block's text where the row's first span begins, the spans written in LaTeX (``$…$``) its
+    inline formulas. Where a row's last span ends in a division mark the block's text dropped (``evap-`` of
+    ``evaporator``), the line keeps the mark, as the span prints it, and both halves name the whole word, the block
+    text's (a ``joined`` edit each). Where a span is not found in the text in order, or without spans: a line per
+    line of the text, without boxes, and ``$…$`` its inline formulas."""
+    rows: list[tuple[list[float], list[dict]]] = []
+    ok = bool(spans)
+    for s in spans:
+        box = _box(_points(s.get("poly")))
+        if box is None:
+            ok = False
+            break
+        if not _span_text(s):
+            continue
+        if rows and _same_row(rows[-1][0], box):
+            rows[-1] = (_union(rows[-1][0], box), rows[-1][1] + [s])
+        else:
+            rows.append((box, [s]))
+    found: list[list[tuple[int, int, dict]]] = []
+    divided: set[int] = set()                     # rows whose last span's division mark the text dropped
+    pos = 0
+    for r, (_, row) in enumerate(rows if ok else ()):
+        located = []
+        for s in row:
+            piece = _span_text(s)
+            k = text.find(piece, pos)
+            if k < 0 and piece.endswith("-") and s is row[-1] and len(piece) > 1:
+                k = text.find(piece[:-1], pos)
+                if k >= 0 and k + len(piece) - 1 < len(text) and not text[k + len(piece) - 1].isspace():
+                    piece = piece[:-1]
+                    divided.add(r)
+                else:
+                    k = -1
+            if k < 0:
+                ok = False
+                break
+            located.append((k, k + len(piece), s))
+            pos = k + len(piece)
+        if not ok:
+            break
+        found.append(located)
+    if not (ok and found):
+        return [_Line(x.strip(), None, _inline(x.strip()), []) for x in text.split("\n") if x.strip()]
+    starts = [0] + [row[0][0] for row in found[1:]] + [len(text)]
+    out: list[_Line] = []
+    for r, located in enumerate(found):
+        a, b = starts[r], starts[r + 1]
+        segment = text[a:b]
+        lead = len(segment) - len(segment.lstrip())
+        line = segment.strip()
+        if not line:
+            continue
+        if "\n" in line:                            # a line break of the text inside a row: its lines, unboxed
+            out += [_Line(x.strip(), None, _inline(x.strip()), []) for x in line.split("\n") if x.strip()]
+            continue
+        formulas = [(k - a - lead, e - a - lead, _span_text(s)[1:-1].strip()) for k, e, s in located
+                    if s.get("category_type") != "equation_isolated" and len(_span_text(s)) > 1
+                    and _span_text(s).startswith("$") and _span_text(s).endswith("$")]
+        joined: list[tuple[int, int, str]] = []
+        if r - 1 in divided and out and out[-1].text.endswith("-") and b > a:      # the second half
+            head = re.match(r"\S+", line)
+            if head:
+                whole = out[-1].joined[-1][2] if out[-1].joined else head.group(0)
+                joined.append((0, head.end(), whole))
+        if r in divided and r + 1 < len(found):                                   # the first half: the mark back
+            nxt = text[starts[r + 1]:].lstrip()
+            tail = re.search(r"\S+$", line)
+            if tail and nxt and not nxt[0].isspace():
+                whole = tail.group(0) + re.match(r"\S*", nxt).group(0)
+                line += "-"
+                joined.append((tail.start(), len(line), whole))
+        out.append(_Line(line, rows[r][0], formulas, joined))
+    return out
+
+
+def _inline(line: str) -> list[tuple[int, int, str]]:
+    return [(m.start(), m.end(), m.group(1).strip()) for m in _INLINE.finditer(line) if m.group(1).strip()]
+
+
+def _unwrapped(latex: str) -> str:
+    """A display formula's LaTeX without its ``$$`` (or ``$``, ``\\[ \\]``) delimiters."""
+    s = latex.strip()
+    for a, b in (("$$", "$$"), ("\\[", "\\]"), ("$", "$")):
+        if s.startswith(a) and s.endswith(b) and len(s) >= len(a) + len(b):
+            return s[len(a):len(s) - len(b)].strip()
+    return s
+
+
+def page_id(entry: dict) -> str:
+    """The page id of an entry: its ``page_info.image_path``'s file name without the extension (the key a prediction
+    file is found by)."""
+    path = str((entry.get("page_info") or {}).get("image_path") or "")
+    name = path.replace("\\", "/").rsplit("/", 1)[-1]
+    stem = name.rsplit(".", 1)[0] if "." in name else name
+    if not stem or "#" in stem:
+        raise ValueError(f"an OmniDocBench entry's image_path {path!r} gives no page id (empty, or with '#')")
+    return stem
+
+
+def entries(path) -> Iterator[tuple[str, dict]]:
+    """``(page id, entry)`` for each entry of OmniDocBench's ground-truth JSON (a list of pages; a local path or any
+    fsspec URI): the rows of a table ``pipelines/import_transcriptions.py`` reads with ``--data-key`` (each entry's
+    JSON) and the importer ``omnidocbench-import``."""
+    import json
+
+    if "://" in str(path):
+        import fsspec
+
+        with fsspec.open(str(path), "rt", encoding="utf-8") as fh:
+            data = json.load(fh)
+    else:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    if not isinstance(data, list):
+        raise ValueError(f"{path}: OmniDocBench's ground truth is a JSON list of pages")
+    for entry in data:
+        yield page_id(entry), entry
+
+
+def from_omnidocbench(entry: dict | str | bytes, ground_truth: bool = True, uri: str | None = None) -> Transcription:
+    """One entry of OmniDocBench's ground-truth JSON (a page: ``layout_dets``, ``page_info``, ``extra``; or its JSON)
+    as a transcription, by its annotators (one annotator, kind ``human``; ``ground_truth=False``: ``file``):
+
+    * every element (``layout_dets``) a region, ``r<anno_id>``: its ``poly`` the polygon (and box), its category the
+      ``label`` and, by ``ROLES``, its ``role``; ``ignore`` and the discarded category (``abandon``) a ``status``
+      ``suppressed``; its block-level ``attribute`` and any other key kept as extension fields
+      (``omnidocbench__attribute``, ``omnidocbench__anno_id``, a table's ``omnidocbench__latex``, ...), and its
+      language (``text_language``, a table's ``language``) a ``language`` classification where it is not the page's;
+    * its text as lines (``_text_lines``: the rows of its ``line_with_spans``, or of its ``merge_list``'s, else the
+      text's lines), inline formulas (``$…$``) as ``Formula`` annotations of their spans, the text kept as written;
+    * a table's ``html`` a ``Table`` (``linecaster.formats.html_table``), a display formula's ``latex``
+      (``equation_isolated``) a ``Formula`` of its region, without its ``$$``; neither has lines;
+    * ``order`` the reading order of the regions that have one, and of their lines (OmniDocBench leaves page furniture
+      and discarded elements unordered: they come last, in the entry's order);
+    * relations (``extra.relation``): ``parent_son`` to a caption a ``caption_of`` link, to a footnote a ``note_of``
+      link; ``truncated`` (a paragraph cut by the layout) a ``continues`` link from the later part; others kept as the
+      transcription's extension field ``omnidocbench__relation``;
+    * ``page_info``: ``image_path`` the source's ``record``, ``width`` and ``height`` its image size, and every
+      ``page_attribute`` an extension field of the source (``omnidocbench__data_source``, ``omnidocbench__layout``,
+      ``omnidocbench__special_issue``, ``omnidocbench__language``, ...); the language also a page classification
+      (``LANGUAGES``: ``en``, ``zh-Hans``, ``mul`` for English and Chinese mixed)."""
+    import json
+
+    from ..data.transcription import Annotator, Edit, Formula, Link, Source
+    from .html_table import table_from_html
+
+    if isinstance(entry, (str, bytes)):
+        entry = json.loads(entry)
+    info = entry.get("page_info") or {}
+    attributes = info.get("page_attribute") or {}
+    extensions = {name: value for key, value in attributes.items() if (name := _extension(key)) is not None}
+    if info.get("page_no") is not None:
+        extensions["omnidocbench__page_no"] = info["page_no"]
+    size = {k: int(info[k]) for k in ("width", "height") if isinstance(info.get(k), int | float) and info[k] > 0}
+    t = Transcription(source=Source(kind="ground_truth" if ground_truth else "converted", format="omnidocbench",
+                                    uri=uri, record=info.get("image_path") or None,
+                                    image_width=size.get("width"), image_height=size.get("height"), **extensions))
+    a = t.add_annotator(Annotator(kind="human" if ground_truth else "file", step="transcription", name="omnidocbench"))
+    page_language = omnidocbench_language(attributes.get("language"))
+    if page_language:
+        t.classify(a, "", "language", page_language)
+    dets = [d for d in entry.get("layout_dets") or [] if isinstance(d, dict)]
+    anno = [d.get("anno_id") for d in dets]
+    unique = all(isinstance(x, int) and not isinstance(x, bool) for x in anno) and len(set(anno)) == len(anno)
+    rid = {id(d): f"r{d['anno_id']}" if unique else f"r{k}" for k, d in enumerate(dets)}
+    ranked = sorted((d for d in dets if isinstance(d.get("order"), int | float)), key=lambda d: d["order"])
+    order_regions, order_lines, order_rows = [], [], []
+    for d in ranked + [d for d in dets if not isinstance(d.get("order"), int | float)]:
+        region, category = rid[id(d)], str(d.get("category_type") or "")
+        polygon = _points(d.get("poly"))
+        latex = d.get("latex") if isinstance(d.get("latex"), str) else None
+        formula = category == "equation_isolated" and bool(latex and _unwrapped(latex))
+        fields = {name: v for k, v in d.items() if k not in _READ and not (k == "latex" and formula)
+                  and v not in (None, "", [], {}) and (name := _extension(k)) is not None}
+        t.add_region(a, region, _box(polygon), polygon, label=category, role=ROLES.get(category, "other"), **fields)
+        if d.get("ignore") is True or category in DISCARDED:
+            t.classify(a, region, "status", "suppressed")
+        block = d.get("attribute") if isinstance(d.get("attribute"), dict) else {}
+        language = omnidocbench_language(block.get("text_language") or block.get("language"))
+        if language and language != page_language:
+            t.classify(a, region, "language", language)
+        lines: list[str] = []
+        if formula:
+            t.formulas.append(Formula(annotator=a, target=region, latex=_unwrapped(latex)))
+        elif category == "table" and isinstance(d.get("html"), str) and d["html"].strip() and (
+                table := table_from_html(d["html"], a, region)) is not None:
+            t.tables.append(table)
+        elif isinstance(d.get("text"), str) and d["text"].strip():
+            spans = [s for s in d.get("line_with_spans") or [] if isinstance(s, dict)]
+            if not spans:
+                spans = [s for m in d.get("merge_list") or [] if isinstance(m, dict)
+                         for s in m.get("line_with_spans") or [] if isinstance(s, dict)]
+            for j, cut in enumerate(_text_lines(d["text"], spans)):
+                line = t.add_line(a, f"{region}_l{j}", cut.box, region=region, text=cut.text).id
+                lines.append(line)
+                t.formulas += [Formula(annotator=a, target=f"{line}[{s}:{e}]", latex=x) for s, e, x in cut.formulas
+                               if x]
+                t.edits += [Edit(annotator=a, target=f"{line}[{s}:{e}]", kind="joined", text=w)
+                            for s, e, w in cut.joined]
+        if d in ranked:
+            order_regions.append(region)
+            order_lines += lines
+            order_rows += range(len(lines))
+    if order_regions:
+        t.add_order(a, order_regions, order_lines, order_rows)
+    by_anno = {d.get("anno_id"): rid[id(d)] for d in dets} if unique else {}
+    kept = []
+    for rel in (entry.get("extra") or {}).get("relation") or []:
+        kind = rel.get("relation_type") or rel.get("relation")
+        src, tgt = by_anno.get(rel.get("source_anno_id")), by_anno.get(rel.get("target_anno_id"))
+        son = t.region(tgt).label if tgt else ""
+        if src and tgt and kind == "parent_son" and ROLES.get(son) == "caption":
+            t.links.append(Link(annotator=a, kind="caption_of", source=tgt, target=src))
+        elif src and tgt and kind == "parent_son" and ROLES.get(son) == "footnote":
+            t.links.append(Link(annotator=a, kind="note_of", source=tgt, target=src))
+        elif src and tgt and kind == "truncated":
+            t.links.append(Link(annotator=a, kind="continues", source=tgt, target=src))
+        else:
+            kept.append(rel)
+    if kept:
+        t.omnidocbench__relation = kept
+    return t

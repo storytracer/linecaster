@@ -539,9 +539,17 @@ def _sample_source(fmt: str):
                                                            "https://library.test/anno/1")),
             "tei": lambda: ('<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
                             + "".join(f"<p>{escape(ln.reading.text)}</p>" for ln in t.lines if ln.reading)
-                            + "</body></text></TEI>")}.get(
+                            + "</body></text></TEI>"),
+            "omnidocbench": lambda: _json.dumps(_omnidocbench_entry(t))}.get(
         fmt, lambda: to_alto(t))()
     return SourceDocument(data=data, format=fmt if fmt != "auto" else None)
+
+
+def _omnidocbench_entry(t) -> dict:
+    """The sample transcription as an entry of OmniDocBench's ground-truth JSON (``truth_page``)."""
+    from ..formats.omnidocbench import truth_page
+
+    return truth_page("sample", t)
 
 
 def docling_sample(t) -> dict:
