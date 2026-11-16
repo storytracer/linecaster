@@ -58,7 +58,7 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
     for role, r in (result.get("roles") or {}).items():
         for key in ("precision", "recall"):
             metrics[f"role_{key}_{role}"] = {"value": r[key], "n": result["pages_scored"]}
-    matching = (benchmark.elements.lane or benchmark.lanes[0]) if benchmark.element_metrics else None
+    matching = benchmark.elements.lane if benchmark.element_metrics else None
     software = {k: v for k, v in (record.get("software") or {}).get("packages", {}).items()
                 if k in ("vllm", "sglang", "linecaster-kraken", "linecaster-paddlex", "torch")}
     return Evidence3.model_validate({

@@ -72,7 +72,8 @@ class Supports(_Model):
 class ElementSettings(_Model):
     """How elements are cut and matched (``linecaster.scoring.elements``, ``linecaster.scoring.matching``)."""
 
-    lane: str | None = Field(None, description="the lane elements are matched by; None: the benchmark's first lane")
+    lane: str = Field("alnum", description="the lane elements are matched by: alnum (letters, marks and digits of "
+                                           "any script) by default, whatever the scored lanes")
     tables: Literal["data", "all"] = Field("data", description="which tables are tables: data (printed as tables; "
                                                                "linecaster.scoring.tables) or all; the rest is text")
     containment: float = Field(0.5, gt=0, le=1, description="the least share of an element that must lie in its match")
@@ -150,11 +151,10 @@ class Benchmark(_Model):
             self.metrics = [m for m in self.metrics if m != "reading_order"]      # the default, where it holds
         if "reading_order" in self.metrics and not self.supports.reading_order:
             raise ValueError("reading_order needs a ground truth that orders its blocks (supports.reading_order)")
-        if self.elements.lane is not None:
-            try:
-                self.elements.lane = lane(self.elements.lane)
-            except KeyError as e:
-                raise ValueError(f"elements.lane: {e.args[0]}") from None
+        try:
+            self.elements.lane = lane(self.elements.lane)
+        except KeyError as e:
+            raise ValueError(f"elements.lane: {e.args[0]}") from None
         if "role_words" in self.metrics and not self.supports.roles:
             raise ValueError("role_words needs roles the ground truth marks (supports.roles)")
         if "confusion" in self.metrics and not self.supports.boxes:

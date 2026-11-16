@@ -65,17 +65,10 @@
       "description": "How elements are cut and matched (``linecaster.scoring.elements``, ``linecaster.scoring.matching``).",
       "properties": {
         "lane": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "the lane elements are matched by; None: the benchmark's first lane",
-          "title": "Lane"
+          "default": "alnum",
+          "description": "the lane elements are matched by: alnum (letters, marks and digits of any script) by default, whatever the scored lanes",
+          "title": "Lane",
+          "type": "string"
         },
         "tables": {
           "default": "data",

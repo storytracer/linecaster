@@ -140,9 +140,10 @@ def score_elements(truth: Transcription, output: Transcription | None, texts=tup
     against the output table of its group (0 without one) and ``as_table``; a formula's LaTeX counts (``latex_*``,
     the cleaned LaTeX without spaces, ``linecaster.text.formulas.clean``); ``m`` = max(n, h + s + i), for normalized
     edit distance. And ``page``: the reading order's counts (``order_discordant``, ``order_pairs``, ``order_edits``,
-    ``order_len``, ``linecaster.scoring.order``), the groups' kinds, ``tables_output`` and ``tables_output_matched``.
+    ``order_len``, ``linecaster.scoring.order``; over the matched ground-truth elements its order ranks: furniture
+    an order leaves out is not ordered), the groups' kinds, ``tables_output`` and ``tables_output_matched``.
     Both sides are written by the output ``strategy``, then each lane; elements are matched once, by
-    ``matching_lane`` (default the first lane)."""
+    ``matching_lane`` (default the first lane; a benchmark's ``elements.lane``, ``alnum`` by default)."""
     from ..catalog.registry import catalog
     from ..text.formulas import clean
     from .counts import edit_counts_by, units
@@ -233,11 +234,13 @@ def score_elements(truth: Transcription, output: Transcription | None, texts=tup
                                                  kind=e.kind, role=e.role, layer=e.layer, s=0, d=0, i=n_units, h=0,
                                                  n=0, m=n_units, table_kind=e.table_kind, attributes=attrs(e)))
 
+    ranked = truth.region_ranks()
     positions = {}
     for grp in groups:
         if grp.truth and grp.output:
             for g in grp.truth:
-                positions[g] = min(grp.output)
+                if not ranked or te[g].region is None or te[g].region in ranked:     # what the truth orders
+                    positions[g] = min(grp.output)
     order = [positions[g] for g in sorted(positions)]
     discordant, pairs = kendall(order)
     edits, length = index_edits(order)

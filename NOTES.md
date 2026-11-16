@@ -39,8 +39,25 @@ What 0.11.0 decides, after reading OmniDocBench (at 7ddb8df) and Omni Parse Benc
 - A page whose paragraphs an output gives in another order scores element CER 0 against a page CER of 0.505 on the
   test page; the order rates (Kendall's share of pairs the other way round, and OmniDocBench's order edit distance)
   carry the difference.
-- **Defaults still to calibrate** against OmniDocBench's own evaluation (containment 0.5, short 4, n-gram 3,
-  candidates 8, matching lane the benchmark's first): see the agreement run below when it is made.
+- **Agreement with OmniDocBench's own evaluation** (its 18 demo pages and the demo predictions in its checkout, Chinese
+  and English; its evaluation at 7ddb8df in a Python 3.11 environment, CDM off; the same ground truth imported by
+  `import.omnidocbench.v1` and the predictions read as lines; aarch64 machine with a GB10 GPU, CPU only):
+  - text, per page, linecaster's element NED of text elements (furniture left out) against OmniDocBench's text edit
+    distance: Pearson 0.990, Spearman 0.940, mean |difference| 0.046 with `alnum` scoring; 0.985, 0.915, 0.084
+    with `diplomatic` scoring (which compares punctuation and spaces OmniDocBench drops). linecaster is higher on
+    average (+0.032 with `alnum`) because it counts predicted text that matches nothing.
+  - tables, per table, TEDS: within 0.017 of OmniDocBench's on average under `diplomatic` (8 tables; at most 0.08,
+    a table with LaTeX in its cells), 0.03 under `alnum`. One table OmniDocBench scores (0.999) is a layout table
+    by `table_kind`, so linecaster compares it as text on both sides (`elements.tables: data`).
+  - **Calibration: the matching lane is `alnum` by default**, not the first scored lane. Matching by `diplomatic`
+    left two of the eight tables unmatched (TEDS 0: `$ \pm $` against `±`, spacing), as OmniDocBench matches on
+    normalized text too; `alnum` keeps the letters and marks of every script, so matching stays script-aware.
+  - reading order, per page, order edit distance: Pearson 0.57, Spearman 0.45, mean |difference| 0.14 (17 pages),
+    after leaving out elements the ground truth's order does not rank (OmniDocBench orders no furniture; 0.55,
+    0.42, 0.17 before). The rest is how a split is placed (linecaster: the first of its output elements) and which
+    blocks OmniDocBench's match keeps; 17 pages are too few to tune on.
+  - Kept as they are (no measurement against them): containment 0.5, short 4, n-gram 3, candidates 8. Open: the
+    same comparison on the full OmniDocBench set and on non-English ground truth with several runs.
 - `ELEMENTS_VERSION` 1 is in evidence records and `Evidence3.comparable`: a change to how elements are cut, matched
   or attributed raises it.
 

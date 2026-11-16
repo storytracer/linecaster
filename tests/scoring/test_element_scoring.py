@@ -237,7 +237,7 @@ def test_a_run_s_element_rates_strata_parquet_and_evidence(tmp_path):
     m = ev["metrics"]
     assert 0 < m["element_cer_full_diplomatic"]["value"] < m["cer_full_diplomatic"]["value"]
     assert m["order_kendall"]["value"] > 0 and m["order_kendall"]["n"] == 2
-    assert ev["scoring"]["elements"]["version"] >= 1 and ev["scoring"]["elements"]["lane"]["id"] == "diplomatic"
+    assert ev["scoring"]["elements"]["version"] >= 1 and ev["scoring"]["elements"]["lane"]["id"] == "alnum"
     assert set(ev["strata"]) >= {"role", "kind", "match"}
     assert ev["strata"]["role"]["heading"]["pages"] == 2
     assert ev["strata"]["role"]["heading"]["metrics"]["element_cer"]["value"] == 0

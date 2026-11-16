@@ -162,7 +162,8 @@ recognized: an HTML table, a pipe table, a `$$…$$` or `\[…\]` formula, a `#`
 kind, layer, and the writing system and classifications that hold for it.
 
 **Matching** (`linecaster.scoring.matching`): both sides' contents written by the output strategy and the matching
-lane (`elements.lane`, default the first lane), as units (grapheme clusters by default), so it works the same in
+lane (`elements.lane`, default `alnum`: letters, marks and digits of any script, so markup, punctuation and
+formula notation do not keep a match apart), as units (grapheme clusters by default), so it works the same in
 every script. An element's candidates are the elements of the other side sharing the most n-grams of units; its home
 is the candidate it lies in or holds the most (containment: one minus the edit distance of the shorter aligned
 against the best stretch of the longer, over its length; at least `elements.containment`, default 0.5), ties broken
@@ -184,7 +185,7 @@ deletions; an extra element all insertions; extra text is never free.
 | `table_recall` | the share of ground-truth tables the output gives as tables |
 | `table_precision` | the share of the output's tables that are in a group with a ground-truth table |
 | `formula_cer`, `formula_ned` | per ground-truth formula, the edit distance of the cleaned LaTeX (`linecaster.text.formulas.clean`, without spaces) to the output's in its group |
-| `order_kendall` | of the pairs of matched ground-truth elements, the share the output puts the other way round (`linecaster.scoring.order`) |
+| `order_kendall` | of the pairs of matched ground-truth elements (those of regions the ground truth's order ranks, where it has one: furniture it leaves unordered is not ordered), the share the output puts the other way round (`linecaster.scoring.order`) |
 | `order_edit` | the edit distance between the ground truth's order of its matched elements and the output's, over their number: OmniDocBench's reading-order measure |
 
 The element rates are per text and lane (`element_cer_full_diplomatic`); the formula and order rates are for the

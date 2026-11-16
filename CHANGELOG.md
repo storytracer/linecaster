@@ -55,7 +55,7 @@ records a language and where *Changed outputs* says.
   `teds` and `teds_s` (tree edit distance from the tables' cells, Zhang–Shasha, no dependency), `table_recall`,
   `table_precision`, `formula_cer`, `formula_ned`, `order_kendall` and `order_edit`. Unlike OmniDocBench's
   evaluation, extra text and unmatched output tables are counted, and text is compared by the benchmark's lanes in
-  any script. A benchmark's `elements` sets the matching lane and thresholds; evidence records the scorer's rules'
+  any script. A benchmark's `elements` sets the matching lane (`alnum` by default) and thresholds; evidence records the scorer's rules'
   version and matching lane (`scoring.elements`, `linecaster.scoring.ELEMENTS_VERSION`) and compares by them.
 - **Normalizations for comparing international typography**, adopted from Omni Parse Bench's comparison fold
   (Apache-2.0; NOTES.md): `typography` (low quotes, guillemets, primes, TeX's quotes, the minus sign and other
