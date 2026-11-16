@@ -116,6 +116,12 @@ class ServiceServer(Contracted, PipelineStep):
         env["PATH"] = os.pathsep.join(([os.path.join(self._env_dir, "bin")] if self._env_dir else [])
                                       + [p for p in env.get("PATH", "").split(os.pathsep)
                                          if p and os.path.realpath(p) != own])
+        if self._env_dir:                                   # the server environment's CUDA libraries
+            from .provision import ld_library_path
+
+            libs = ld_library_path(self._env_dir, env.get("LD_LIBRARY_PATH"))
+            if libs:
+                env["LD_LIBRARY_PATH"] = libs
         env.update(self.serve.get("env") or {})
         return env
 

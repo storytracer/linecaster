@@ -234,11 +234,14 @@ class ChatModelServer(Contracted, PipelineStep):
 
             cmd = cmd + args if cmd[0] != "bash" else [*cmd[:-1], cmd[-1] + " " + shlex.join(args)]
         toolkit = {}
-        if self._env_dir:                                    # a server environment's own CUDA toolkit
-            from .provision import cuda_home
+        if self._env_dir:                                    # a server environment's own CUDA toolkit and libraries
+            import os
+
+            from .provision import cuda_home, ld_library_path
 
             home = cuda_home(self._env_dir)
-            toolkit = {"CUDA_HOME": home} if home else {}
+            libs = ld_library_path(self._env_dir, os.environ.get("LD_LIBRARY_PATH"))
+            toolkit = {**({"CUDA_HOME": home} if home else {}), **({"LD_LIBRARY_PATH": libs} if libs else {})}
         env = [f"{k}={v}" for k, v in {**toolkit, **(getattr(self.spec, "server_env", None) or {}), **trace_env,
                                        **self.flashinfer_env()}.items()]
         if self.outside_venv:

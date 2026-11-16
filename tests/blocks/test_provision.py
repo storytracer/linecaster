@@ -70,3 +70,11 @@ def test_a_failed_build_says_why(monkeypatch, tmp_path):
         provision.server_env("vllm", "0.30.0")
     with pytest.raises(ServerError, match="vllm or sglang"):
         provision.server_env("tgi", "1.0")
+
+
+def test_a_server_finds_its_environment_s_cuda_libraries_after_the_machine_s(tmp_path):
+    lib = tmp_path / "lib" / "python3.12" / "site-packages" / "nvidia" / "cu13" / "lib"
+    lib.mkdir(parents=True)
+    assert provision.library_path(tmp_path) == [str(lib)]
+    assert provision.ld_library_path(tmp_path, "/usr/local/cuda-13.0/compat") == f"/usr/local/cuda-13.0/compat:{lib}"
+    assert provision.ld_library_path(tmp_path / "none", None) is None

@@ -122,6 +122,23 @@ def server_env(server: str, version: str, packages: list[list[str]] = (), python
     return folder
 
 
+def library_path(folder: str | Path) -> list[str]:
+    """The CUDA library folders of a server environment's NVIDIA packages (``nvidia/cu*/lib``, ``nvidia/*/lib``), for
+    the server's ``LD_LIBRARY_PATH``: libraries a CUDA library opens by name at run time (NVRTC its
+    ``libnvrtc-builtins``) are found there, as an image finds them in its toolkit's folder."""
+    found = []
+    for site in sorted(Path(folder).glob("lib/python3*/site-packages/nvidia")):
+        found += [str(d) for d in sorted(site.glob("cu*/lib")) + sorted(site.glob("*/lib")) if d.is_dir()]
+    return list(dict.fromkeys(found))
+
+
+def ld_library_path(folder: str | Path, current: str | None) -> str | None:
+    """``LD_LIBRARY_PATH`` for a server in ``folder``'s environment: the current one first (the machine's own, e.g.
+    CUDA's compatibility libraries), then the environment's CUDA libraries; ``None`` when neither has any."""
+    parts = [p for p in (current or "").split(os.pathsep) if p] + library_path(folder)
+    return os.pathsep.join(dict.fromkeys(parts)) or None
+
+
 def cuda_home(folder: str | Path) -> str | None:
     """The CUDA toolkit of a server environment (``TOOLKIT``), ``None`` without one."""
     ready = Path(folder) / ".ready"
