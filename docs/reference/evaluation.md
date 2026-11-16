@@ -130,6 +130,20 @@ counts, so corpus rates are exact.
 - **Eligibility**: a run is scored only on exactly the benchmark's page set; a page the run failed counts as an empty
   output, and the evidence says how many there were. A run that lacks pages of the set is not eligible.
 
+## Scoring many pages (`pipelines/score.py`)
+
+`linecaster score` scores a run in one process. `pipelines/score.py` (the pipeline `score.v1`) scores the same way over
+many tasks, here (`--workers`) or on a Ray cluster (`--on ray`), like every other pipeline:
+
+    uv run pipelines/score.py RUN/scores --pages RUN/pages --truth TRUTH --benchmark benchmark.yaml --tasks 32
+
+Each task scores a share of the run's page records (`PageScorer`: its pages' ground truth read in one pass, only
+their lines decoded) and writes their score records and page summaries (`ScoreWriter`: `OUT/records`, `OUT/pages`).
+When every task is done, the driver puts them together (`linecaster.scoring.run.aggregate`): the pages the run lacks
+are scored as empty outputs, then the rates, intervals and conventions check as above, into `OUT/scores.parquet` and
+`OUT/evidence.yaml`. The score records are the ones `linecaster score` writes, page for page. A task reads whole
+page-record files, so a run written by N tasks scores in at most N tasks.
+
 ## Benchmarks (`linecaster.benchmark/2`)
 
 A benchmark definition is a YAML file in the evaluation's repository:

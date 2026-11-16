@@ -997,10 +997,11 @@ def check_commit(a: argparse.Namespace, script: str | None) -> None:
 
 
 def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = None, engines: bool = True,
-        argv: list[str] | None = None) -> None:
+        argv: list[str] | None = None, after: Callable[[], None] | None = None) -> None:
     """Build the plan of ``pipeline`` (``linecaster.runtime.builder``), check it, write the run record and run its
     stages one after another; with ``--dry-run`` print the plan and its graph instead; with ``--page`` run the one
-    page in this process."""
+    page in this process. ``after`` runs here once every task is done (here or on Ray; not for HF Jobs, which this
+    process does not wait for): a pipeline's step over all its tasks' output (``pipelines/score.py``)."""
     out = a.out.rstrip("/")
     if not getattr(a, "run_id", None):           # this launch's id: in its record and on every annotator it adds
         from .provenance import new_run_id
@@ -1052,6 +1053,8 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     _executors(a, p, out, image, deps, script).run()
     if a.on == "hf-jobs":
         print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))
+    elif after is not None:
+        after()
 
 
 def sampled(a: argparse.Namespace, pipeline: list):

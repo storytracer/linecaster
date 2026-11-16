@@ -24,10 +24,11 @@ from .common import HEADER, Links, table
 from .docstrings import Docstring, markdown, parse
 
 FAMILIES = ("readers", "layout", "lines", "recognition", "conversion", "composition", "binding", "validation", "servers",
-            "writers", "composites")
+            "scoring", "writers", "composites")
 TITLES = {"readers": "Readers", "layout": "Layout", "lines": "Lines", "recognition": "Recognition",
           "conversion": "Conversion", "composition": "Composition", "binding": "Binding",
-          "validation": "Validation", "servers": "Servers", "writers": "Writers", "composites": "Composites"}
+          "validation": "Validation", "servers": "Servers", "scoring": "Scoring", "writers": "Writers",
+          "composites": "Composites"}
 #: the backends a model block's ``backend`` annotation names
 BACKENDS = {"InProcess": "in-process", "Served": "served", "Chat": "chat"}
 #: the part every reader may bring (``PageRecordReader`` without ``provides``): left out of the derived positions

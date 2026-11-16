@@ -341,8 +341,9 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
     """One block of every public block class (and the composite), runnable here: fake engines, a fake chat server,
     sample inputs; with the ``check_block`` arguments each needs, by a label (the class, and what is special)."""
     from linecaster.blocks import binding, composites, composition, conversion, layout, lines, readers, recognition
-    from linecaster.blocks import servers, validation, writers
+    from linecaster.blocks import scoring, servers, validation, writers
     from linecaster.blocks.composition import Composer
+    from linecaster.data.sample import listing_sha256
 
     i = _inputs(tmp_path)
     fake = {step: InProcess(f"{FAKES}:{name}") for step, name in (
@@ -398,7 +399,12 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (writers.PageParquetWriter(str(out / "parquet")), {}),
         (writers.PageFileWriter(str(out / "files"), formats=("hocr", "alto", "page", "txt", "md")), {}),
         (writers.ImageFilesWriter(str(out / "images")), {}),
+        (scoring.PageScorer(str(tmp_path / "truth"), {     # the sample pages are outside its page set: passed on
+            "schema": "linecaster.benchmark/2", "id": "conformance",
+            "dataset": {"repo": "example.org/gt@0", "importer": "docling"},
+            "pages": {"ids": ["elsewhere"], "sha256": listing_sha256(["elsewhere"])}}), {}),
         (writers.RejectWriter(str(out / "rejects")), {}),
+        (writers.ScoreWriter(str(out / "scores")), {}),
         (writers.ResourceFilesWriter(str(out / "resources")), {}),
         (writers.ResourceRecordWriter(str(out / "resources" / "records")), {}),
         (writers.ItemTextWriter(str(out / "texts")), {"docs": item_docs}),
@@ -420,7 +426,8 @@ BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordRea
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
           "TranscriptionImporter", "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Binder", "Splitter", "PageValidator",
           "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
-          "PageFileWriter", "ImageFilesWriter", "RejectWriter", "ResourceFilesWriter", "ResourceRecordWriter",
+          "PageFileWriter", "ImageFilesWriter", "PageScorer", "RejectWriter", "ScoreWriter", "ResourceFilesWriter",
+          "ResourceRecordWriter",
           "ItemTextWriter", "ItemDocumentWriter",
           "ModularTranscriber")
 

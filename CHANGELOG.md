@@ -8,6 +8,12 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
+- **Scoring as a pipeline** (`pipelines/score.py`, `score.v1`): a run scored over many tasks, here or on Ray, like
+  every other pipeline: `PageScorer` and `ScoreWriter` per task (each task's ground truth read in one pass, only its
+  pages' lines decoded), then `linecaster.scoring.run.aggregate` on the driver (missing pages, rates, intervals,
+  conventions) into `scores.parquet` and `evidence.yaml`, the same records as `linecaster score`. `score_run` is now
+  `score_pair` per page and `summarize`; score and evidence files can be written to object storage. A pipeline's
+  build can give `run()` an `after` step, run once every task is done.
 - **The server here, else built by uv** (`--server-env auto`, the default): a preset is served by the server on
   `PATH` or in the image when it is the preset's release (vLLM's image at linecaster's pin serves every preset on
   it), else by one uv builds (`--server-env uv` always; `path` the one there, whatever it is;

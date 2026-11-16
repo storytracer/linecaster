@@ -15,10 +15,16 @@ from .benchmark import Benchmark
 def _run_record(run: str | Path) -> tuple[dict[str, Any], str | None]:
     from ..catalog import yamlio
 
-    for path in (Path(run) / "run.yaml", Path(run).parent / "run.yaml"):
-        if path.is_file():
-            return yamlio.load(path.read_text(encoding="utf-8")) or {}, "sha256:" + hashlib.sha256(
-                path.read_bytes()).hexdigest()
+    import fsspec
+
+    base = str(run).rstrip("/")
+    for path in (f"{base}/run.yaml", f"{base.rsplit('/', 1)[0]}/run.yaml"):     # local or fsspec (s3://)
+        try:
+            with fsspec.open(path, "rb") as fh:
+                data = fh.read()
+        except (FileNotFoundError, OSError):
+            continue
+        return yamlio.load(data.decode("utf-8")) or {}, "sha256:" + hashlib.sha256(data).hexdigest()
     return {}, None
 
 
@@ -68,9 +74,16 @@ def write_evidence(ev, path: str | Path) -> Path:
     """The record (an ``Evidence3``) as YAML, its first line naming its schema (as every linecaster YAML file)."""
     from ..catalog import yamlio
 
+    data = ev.model_dump(mode="json", by_alias=True, exclude_none=True)
+    text = ("# yaml-language-server: $schema=https://github.com/storytracer/linecaster/raw/main/src/linecaster/"
+            "catalog/schemas/evidence-3.json\n" + yamlio.dump(data))
+    if "://" in str(path):                                  # object storage: through fsspec
+        import fsspec
+
+        with fsspec.open(str(path), "wt", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = ev.model_dump(mode="json", by_alias=True, exclude_none=True)
-    path.write_text("# yaml-language-server: $schema=https://github.com/storytracer/linecaster/raw/main/src/linecaster/"
-                    "catalog/schemas/evidence-3.json\n" + yamlio.dump(data), encoding="utf-8")
+    path.write_text(text, encoding="utf-8")
     return path
