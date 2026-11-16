@@ -19,6 +19,7 @@ settings:
   region_pad: 8
 serve:
   server: vllm
+  version: 0.26.0
   flags:
   - --max-model-len
   - '16384'

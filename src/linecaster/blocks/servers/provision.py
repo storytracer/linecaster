@@ -11,10 +11,11 @@ that has the server already (HF Jobs) uses its own (``--server-env path``).
   PyPI install comes to the release's own image, and the same on every machine and every day.
 * **The preset's ``server_packages``** go in after it (``uv pip install`` with the preset's arguments), as they would
   into an image's Python.
-* **A CUDA toolkit** for a server that compiles kernels as it starts (SGLang, ``TOOLKIT``; its image has one): NVIDIA's
-  compiler and headers from PyPI at the version of the ``cuda-toolkit`` torch brought (``[nvcc,cccl,cudart]``, so
-  every part is one release), laid out as a toolkit (``lib64``, the libraries' linker names); the server gets it as
-  ``CUDA_HOME`` (``cuda_home``). vLLM runs without one, as it always has here.
+* **A CUDA toolkit**, as a server's image has one (``TOOLKIT``: SGLang compiles kernels as it starts, vLLM in some
+  warm-ups): NVIDIA's compiler and headers from PyPI at the version of the ``cuda-toolkit`` torch brought
+  (``[nvcc,cccl,cudart]``, so every part is one release), laid out as a toolkit (``lib64``, the libraries' linker
+  names); the server gets it as ``CUDA_HOME`` (``cuda_home``), and the environment's CUDA libraries on
+  ``LD_LIBRARY_PATH`` (``ld_library_path``).
 * **Where**: ``LINECASTER_SERVER_ENVS``, else ``~/.cache/linecaster/servers``; one folder per server, release,
   packages and Python, ready once it holds ``.ready``. Tasks on one machine build it once: the others wait on its
   lock.
@@ -40,8 +41,8 @@ from ...errors import ServerError
 PACKAGES = {"vllm": "vllm", "sglang": "sglang"}
 #: the Python the server environments run (the version every linecaster script runs)
 PYTHON = "3.12"
-#: servers that compile CUDA kernels as they start, so their environment gets a CUDA toolkit
-TOOLKIT = {"sglang"}
+#: servers whose environment gets a CUDA toolkit (both compile kernels: SGLang as it starts, vLLM in some warm-ups)
+TOOLKIT = {"sglang", "vllm"}
 ENVS_VAR = "LINECASTER_SERVER_ENVS"
 
 
@@ -71,7 +72,8 @@ def resolved_at(package: str, version: str) -> str:
 
 def env_name(server: str, version: str, packages: list[list[str]] = (), python: str = PYTHON) -> str:
     """The environment's folder name: server, release and a hash of everything that goes in."""
-    key = json.dumps([server, release_of(version), [list(p) for p in packages], python])
+    key = json.dumps([server, release_of(version), [list(p) for p in packages], python]
+                     + (["toolkit"] if server in TOOLKIT else []))
     return f"{server}-{release_of(version)}-{hashlib.sha256(key.encode()).hexdigest()[:12]}"
 
 

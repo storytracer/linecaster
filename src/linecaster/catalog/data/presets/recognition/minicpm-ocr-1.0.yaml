@@ -124,6 +124,7 @@ settings:
   region_pad: 0
 serve:
   server: vllm
+  version: 0.33.0
   flags:
   - --max-model-len
   - '40960'

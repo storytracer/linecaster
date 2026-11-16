@@ -15,9 +15,10 @@ region type. Here the layout comes from linecaster's layout step and `RegionReco
   PaddleX's `CropByBoxes` does, pixels outside the region's polygon white.
 - Serve flags from OpenBMB's SDK tutorial, served as `minicpm-ocr`; DSpark speculative decoding with the matching
   draft model (`minicpm-ocr-1.0-dspark`, 15 speculative tokens; `--no-speculative` in the recipe turns it off).
-- linecaster's vLLM. Validated on a vLLM nightly, 5d35ce3 (`0.32.1rc1.dev602+g5d35ce393`), with transformers at
-  OpenBMB's pin, in the image `cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3`: name them in `serve` if the
-  release fails it. `ninja` must be on PATH or the engine fails at startup.
+- vLLM 0.33.0, not linecaster's 0.30.0, which has no `--trust-request-mm-kwargs` (2026-11-16, the top-15 run on
+  an A40); 0.33.0 is the first release after the nightly the preset was validated on, 5d35ce3
+  (`0.32.1rc1.dev602+g5d35ce393`, with transformers at OpenBMB's pin, in the image
+  `cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3`), which is not on PyPI. `ninja` must be on PATH or the engine fails at startup.
 - `linecaster.adapters.minicpm_ocr.assemble_markdown` assembles the page with the SDK's own code (extra
   `linecaster[minicpm-ocr]`), keeping `footnote` and `aside_text`.
 

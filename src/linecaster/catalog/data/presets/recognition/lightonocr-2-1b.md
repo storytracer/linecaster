@@ -10,3 +10,5 @@ LightOnOCR-2-1B on whole pages, following the model card and the uv-scripts reci
 - The completion is stored verbatim. `--gpu-memory-utilization` is the deployment's choice.
 
 Sampling at temperature 0.2 makes runs differ. Experimental.
+- vLLM 0.26.0, the release it was validated on, not linecaster's 0.30.0: 0.30.0's LightOnOCR model imports
+  `PixtralRotaryEmbedding`, which the transformers it resolves (5.17) no longer has (2026-11-16, the top-15 run).

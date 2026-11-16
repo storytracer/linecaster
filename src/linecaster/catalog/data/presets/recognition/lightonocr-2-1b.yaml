@@ -18,6 +18,7 @@ settings:
   page_longest: 1540
 serve:
   server: vllm
+  version: 0.26.0
   flags:
   - --max-model-len
   - '16384'

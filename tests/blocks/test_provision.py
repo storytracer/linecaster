@@ -51,9 +51,11 @@ def test_an_environment_is_built_once(monkeypatch, tmp_path):
         return Done()
 
     monkeypatch.setattr(provision.subprocess, "run", run)
+    monkeypatch.setattr(provision, "_toolkit", lambda folder, uv, env: str(folder / "cuda"))   # vLLM gets one too
     a = provision.server_env("vllm", "0.30.0")
     assert a.parent == tmp_path and a.name.startswith("vllm-0.30.0-") and len(ran) == 2
     assert json.loads((a / ".ready").read_text())["exclude_newer"] == "2026-09-23T00:00:00Z"
+    assert provision.cuda_home(a) == str(a / "cuda")
     assert provision.server_env("vllm", "0.30.0") == a and len(ran) == 2          # ready: nothing runs again
     assert provision.server_env("vllm", "0.30.0", [["fastokens==0.3.2"]]) != a     # other packages, other folder
 

@@ -13,7 +13,8 @@ the tags; the first is `v0.1.0`.
   its `serve.version` with the preset's `server_packages`) into an environment of its own, once per machine
   (`LINECASTER_SERVER_ENVS`, else `~/.cache/linecaster/servers`), resolved as of the day after the release was
   uploaded to PyPI. SGLang's environment also gets a CUDA toolkit from PyPI (the compiler, headers and runtime at
-  torch's `cuda-toolkit` release, laid out as a toolkit) for the kernels it compiles as it starts, as `CUDA_HOME`.
+  torch's `cuda-toolkit` release, laid out as a toolkit) for the kernels it compiles as it starts, as `CUDA_HOME`;
+  so does vLLM's (some warm-ups compile), and each server gets its environment's CUDA libraries on `LD_LIBRARY_PATH`.
   `--server-env path` keeps the server on `PATH` or in the image.
 - **Each Ray job's workers run its script's own environment** (`--worker-env script`, the default): the job uploads
   its checkout and starts every worker as `uv run --locked <script> python ...` (the scripts' new `python`
@@ -35,6 +36,10 @@ the tags; the first is `v0.1.0`.
 
 ### Changed outputs
 
+- **Presets that name their own vLLM**, where linecaster's 0.30.0 fails them (2026-11-16, A40s):
+  `lightonocr-2-1b` and `lightonocr-2-1b-regions` on 0.26.0 (0.30.0's LightOnOCR model imports a class transformers
+  5.17 removed), `minicpm-ocr-1.0` on 0.33.0 (the first release after its validated nightly; 0.30.0 has no
+  `--trust-request-mm-kwargs`).
 - **unlimited-ocr-2**: the completion's layout blocks (`<BLOCK>label[box]<FORK>text`) are read into regions and text
   by the HTML importer (`read_blocks`; running head and foot, page numbers, footnotes by their labels), where the
   page's text was the completion's lines, markup included. Runs read again from their stored completions.
