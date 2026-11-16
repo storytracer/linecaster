@@ -6,8 +6,81 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+linecaster reads, keeps, writes and scores texts in any writing system: languages, scripts and writing directions
+are recorded where a source or a step says them, ordering follows the writing direction, and the word metrics count
+words in scripts with combining marks and without spaces. English outputs are as before, except where their source
+records a language and where *Changed outputs* says.
+
+### Upgrade notes
+
+- **Word metrics keep combining marks and joiners.** 0.10's word metrics cut words at every combining mark and
+  format character, so Devanagari, vocalized Arabic, pointed Hebrew and Thai words fell apart; they are whole now
+  (version 2 of the word metrics' rules). *Who:* anyone comparing word metrics of such texts with earlier scores.
+  *What to do:* score again; evidence records name the rules' version (`scoring.words`), and records written before
+  are not comparable with new ones (`Evidence3.comparable`).
+- **`language`, `script` and `direction` classifications are checked** where they are made: a language must be a
+  well-formed BCP 47 tag, a script an ISO 15924 code (four letters, the first a capital), a direction one of
+  `horizontal-lr`, `horizontal-rl`, `vertical-rl`, `vertical-lr`; anything else is a `ValueError`. Importers make a
+  source's language value a tag where it is one (`en_US` as `en-US`) and leave out what is none. *Who:* code that
+  recorded free-form languages or scripts. *What to do:* record tags and codes.
+- **A benchmark refuses an output strategy that changes structure** (`divided-words`, `flow`: their rules join rows
+  or words across lines). Scoring compares line by line, so such a strategy failed only when the first page was
+  scored; it now fails when the benchmark is read.
+
 ### Added
 
+- **Tokenizers for the word metrics**: `whitespace` (the default), `uax29` (Unicode's word boundaries: Chinese and
+  Japanese by character, Katakana runs whole) and `characters` (grapheme clusters), `linecaster.scoring.tokens`. A
+  benchmark names its tokenizer (`words`; a benchmark that names the default keeps its hash), score rows name it
+  (`words`), and evidence records it with the rules' version (`scoring.words`).
+- **Role word counts as the texts count them**: `role_words` writes each region's text by the output strategy and
+  leaves out illegible spans, as the text metrics do.
+- **Writing directions**: the classification scheme `direction` (`linecaster.data.writing`), and
+  `Transcription.language()`, `.script()` and `.direction()`, which resolve a target's value from the nearest
+  enclosing target that records one (a word or span, its line, its region and the regions around it, the page).
+- **What a text says about its writing system**, on request only: `linecaster.text.scripts` (`dominant_script`,
+  `first_strong_direction` by Unicode's bidirectional algorithm, `scripts`, `script_of`, `default_direction`).
+- **Reading order in any writing direction**: XY-cut, XY-Cut++, the line assigner's rows, slotting unordered
+  regions, the recomposition's margins and drop capitals order right-to-left text from the right and vertical text
+  by columns (from the right for `vertical-rl`, from the left for `vertical-lr`), by a `direction` option of the line
+  assigner, the modular transcriber (`transcribe_modular --direction`) and the PaddleX layout engine, else the
+  recorded direction (`linecaster.data.geometry.frames`).
+- **Normalizations for other writing traditions**: `arabic-tatweel`, `arabic-marks`, `arabic-letters`,
+  `persian-arabic-letters`, `hebrew-points`, `greek-monotonic` (after `nfc`), `cyrillic-prereform` and
+  `japanese-iteration-marks`; the folds of marks, letter forms and iteration marks are for comparison only.
+- **Script samples** for tests: `linecaster.testing.scripts` lays out pages in twelve writing systems and all four
+  writing directions, with their language, script and direction recorded.
+- **Languages, scripts and directions in the file formats.** PAGE-XML reads and writes `primaryLanguage`,
+  `primaryScript`, `readingDirection` and `textLineOrder` on pages, regions, lines and words (`language` on words),
+  its English language names mapped to BCP 47 tags by a table generated from the PAGE schema and ISO 639-3
+  (`linecaster.formats._languages`); ALTO `LANG` (with `OTHERLANGS` read) and `BASEDIRECTION`; hOCR `lang`, `dir`
+  and `writing-mode` on every element. Each value is kept on the narrowest target that states it, and what a format
+  cannot hold is kept in linecaster's extension.
+- **The HTML importer keeps languages and directions**: `lang` and `xml:lang` on any element (notes, cells and
+  furniture included), `dir`, `<bdi>`, `<bdo>` and CSS `writing-mode`.
+- **Documents state their language and direction** (`Document.language`, `.direction`, and a block's or a span's
+  where it differs): HTML writes them as `lang`, `dir` and `writing-mode`; absent from the JSON where nothing records
+  one, so documents stay `linecaster.document/2`.
+- **IIIF annotation pages are read** (`linecaster.formats.iiif.from_annotation_page`, `import.iiif.v1`, preset
+  `iiif-import`, and `auto-import`): linecaster's own and other software's, with media fragments in pixels or
+  percent, fragment and SVG selectors and the bodies' languages. The bodies written carry each line's and word's own
+  language.
+- **TEI is read** (`linecaster.formats.tei.from_tei`, `import.tei.v1`, preset `tei-import`, and `auto-import` by the
+  TEI namespace): one page of a TEI P5 document, a `sourceDoc` surface with its zones and lines, a text with its
+  `facsimile` zones, or a text without geometry; `choice` as the source's edits, `unclear` and `gap` as statuses,
+  `@rend` as formatting, `fw` and `note` as furniture and notes, `lb[@break='no']` as divided words, `xml:lang` as
+  languages.
+- **Line-level ground truth**: `text-import`'s option `line_image` reads the text of an image of one line as a page
+  whose one line is the whole image, and a source's context (`language`, `script`, `direction`, as columns of a
+  dataset: `import_transcriptions --context-key language`) states the page's writing system for every importer.
+  `import_transcriptions --read-images` reads the page images for their size.
+- The HTML importer counts language values that are no BCP 47 tag (the measurement `ill_formed_languages`).
+- **Tesseract presets for other scripts** (experimental): `tesseract-best-fraktur`, `-greek`, `-cyrillic`, `-arabic`,
+  `-hebrew`, `-devanagari`, `-thai`, `-hangul`, `-han-simplified`, `-han-traditional`, `-japanese`,
+  `-han-traditional-vertical` and `-japanese-vertical`, tessdata_best's script models (added to the `tessdata-best`
+  pin). `tesseract.recognition.v1` reads a line recorded as vertical in
+  page segmentation mode 5 and takes the option `preserve_interword_spaces` (set by the Thai, Hangul, Chinese and
+  Japanese presets: without it Tesseract spaces their letters; NOTES.md).
 - **Omni Parse Bench** (`pipelines/omniparsebench.py`, `omniparsebench.v1`; the extra `omniparsebench`): a run's
   pages written as Omni Parse Bench predictions (`OmniParseBenchPredictionWriter`,
   `linecaster.formats.omniparsebench`) and graded by Omni Parse Bench's own code on any Omni Parse Bench dataset,
@@ -15,15 +88,26 @@ the tags; the first is `v0.1.0`.
   dataset's.
 - `linecaster.formats.omnidocbench.reading_blocks`: a page's blocks in reading order (was private).
 
-### Fixed
-
-- The HTML importer and `from_hocr` (tag-soup hOCR) parse HTML given as text (not bytes) as the UTF-8 it is
-  encoded in; a page without a declared charset had its non-ASCII text garbled.
-- `divided-words` pairs a first half that ends with `¬`, `⸗` or `=` (ALTO's division marks besides the hyphens), as
-  it paired one ending with a hyphen; such words stayed divided.
-
 ### Changed outputs
 
+- A source's language is written back where it is recorded: an hOCR page with `<html lang="en">` gives PAGE-XML
+  `primaryLanguage="English"`, ALTO `LANG="en"`, a document `"language": "en"` and HTML `<html lang="en">`.
+- Languages are recorded as BCP 47 tags in their canonical form: ALTO's and hOCR's three-letter codes as the
+  two-letter code where ISO 639-1 has one (`eng` as `en`, `ger` and `deu` as `de`).
+- An HTML page whose root states a language records it once for the page, no longer on every span of text; spans
+  of another language are merged into one per run.
+- Run records list the line assigner's new parameter `direction` (`null` unless it is set).
+- A document's HTML writes a run of one language as one `span lang`, where formatting inside it made one span per
+  formatted piece.
+- `tesseract.recognition.v1` writes a line's text as Tesseract writes it (its line text, in logical order), no
+  longer its words joined by spaces, and its words as the words of that text: right-to-left lines had each word's
+  letters reversed, and Thai, Chinese, Japanese and Korean lines spaces between letters (and a word per
+  letter). On the English and Latin-script lines tried, the text is the same (NOTES.md). The hashes of
+  `tesseract-best-eng` and `tesseract-best-latin` change with the `tessdata-best` pin's added files, not what they
+  do.
+- An IIIF annotation page's edit of a span targets those characters of the line's annotation (a
+  `TextPositionSelector`), and an edit of a word the word's annotation; they targeted the whole line's annotation,
+  so the span was lost (an ALTO page's divided words, for example).
 - **OmniDocBench scoring counts only data tables as tables** (`--tables data`, the default; `--tables all` as
   before): a ground-truth table is `data` (printed as a table: at least two rows and two columns of filled cells,
   text or numbers alike), `contents` (a table of contents or an index laid out as a table: titles or entries with
@@ -36,6 +120,12 @@ the tags; the first is `v0.1.0`.
 - **The slice `tables`** counts only data tables, and the slice `table-heavy` is gone (also as an OmniDocBench page
   attribute): a table is a data table, wherever it is on the page. `page_slices(gt)` takes the ground truth alone.
 
+### Fixed
+
+- The HTML importer and `from_hocr` (tag-soup hOCR) parse HTML given as text (not bytes) as the UTF-8 it is
+  encoded in; a page without a declared charset had its non-ASCII text garbled.
+- `divided-words` pairs a first half that ends with `¬`, `⸗` or `=` (ALTO's division marks besides the hyphens), as
+  it paired one ending with a hyphen; such words stayed divided.
 ## 0.10.5 (2026-11-16)
 
 ### Added
