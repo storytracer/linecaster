@@ -6,7 +6,8 @@ linecaster writes the predictions, Omni Parse Bench grades them, its code unchan
 2. When every task is done, Omni Parse Bench's own grading of OUT on the dataset (``Benchmark.grade``, what
    ``opb grade OUT --dataset DATASET`` runs) writes OUT/unit_tests/: summary.json, scores.jsonl and details/. The one
    difference from ``opb grade``: its unit-test scorer scores ``--grade-workers`` pages at once, in its own process
-   pool (omni-bench-core's ``Scorer.workers``, which ``opb grade`` leaves at 1); the results are the same.
+   pool (omni-bench-core's ``Scorer.workers``, which ``opb grade`` leaves at 1), started fresh once per 10,000 pages
+   (``Scorer.batch_size``, 500 under ``opb grade``); the results are the same.
 
     uv run pipelines/omniparsebench.py OUT --pages RUN/pages --dataset DATASET --tasks 32
     ... --no-grade                     # only the predictions: grade them later with `opb grade OUT --dataset DATASET`
@@ -71,9 +72,11 @@ except ImportError:                              # the extra omniparsebench is n
 
 
 class UnitTests(_UnitTests):
-    """Omni Parse Bench's unit-test scorer as it is, scoring ``workers`` pages at once in its process pool (a class at
-    module level, so that the pool's processes can unpickle it)."""
+    """Omni Parse Bench's unit-test scorer as it is, scoring ``workers`` pages at once in its process pool, which it
+    starts once per ``batch_size`` pages (a class at module level, so that the pool's processes can unpickle it).
+    Neither changes a score: they are how the core schedules ``score``."""
     workers: ClassVar[int] = 1
+    batch_size: ClassVar[int | None] = 10_000
 
 
 def grade(out: str, dataset: str, manifest: str = "manifest.parquet", workers: int = 1, partial: bool = False,
@@ -82,6 +85,7 @@ def grade(out: str, dataset: str, manifest: str = "manifest.parquet", workers: i
     scorer with ``workers`` processes; writes ``out``/unit_tests/ (Omni Parse Bench's) and ``out``/omniparsebench.yaml
     (what graded what). Returns the record."""
     import datetime as dt
+    import multiprocessing
     from importlib.metadata import version
 
     import fsspec
@@ -93,7 +97,14 @@ def grade(out: str, dataset: str, manifest: str = "manifest.parquet", workers: i
 
     UnitTests.workers = max(1, workers)
     b = core.Benchmark(task.Parse(), dataset, [UnitTests()], manifest)
-    graded = b.grade(out, partial=partial)
+    # Note: the pool's processes are started fresh ("spawn"), not forked: a fork of this process (the executor's
+    # threads, the KaTeX engine Omni Parse Bench's validation started) deadlocks its children.
+    before = multiprocessing.get_start_method(allow_none=True)
+    multiprocessing.set_start_method("spawn", force=True)
+    try:
+        graded = b.grade(out, partial=partial)
+    finally:
+        multiprocessing.set_start_method(before, force=True)
     summary = graded["scorers"][UnitTests().folder_name]
     said: dict = {}
     try:
