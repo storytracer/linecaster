@@ -174,7 +174,8 @@ group (`page`). The matching is deterministic.
 
 **Counts.** A group's sides are compared as wholes, each joined with spaces in its order, and the edits are
 attributed to the ground-truth elements they fall in (`edit_counts_by`, summing to the group's counts): the element
-score is the page score with the order between groups forgiven, so it is never worse. A missed element counts all
+score forgives the order between groups. It is no bound on the page score: a wrong match costs, and tables are
+compared by their cells' text where the page texts write them as HTML or Markdown. A missed element counts all
 deletions; an extra element all insertions; extra text is never free.
 
 | Metric | Is |

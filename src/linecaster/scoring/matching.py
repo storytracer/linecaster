@@ -20,9 +20,9 @@ units (grapheme clusters by default): each unit becomes a number, U+FFFD of the 
   ground-truth element, several output elements), ``merge`` (the reverse), ``many``, ``missed`` (a ground-truth
   element without a partner) or ``extra`` (an output element without one).
 
-A group's sides are compared as wholes (``linecaster.scoring.metrics.score_elements``), so the element score is the
-page score with the order between groups forgiven, and never worse: one output element holding the whole page is one
-group, the page-level comparison. Past ``max_cells`` aligned units (default 5·10⁸) a page is one group (``page``).
+A group's sides are compared as wholes (``linecaster.scoring.metrics.score_elements``), so the element score
+forgives the order between groups (it is no bound on the page score: a wrong match costs); one output element
+holding the whole page is one group, the page-level comparison. Past ``max_cells`` aligned units (default 5·10⁸) a page is one group (``page``).
 """
 from __future__ import annotations
 

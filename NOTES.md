@@ -30,8 +30,10 @@ What 0.11.0 decides, after reading OmniDocBench (at 7ddb8df) and Omni Parse Benc
   stretch of the longer, a numpy row DP), at least 0.5, ties by similarity, then position. A subsequence measure was
   rejected: it calls any short text contained in any long one. Groups are the homes' connected components (one,
   split, merge, many, missed, extra). A group's sides are compared as wholes and the edits attributed to its
-  ground-truth elements, so the element score is the page score with the order between groups forgiven and never
-  worse; one output element holding the whole page is the page comparison. 300 lines of a page match in 0.77 s on
+  ground-truth elements, so the element score forgives the order between groups; one output element holding the
+  whole page is the page comparison. It is no bound on the page score: on OmniDocBench's demo pages (below) the
+  element CER under `diplomatic` is 0.529 against a page CER of 0.516, as wrong matches cost and tables are compared
+  by their cells' text where the page texts write HTML. 300 lines of a page match in 0.77 s on
   one core of an aarch64 machine with a GB10 GPU (CPU only).
 - **TEDS** is computed by Zhang–Shasha in pure Python from the tables' cells (no HTML parse, no dependency). On 300
   random trees of up to four levels its distance equals APTED's (the `apted` package, installed outside the
@@ -56,6 +58,12 @@ What 0.11.0 decides, after reading OmniDocBench (at 7ddb8df) and Omni Parse Benc
     after leaving out elements the ground truth's order does not rank (OmniDocBench orders no furniture; 0.55,
     0.42, 0.17 before). The rest is how a split is placed (linecaster: the first of its output elements) and which
     blocks OmniDocBench's match keeps; 17 pages are too few to tune on.
+  - The tools on the same pages, as an evaluation would use them: `truth check` reads 18 pages (10 `zh-Hans`, 7
+    `en`, 1 `mul`; every page with a `zh-Hans` block), partial reading orders and the transposed sizes;
+    `benchmark init` writes a valid definition (all supports from the data, a `Hans` comment); `linecaster score`
+    with `strata: [language, match]` gives element CER (`diplomatic`) 0.24 on English elements, 0.61 on mixed
+    ones, 0.86 on Chinese ones, the direction OmniDocBench's own groups give (text edit distance 0.07 English,
+    0.73 Chinese): the demo predictions are weak on Chinese.
   - Kept as they are (no measurement against them): containment 0.5, short 4, n-gram 3, candidates 8. Open: the
     same comparison on the full OmniDocBench set and on non-English ground truth with several runs.
 - `ELEMENTS_VERSION` 1 is in evidence records and `Evidence3.comparable`: a change to how elements are cut, matched
