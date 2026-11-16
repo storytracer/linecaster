@@ -1,4 +1,4 @@
-# The catalog: models, presets, recipes, policies, conventions, normalizations, strategies
+# The catalog: models, presets, recipes, policies, conventions, normalizations, strategies, vocabularies
 
 The catalog describes every model Linecaster can run, how it runs it, and the tested combinations. Its entries live in one folder, `src/linecaster/catalog/data/`, shipped with
 linecaster; `linecaster.catalog` reads, validates and resolves them.
@@ -12,15 +12,16 @@ src/linecaster/catalog/data/
   conventions/<format>/<id>.yaml, <id>.md # one folder per format; the prose is required
   normalizations/<id>.yaml                # one rule each
   strategies/<id>.yaml                    # named lists of normalizations
+  vocabularies/<scheme>.yaml              # what a classification scheme's values mean
   catalog.index                           # generated: every entry's hash
 src/linecaster/catalog/schemas/<kind>.json        # generated from the Pydantic models
 ```
 
 ## What the catalog holds
 
-The catalog and its docs are organized by nine kinds: engines and pipelines (code, by versioned id) and
-seven kinds of catalog entry (models, presets, recipes, policies, conventions, normalizations, strategies; a YAML
-file each). The kinds of entry are one table in the code (`linecaster.catalog.registry.KINDS`: each kind's files,
+The catalog and its docs are organized by ten kinds: engines and pipelines (code, by versioned id) and
+eight kinds of catalog entry (models, presets, recipes, policies, conventions, normalizations, strategies,
+vocabularies; a YAML file each). The kinds of entry are one table in the code (`linecaster.catalog.registry.KINDS`: each kind's files,
 format, id rule, index table and prose rule), so loading, the index and the checks of prose are the same for all.
 
 | Kind | Is | Named | Lives in |
@@ -34,6 +35,7 @@ format, id rule, index table and prose rule), so loading, the index and the chec
 | conventions | what one public source's markup means: rules an importer applies, each a match and a decision; may extend one other entry | slug: `enwikisource` | `conventions/<format>/<id>.yaml` |
 | normalization | one named change of a text, applied when a text is written, never stored | slug: `long-s` | `normalizations/<id>.yaml` |
 | strategy | a transcription strategy: normalizations in order, to write texts or to compare them (a lane) | slug: `latin-historic`, `alnum` | `strategies/<id>.yaml` |
+| vocabulary | what the values of one classification scheme mean: each value's definition, what counts and what does not | the scheme: `role`, `degraded` | `vocabularies/<scheme>.yaml` |
 
 Besides these: the **index** (`catalog.index`: every entry's hash) and the **run record** (`OUT/run.yaml`, and per
 page each `Annotator` of the page record: what a run resolved).
@@ -79,6 +81,7 @@ exports) is JSON Lines or Parquet, not catalog data.
 | conventions | `linecaster.conventions` | `schemas/conventions.json` |
 | normalization | `linecaster.normalization` | `schemas/normalization.json` |
 | strategy | `linecaster.strategy` | `schemas/strategy.json` |
+| vocabulary | `linecaster.vocabulary` | `schemas/vocabulary.json` |
 | evidence (not catalog data; its schema ships here) | `linecaster.evidence/3` (`/2` and `/1` are read too) | `schemas/evidence-3.json`, `-2`, `-1` |
 | benchmark (not catalog data) | `linecaster.benchmark/2` (`/1` is read, upgraded) | `schemas/benchmark-2.json` |
 | run record (`OUT/run.yaml`, not catalog data) | `linecaster.run-record/1` | `schemas/run-record-1.json` |
@@ -157,7 +160,7 @@ recipe a derivative runs lives in this catalog too (`squiddle`).
 A policy entry is a `linecaster.data.policy.RenderingPolicy` with a `schema` and a `description` (`PolicyDoc`); the
 [data model](data-model.md#rendering) says what it decides. The catalog ships `page-layers`, the policy a block
 renders with unless it is given another (`DEFAULT_POLICY_REF`; in code without the catalog,
-`linecaster.data.DEFAULT_POLICY`). Blocks and pipelines name a policy by `id` (`--policy`);
+`linecaster.data.DEFAULT_POLICY`), and `page-layers-described`, the same with descriptions in the body. Blocks and pipelines name a policy by `id` (`--policy`);
 `linecaster.catalog.registry.rendering_policy` resolves it. A policy decides layers, never text: what a text is
 written as is its strategy's.
 
@@ -173,14 +176,20 @@ record.
 | `scripts`, `languages` | the ISO 15924 scripts it is meant for (`*` any); BCP 47 tags (a language-specific one is never in a default) |
 | `use` | `output` (a text written), `comparison` (a lane), or both |
 | `subsumes` | normalizations whose effect this one includes (`nfkc`: `nfc`, `long-s`, `ligatures`), for the conventions check of scoring |
-| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`), `latex` (`text`: each LaTeX formula as the characters it prints); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
+| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions in order, each a `match`, its `flags` (`I`, `M`, `S`), a `replace` (a space by default) and an `engine`: Python's `re`, the default, or `regex`, the regex package, for Unicode properties such as `\p{Ll}`), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`), `latex` (`text`: each LaTeX formula as the characters it prints); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
 
 The catalog ships the normalizations of the strategies below and of the lanes: `nfc`, `nfkc`, `long-s`, `ligatures`,
 `r-rotunda`, `superscript-e`, `quotes`, `dashes`, `invisible`, `whitespace`, `casefold`, `lowercase`, `latex-text`,
 `markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`, `editors-corrections`,
 `editors-expansions`, `editors-regularizations`, `divided-words`, `unicode-marks`, `flow`, and for other writing
 traditions `arabic-tatweel`, `arabic-marks`, `arabic-letters`, `persian-arabic-letters` (Persian and Urdu),
-`hebrew-points`, `greek-monotonic`, `cyrillic-prereform` (Russian) and `japanese-iteration-marks`. None is applied
+`hebrew-points`, `greek-monotonic`, `cyrillic-prereform` (Russian), `japanese-iteration-marks` and
+`romanian-comma-below` (Romanian). For comparing international typography (Omni Parse Bench's comparison fold,
+Apache-2.0) it ships `typography` (quotes, primes, the minus sign and other dash-likes, spaces, arrows, the fraction
+slash, the ellipsis, a decimal middle dot), `cjk-punctuation` (CJK and full-width punctuation as ASCII), `checkboxes`
+(as ☒ and ☐), `footnote-markers` (`[1]`, `[^a]` as their label), `bullets` (a bullet glyph starting a line),
+`leaders` (runs of dots, dashes, underscores), `superscript-digits` (set apart after a digit) and `line-end-hyphens`
+(a hyphen at a line's end joined before a lowercase letter: dehyphenation, which no shipped strategy names). None is applied
 unless a strategy names it: dividing words, dehyphenating, modernizing letter forms are a strategy's choice, never a
 default.
 
@@ -195,8 +204,29 @@ default.
 `Catalog.strategy(ref)` resolves `literal`, a strategy's id, or an unnamed strategy: normalizations and strategies
 joined by `+` (`latin-historic+unicode-marks+flow`), each strategy its normalizations. The catalog ships
 `latin-historic` (`nfc`, `long-s`, `ligatures`, `r-rotunda`, `superscript-e`) for output and the lanes `diplomatic`,
-`reading`, `alnum`, `alnum-nonmark` and `ascii-alnum` for comparison, `diplomatic` the default lane
+`reading`, `typographic`, `alnum`, `alnum-nonmark` and `ascii-alnum` for comparison, `diplomatic` the default lane
 ([evaluation](evaluation.md)).
+
+### Vocabulary (`vocabularies/<scheme>.yaml`)
+
+| Field | Meaning |
+|---|---|
+| `scheme` | the classification scheme it defines (`linecaster.data.SCHEMES`), also its id and file name |
+| `description` | what the scheme classifies, in a sentence |
+| `targets` | what it classifies, narrowest first: `span`, `word`, `line`, `region`, `page` |
+| `values` | the closed list of values, each a `definition` (one or two sentences that stand on their own), `counts` (cases that are this value) and `does_not_count` (cases that are not, naming what they are instead where one can) |
+| `open`, `pattern` | an open scheme (`language`, `script`) lists no values; its values match `pattern` |
+| `answers` | a property scheme's (values `yes` and `no`): the answer that means each, named after the property (`yes: degraded`, `no: not_degraded`), so that a model's "yes" cannot be read as "yes, the marked place is right" |
+| `reasons` | `status` only: the values of a classification's `reason`, as terms |
+| `provenance` | where the definitions come from or what they are adapted from |
+
+A vocabulary is the one text the docs, the taggers and the people who review their answers share: the model tagger
+(`tagging.chat.v1`) generates its questions from it and never paraphrases it, so the first fix for a wrong answer is
+to the definition. The catalog ships the vocabularies of `role` (every content role), `status` (with its reasons),
+`production` and the property schemes `degraded`, `tiny`, `rotated`, `multi_column` and `form`; `verify` checks that
+each defines a scheme of the data model and that `role`, `status` and the property schemes list exactly its values
+([data model](data-model.md#classifications)). The content roles' PAGE-XML types, region labels and default layers
+stay in code (`linecaster.data.policy.ROLES`); the role vocabulary's page shows them.
 
 ## Measurements live elsewhere
 
@@ -244,7 +274,9 @@ content (`canonical_sha256`):
 - **a policy's**: everything but its `description`;
 - **conventions'**: the format, the resolved rules (each rule's id, match, decision, fields, who and place) and the
   normalizations the transcription embodies (`transcription`);
-- **a normalization's**: its rule; **a strategy's**: its normalizations, each with its hash, and its use.
+- **a normalization's**: its rule; **a strategy's**: its normalizations, each with its hash, and its use;
+- **a vocabulary's**: everything but its `description` and `provenance` (a definition is what a model tagger is
+  shown, so a changed definition is a change of behaviour).
 
 `linecaster catalog index` writes every entry's hash to `catalog.index` (committed, never edited by hand);
 `linecaster catalog verify` fails when it is stale. So a change of an entry's behaviour is a visible line in a
@@ -303,11 +335,12 @@ counts, hold no copied pages (tests use fixtures written for them), and keep the
 Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, whose engines run models, and the
 rule-based steps (`RULE_STEPS`) `image` (the working image), `typography` (the hierarchy from type sizes),
 `recomposition` (the paragraphs of the rows: structure, no text),
-`composition` (the document) and `import` (a source document read into a transcription: the importers). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
+`composition` (the document) and `import` (a source document read into a transcription: the importers), and
+`tagging` (classifications in property schemes: [taggers](#taggers), rules and a panel of models). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
 Tesseract), `region` (a VLM per layout region) or `page` (a VLM or a page engine reads the whole page: a **page preset**, which
 `launch.py` runs by name); a rule-based engine reads a `page` or an `item` (the pages of one item, in order).
 `OCRD_STEPS` maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (`image`:
-`preprocessing/optimization`, `typography`: `layout/segmentation/classification`, `composition`:
+`preprocessing/optimization`, `typography` and `tagging`: `layout/segmentation/classification`, `composition`:
 `layout/analysis`); the others are post-processing (`recognition/post-correction`).
 
 What depends on the code belongs to the engine (`capabilities` on the class), e.g. kraken's word boxes with
@@ -399,6 +432,35 @@ unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (
 `squiddle` recipe's rules: `working-image`, `ratios`,
 `unicode-recomposition`, `linked-composition`. Running text or the page as laid out is the presence of a
 `Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
+
+### Taggers
+
+The engines of the `tagging` step (**taggers**, `linecaster.engines.tagging`) classify zones in property schemes
+(`rotated`, `tiny`, `multi_column`, `degraded`, `form`) and other closed schemes, by the schemes'
+[vocabularies](#vocabulary-vocabulariesschemeyaml). They are built in and run in the pipeline's process, called as the
+model steps' engines are (`engine(image, transcription, page=None)`), and the `Tagger` runs them (by preset, or
+by engine spec `InProcess(...)`). A tagger records
+a classification only where its evidence decides, on the narrowest target (a line, a region, the page), naming the raw
+output that holds the evidence.
+
+- `tagging.geometry.v1` (`GeometryTaggingEngine`, preset `geometry-tags`): rules on geometry, annotator kind
+  `rule`. `rotated` on lines (a vertical writing direction recorded, or a baseline, else a clearly elongated polygon,
+  tilted by `max_tilt` degrees or more), `tiny` on lines (lower than `tiny` times the median height of the page's
+  body text lines), `multi_column` on text regions (another text region beside it; `no` for a region alone that
+  spans `full_width` of the page's text width). Its evidence (each line's tilt, height and ratio, the regions beside
+  a region) is one raw output of format `json`; with `decide_no: false` it records only `yes`.
+- `tagging.chat.v1` (`ChatTaggingEngine`): a panel of vision-language models behind OpenAI-compatible chat servers,
+  annotator kind `model`. One question per target and scheme, generated from the vocabulary (the definition, what
+  counts and what does not, the answers named after the property, `cannot_tell`, `not_here`; the reason asked for
+  first, the answer last, as JSON), with the page and the target enlarged, its box drawn in red (`views`). Two
+  members (`panel`, each a chat preset of the catalog or a served model) agree, or a third (`referee`) and the
+  scheme's rule (`settle`: `first_with_referee` by default, `majority`, `first`) decide; an item no rule settles is
+  recorded nowhere and written for review (`review`, JSON lines `linecaster.tagging-review/1`). Answers are cached
+  under the hash of everything a member was shown and the model's revision (`$LINECASTER_CACHE/tagging`, else
+  `~/.cache/linecaster/tagging`). Every member's completion is a raw output; the annotator records the members'
+  presets, revisions and sampling (never a server's address or key), the rules and each vocabulary's hash. The
+  catalog ships no preset of it: which models make a panel, and in which order, is for a review of their answers to
+  decide.
 
 ### Scripts and dispatch
 

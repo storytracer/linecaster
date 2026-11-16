@@ -258,9 +258,32 @@ in the same scheme (the layout model and the typography rules); none overwrites 
 | `status` | `illegible`, `gap` (text left out), `suppressed`, `duplicate`, `removed`; a status may say why (`reason`, below) | a ground truth, typography, an importer |
 | `picture_class` | what a picture shows (`photograph`, `map`, `stamp`, `signature`, `music`, ...) | a picture classifier |
 | `code_language` | the programming language of a code region | a VLM |
+| `degraded` | a property, `yes` or `no`: the content is harder to read than in a clean scan, because of the image's condition | a model tagger |
+| `tiny` | a property, `yes` or `no`: the content is printed noticeably smaller than the page's body text | the geometry tagger, a model tagger |
+| `rotated` | a property, `yes` or `no`: the content's text is turned or tilted by about 5 degrees or more | the geometry tagger, a model tagger |
+| `multi_column` | a property, `yes` or `no`: the content sits inside one column of a page laid out in columns | the geometry tagger, a model tagger |
+| `form` | a property, `yes` or `no`: the content is a field to fill in or a box to tick, or belongs to one | a model tagger |
 
 The annotator's own label is the region's `label`, not a classification; the mapping from it to a role is catalog
 data per engine (each engine's label map), applied by the annotator that made the region.
+
+**Vocabularies.** What each value of a closed scheme means is its **vocabulary**, a catalog entry
+(`vocabularies/<scheme>.yaml`, [catalog](catalog.md#vocabulary-vocabulariesschemeyaml)): every value with its
+definition, what counts and what does not. The vocabularies of [`role`](../catalog/vocabularies/role.md),
+[`status`](../catalog/vocabularies/status.md) (with the reasons), [`production`](../catalog/vocabularies/production.md)
+and the property schemes list exactly the data model's values (`ROLES`, `STATUSES`, `REASONS`, `yes` and `no`), which
+`linecaster catalog verify` checks. The definitions are the one text the docs, the taggers and the people who review
+their answers share: a model tagger's questions are generated from them.
+
+**Property schemes** (`linecaster.data.PROPERTIES`: [`degraded`](../catalog/vocabularies/degraded.md),
+[`tiny`](../catalog/vocabularies/tiny.md), [`rotated`](../catalog/vocabularies/rotated.md),
+[`multi_column`](../catalog/vocabularies/multi_column.md), [`form`](../catalog/vocabularies/form.md)) say what
+content is like, as `yes` or `no` (`Transcription.classify` refuses another value); a vocabulary's `answers` name the
+two answers a model is asked for after the property (`degraded`, `not_degraded`). They are a **tagger**'s, an engine
+of the `tagging` step (`linecaster.engines.tagging`), on the narrowest target the property is true of (a line, a
+region, the page), each with its evidence: the geometry tagger's measurements, or a panel of models' answers, as the
+annotator's raw outputs, which the classification names (`output`). Where the evidence does not decide, nothing is
+recorded: a property is never guessed into a record, and `None` (no classification) is not `no`.
 
 **Writing systems.** `language`, `script` and `direction` are checked where they are made
 (`linecaster.data.writing`: a well-formed BCP 47 tag, a four-letter ISO 15924 code, one of the four directions) and
@@ -406,6 +429,7 @@ preset maps its model's labels onto them), and a default layer:
 | `noise` | `NoiseRegion` | `picture` | none |
 | `other` | `other` | `text` | body |
 
+Each role's definition, what counts as it and what does not, is in the [role vocabulary](../catalog/vocabularies/role.md).
 A content role says what the content is, not where it is rendered: the layers in the last column are the default
 policy's. A page number's region label depends on where it is: `page_header` when its centre lies in the top 15 %
 of the page (or without a box), else `page_footer`. A label that is neither a role nor a region label (a model's own)
@@ -427,7 +451,10 @@ annotations go into which **layer** of a rendering: `body`, `furniture` (running
 
 The default policy, `page-layers`, gives every role its default layer, `status` `suppressed`, `duplicate` and
 `removed` → `none`, descriptions → `metadata`; without `precedence` the latest annotator's classifications count
-(typography's over the layout's). A policy decides layers, never text. A run names its policy (`--policy`); without one
+(typography's over the layout's). `page-layers-described` puts descriptions (`motivation` `describing`) in the
+`body` instead: the texts, the elements and the document then have each one after its region (a picture without lines
+in its place in the reading order; the page's last), a document as a `paragraph` block with the role `description`
+(`RenderingPolicy.described`). A policy decides layers, never text. A run names its policy (`--policy`); without one
 it uses the default, and the run record says which.
 
 Renderings are made from a set under a policy and are not stored: the document (below), ALTO, PAGE-XML, hOCR, the
@@ -484,6 +511,7 @@ the document as JSON, literal. The scope (full page or body only) is the layer c
 | tables, formulas | tables, formulas |
 | typography | `role` and `heading_level` classifications (a demoted heading is classified `paragraph` again, by typography), `status` `removed` for what it drops, a `part_of` link from a drop capital's region to the line it begins, a split-off headline as a region with `parent` and `part_of` links, a new reading order |
 | ordering | a reading order (XY-cut, XY-Cut++) |
+| tagging | classifications in property schemes (and other closed schemes), each naming the raw output that holds its evidence: the geometry tagger's measurements, or every panel member's answer |
 | recomposition | paragraphs (rows and decisions, no text) and their `runs_into` and `continues` links |
 | a VLM page step | regions, lines with readings, tables, formulas, descriptions, classifications, raw outputs |
 | a ground-truth import | everything its source has, `source.kind` `ground_truth`, an annotator of kind `human` or `file` |

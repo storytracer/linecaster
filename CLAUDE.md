@@ -159,10 +159,12 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   Under `flow` a division mark nothing resolved is joined without a space and kept (`de-pends`): nothing is guessed.
   A measurement showed why (94.5 % of compounds divided at their own hyphen wrongly joined by a rule that looked
   safe); a silent change of a ground truth's or a corpus's text is a fault no one sees.
-- **A preset's settings are its reference's** (the model card, or the reference script it follows at a pinned
-  commit, named in its card) **until a measurement gives a reason to change one.** A deviation names its evidence in
-  CHANGELOG.md (the measurement itself in NOTES.md), and the card says which settings differ from the reference. The
-  references come from people who tuned them; a change without evidence is a guess.
+- **Presets are linecaster's own; their reference is provenance.** A preset starts from its reference (the model
+  card, or the reference script it follows at a pinned commit, named in its card), which stays recorded, and
+  overrides a setting only with a stated reason: a maintainer's decision for how linecaster runs things (a vLLM
+  version, a server setting), or a measurement on linecaster's own ground truth for what the model produces. The
+  card says which settings differ from the reference and why, CHANGELOG.md names the override, NOTES.md holds the
+  measurement. The references come from people who tuned them; an override without a reason is a guess.
 - **No measurements in the catalog or the docs; a measurement elsewhere is an evidence record with its source, and a
   claim is never a measurement.** linecaster is not a data repository, and a number that is not shipped cannot go
   stale.

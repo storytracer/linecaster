@@ -66,6 +66,7 @@ class Contract:
 | `Typographer` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
 | `Recomposer` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
 | `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` (rendered, not stored; no annotator) | |
+| `Tagger` | `regions`, `lines` (the model tagger: `image` and its targets, regions or lines) | `tags` | |
 | `ImageFetcher` | `metadata` | | `image` |
 | `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`; without it removes `image`) |
 | `TranscriptionConverter` | `metadata`, `transcription_file` (with `source="media"`) | `<transcription>:*` | |
@@ -114,9 +115,16 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   transform served, a per-unit transform in-process; it reads the page image and adds `text` and what the preset
   produces. A page engine's `endpoint` option (where its service is) is operational.
 
-The built-in engines (`layout.single-region.v1` and the rule-based steps') run in the pipeline's process only:
-`runtime.run.engines` keeps a preset of one in-process when the other models are served, and `linecaster serve`
-refuses them.
+The built-in engines (`layout.single-region.v1`, the rule-based steps' and the taggers) run in the pipeline's
+process only: `runtime.run.engines` keeps a preset of one in-process when the other models are served, and
+`linecaster serve` refuses them.
+
+**The `Tagger`** (`linecaster.blocks.tagging`) runs a tagging engine on every page, by preset or engine spec like
+the rule blocks (`Tagger("geometry-tags")`, `Tagger(InProcess("linecaster.engines:ChatTaggingEngine",
+schemes=["degraded"], panel=[...]))`, `options` over either), and adds `tags`: classifications in property schemes
+([data model](data-model.md#classifications)). It decodes the page image only for an engine that reads it (the
+model tagger, a client of chat servers that the run provides), and passes the page's id, which review items name.
+Stats: `tagged`, `undecided`.
 
 ## The builder
 

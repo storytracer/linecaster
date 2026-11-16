@@ -369,6 +369,40 @@ One annotator made all of it: people (kind `human`) with `ground_truth`, which a
 else the file (kind `file`), named `name`, step `transcription`. The source has `format` `docling`, `dataset` and
 `record` as given, and the image size of the page.
 
+## OmniDocBench import (`linecaster.formats.omnidocbench`)
+
+`from_omnidocbench(entry, ground_truth=True, uri=None)` reads one page of OmniDocBench's ground truth (an entry of its
+JSON list: `layout_dets`, `page_info`, `extra`; or the entry's JSON) into a transcription; the importer
+`import.omnidocbench.v1` (preset `omnidocbench-import`) runs it on a source document whose data is one entry's JSON.
+`entries(path)` yields `(page id, entry)` for each entry of the JSON (the page id: `image_path`'s file name without
+its extension), the rows of a table `pipelines/import_transcriptions.py` reads:
+
+    rows = [{"id": pid, "entry": json.dumps(e, ensure_ascii=False)} for pid, e in entries("OmniDocBench.json")]
+    pyarrow.parquet.write_table(pyarrow.Table.from_pylist(rows), "omnidocbench.parquet")
+    uv run pipelines/import_transcriptions.py OUT --parquet omnidocbench.parquet --id-key id --data-key entry \
+        --importer omnidocbench-import
+
+| OmniDocBench | Read as |
+|---|---|
+| an element of `layout_dets` | a region `r<anno_id>`: `poly` its polygon and box, `category_type` its `label`, verbatim, and its role: `title` heading, `text_block` paragraph, `figure` picture, `figure_caption`, `table_caption`, `code_txt_caption` caption, `figure_footnote`, `table_footnote`, `page_footnote` footnote, `table`, `equation_isolated` formula, `header`, `footer`, `page_number`, `code_txt` code, `reference`; `equation_caption`, `abandon` and any other `other`; its `attribute` and other keys as extension fields (`omnidocbench__attribute`, `omnidocbench__anno_id`, a table's `omnidocbench__latex`) |
+| `ignore`, the category `abandon` | `status` `suppressed`: in no text |
+| `text` | the region's lines: each row of its spans (`line_with_spans`, else its `merge_list`'s) a line, cut from the text where the row's first span begins, with the row's box; a division mark a span prints and the text dropped (`evap-` of `evaporator`) kept, and both halves a `joined` edit with the whole word; where a span is not found in the text, in order, or without spans, a line per line of the text, without boxes |
+| a span in LaTeX (`$…$`: `equation_inline`, `footnote_mark`) | an inline formula, a `Formula` of its span of the line; without spans, `$…$` in the text |
+| a table's `html` | a `Table` of the region (`linecaster.formats.html_table`), the HTML kept; no lines |
+| a display formula's `latex` (`equation_isolated`) | a `Formula` of the region, without `$$`; no lines |
+| `order` | the reading order of the regions that have one, and of their lines; furniture and discarded elements, which OmniDocBench leaves unordered, come last in the entry's order |
+| `extra.relation` | `parent_son` to a caption a `caption_of` link, to a footnote a `note_of` link; `truncated` a `continues` link from the later part; others kept as the transcription's `omnidocbench__relation` |
+| a block's `text_language`, a table's `language` | a `language` classification of the region where it is not the page's |
+| `page_info` | `image_path` the source's `record`, `width` and `height` its image size, `page_no` and every `page_attribute` extension fields of the source (`omnidocbench__data_source`, `omnidocbench__layout`, `omnidocbench__special_issue`, `omnidocbench__language`, ...); the `language` also the page's classification: `en`/`english` `en`, `simplified_chinese` `zh-Hans`, `en_ch_mixed` `mul` (BCP 47's multiple languages) |
+
+One annotator made all of it: people (kind `human`) with `ground_truth`, else the file (kind `file`), named
+`omnidocbench`, step `transcription`; the source has `format` `omnidocbench`. The importer fits the transcription to
+the page image like every importer, except where the size the entry states is the image's transposed (width for
+height): its coordinates are then the image's, and the stated size is kept (`omnidocbench__stated_size`).
+`truth_page` writes a ground truth as such an entry ([evaluation](evaluation.md#export-to-omnidocbench-linecaster-export-omnidocbench)),
+and `from_omnidocbench` reads it back with its texts, roles (as far as its categories tell them apart), order,
+tables and formulas.
+
 ## Working images (`linecaster.images.convert`)
 
 The working format for converted images is lossless WebP at full resolution (the block `ImageConverter`, preset

@@ -19,6 +19,13 @@ records a language and where *Changed outputs* says.
   *Who:* anyone scoring runs with OmniDocBench through linecaster. *What to do:* `linecaster export omnidocbench OUT
   --truth TRUTH --pages RUN` and OmniDocBench's own evaluation on `OUT` (its `README.md` says how), in OmniDocBench's
   environment.
+- **Benchmarks score elements by default.** A benchmark that names no `metrics` now scores the element metrics
+  (`elements`, `tables`, `formulas`, and `reading_order` where its ground truth supports reading order) beside the
+  page metrics, so its hash changes; a benchmark that names `metrics` keeps its hash. A run's scores get
+  `elements.parquet` beside the score records, and its result and evidence the element rates and strata. *Who:*
+  evaluations whose benchmarks name no metrics, and code reading every Parquet file of a `scores/` folder. *What to
+  do:* name `metrics: [cer, token_recall, over_extraction]` for 0.10's metrics and hash, or score again; read
+  `scores.parquet` by name.
 - **Words are Unicode's words (`uax29`) by default.** A benchmark that names no tokenizer counts words by UAX #29's
   word boundaries: a word keeps its apostrophe (`note's` one word, was two) and its number punctuation (`1,887.5`),
   and Chinese and Japanese count by character instead of a line as one word. *Who:* anyone comparing word recall or
@@ -40,10 +47,56 @@ records a language and where *Changed outputs* says.
 
 ### Added
 
+- **Element-level scoring, after OmniDocBench's methodology** (`linecaster.scoring.elements`, `.matching`, `.teds`,
+  `.order`, `metrics.score_elements`): each side cut into elements (regions' runs of lines, tables, formulas; a
+  region-less output by its Markdown and HTML blocks), the ground truth's matched to the output's by grapheme
+  n-grams and local containment into match groups (one, split, merge, many, missed, extra), each group compared as a
+  whole and its edits attributed to its elements (`counts.edit_counts_by`). Rates `element_cer`, `element_ned`,
+  `teds` and `teds_s` (tree edit distance from the tables' cells, Zhang–Shasha, no dependency), `table_recall`,
+  `table_precision`, `formula_cer`, `formula_ned`, `order_kendall` and `order_edit`. Unlike OmniDocBench's
+  evaluation, extra text and unmatched output tables are counted, and text is compared by the benchmark's lanes in
+  any script. A benchmark's `elements` sets the matching lane and thresholds; evidence records the scorer's rules'
+  version and matching lane (`scoring.elements`, `linecaster.scoring.ELEMENTS_VERSION`) and compares by them.
+- **Normalizations for comparing international typography**, adopted from Omni Parse Bench's comparison fold
+  (Apache-2.0; NOTES.md): `typography` (low quotes, guillemets, primes, TeX's quotes, the minus sign and other
+  dash-likes, special spaces, arrow families, the fraction slash, `…`, a decimal middle dot, ≦, ♢),
+  `cjk-punctuation` (CJK and full-width punctuation as ASCII), `checkboxes` (☒ and ☐), `footnote-markers` (`[1]`,
+  `[^a]` as their label), `bullets`, `leaders`, `superscript-digits`. Also `romanian-comma-below` (`ro`; output and
+  comparison) and `line-end-hyphens` (a line-end hyphen joined before a lowercase letter; comparison only, in no
+  shipped strategy).
+- **The lane `typographic`**: `reading` plus those normalizations, except `line-end-hyphens` and
+  `romanian-comma-below`, which a lane names to opt in (`typographic+line-end-hyphens`).
+- **A normalization pattern may set `engine: regex`** (the `regex` package: Unicode properties such as `\p{Ll}`,
+  variable-width lookbehind); the default `re` is left out of the hash, so every existing normalization keeps its
+  hash.
+- **The rendering policy `page-layers-described`**: `page-layers` with descriptions (a picture's description, alt
+  text) in the body, after their region, in the scored texts, the elements and documents (a `paragraph` block with
+  the role `description`); `RenderingPolicy.described`, and `RenderingPolicy.layer_of` takes a `motivation`.
+- **Strata** (`linecaster.scoring.strata`): element rates by role and kind always, and by a benchmark's `strata`:
+  `layer`, `match`, `table_kind`, a recorded `language`, `script` or `direction`, any classification (a tag), and
+  for page rates `slice` and the page's recorded values; `unrecorded` where nothing is recorded. Evidence records
+  them (`strata`).
 - **`linecaster export omnidocbench`** (`linecaster.formats.omnidocbench.export`): a ground truth and a run as the
   folder OmniDocBench's own evaluation reads (`truth.json`, `predictions/`), with `export.yaml` and a `README.md`;
   `--strategy` applies an output strategy (`nfc`) to both sides; a run's tables follow the ground truth's rule
   (`--tables`).
+- **`linecaster truth check`** (`linecaster.scoring.truth`): what a ground truth's page records hold, per page and
+  in total: lines with and without text, boxes outside the image, reading order (none, partial, complete),
+  conventions' coverage, illegible characters, recorded languages, scripts and directions, duplicate pages, roles,
+  statuses, tables by kind, formulas, notes and continuations; a report, or JSON (`--json`,
+  `linecaster.truth-check/1`).
+- **`linecaster benchmark init`**: a `linecaster.benchmark/2` definition from a ground truth's data: `supports` from
+  the data, the page ids with their hash (every page, or a sample, stratified or of one split), the lanes
+  `diplomatic` and `reading`, and a comment per recorded script.
+- **Stratified samples and item-level splits** (`linecaster.data.sample`): `SampleRule(stratify=…, per_stratum=…)`
+  by page values the caller gives, and `splits`/`split` with every page of an item in one split (`split_of`); rules
+  without them select and hash as before. A benchmark's sample rule now chooses its pages where it lists no ids
+  (`wanted_pages`), stratified by the pages' recorded values.
+- **OmniDocBench ground truth is read** (`linecaster.formats.omnidocbench.from_omnidocbench`, `entries`,
+  `import.omnidocbench.v1`, preset `omnidocbench-import`), so models are scored on its pages by linecaster's scorer.
+- **`linecaster truth publish`** (`linecaster.scoring.publish`): a ground truth as Hub-ready Parquet (a row per page
+  with its image, text and page record) and a generated dataset card (sources and licenses, conventions with their
+  hashes, languages and scripts with counts, what it supports, normalizations embodied, splits).
 - **Tokenizers for the word metrics**: `uax29` (Unicode's word boundaries, the default: Chinese and Japanese by
   character, Katakana runs whole), `whitespace` and `characters` (grapheme clusters), `linecaster.scoring.tokens`. A
   benchmark names its tokenizer (`words`; a benchmark that names the default keeps its hash), score rows name it
@@ -122,7 +175,7 @@ records a language and where *Changed outputs* says.
   digits and follow any abbreviation of up to four letters with its period (`S. 12`, `стр. 5`, `Vol. 3`) or be
   written `第12頁`; in a script written without spaces an entry's words are counted as Unicode's words. More German,
   Russian, Arabic or Chinese contents lists are `contents`, no longer `data`, in the `tables` slice and the
-  OmniDocBench export; English counts of words are unchanged (not re-measured on Wikisource).
+  OmniDocBench export; English counts of words are unchanged.
 - **The OmniDocBench export writes only data tables as tables** (`--tables data`, the default; `--tables all` as
   before), on both sides alike: a table is `data` (printed as a table: at least two rows and two columns of filled
   cells, text or numbers alike), `contents` (a table of contents or an index laid out as a table: titles or entries

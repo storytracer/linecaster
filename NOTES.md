@@ -2,6 +2,94 @@
 
 Measurements, decisions and open questions, newest first.
 
+## Scoring for any script, and benchmarks as exports (2026-11-16, decided by the maintainer)
+
+What 0.11.0 decides, after reading OmniDocBench (at 7ddb8df) and Omni Parse Bench (at 4bfb3f6) closely:
+
+- **linecaster runs no external benchmark's code.** A benchmark is its ground-truth format, its scorer and its
+  dataset; linecaster exports to it (`linecaster export omnidocbench`) and the benchmark's own evaluation scores the
+  export, where its owners run it. The 0.10.5 integrations (`harness.v1`, the OmniDocBench blocks, the extra) are
+  removed, and Omni Parse Bench has no export at all: its yes/no tests are generated from its own ground truth, and
+  the maintainer wants full comparison with the ground truth, as OmniDocBench does, not test generation.
+- **linecaster's own scorer takes the best of both**: OmniDocBench's methodology (elements matched before they are
+  compared, tables by TEDS, reading order scored apart, results by attribute) without its limits (its text score
+  keeps only `\w` and CJK ideographs, so combining marks are not compared; no NFC; predicted text and tables that
+  match nothing are not counted), and Omni Parse Bench's international practice (its comparison fold keeps marks;
+  its tags are a closed vocabulary with prose definitions, each label recording how it was made).
+- **Element metrics are the default metrics**; the page CER and the word metrics stay, cheap and comparable with
+  earlier scores. **`uax29` is the default tokenizer.**
+- **Presets are linecaster's own.** A preset's reference (the model card, a reference script at a pinned commit) is
+  kept as provenance; an override names its reason, a maintainer's decision for how linecaster runs things (a vLLM
+  version, a server setting) or a measurement on linecaster's own ground truth for what the model produces. No
+  check that reproduces a reference's numbers is wanted.
+
+### The element scorer
+
+- **Matching**: grapheme n-grams (3) propose up to 8 candidates per element; an element's home is the candidate it
+  lies in or holds the most by containment (Sellers' semi-global edit distance of the shorter against the best
+  stretch of the longer, a numpy row DP), at least 0.5, ties by similarity, then position. A subsequence measure was
+  rejected: it calls any short text contained in any long one. Groups are the homes' connected components (one,
+  split, merge, many, missed, extra). A group's sides are compared as wholes and the edits attributed to its
+  ground-truth elements, so the element score is the page score with the order between groups forgiven and never
+  worse; one output element holding the whole page is the page comparison. 300 lines of a page match in 0.77 s on
+  one core of an aarch64 machine with a GB10 GPU (CPU only).
+- **TEDS** is computed by Zhang–Shasha in pure Python from the tables' cells (no HTML parse, no dependency). On 300
+  random trees of up to four levels its distance equals APTED's (the `apted` package, installed outside the
+  repository for the check) on every pair.
+- A page whose paragraphs an output gives in another order scores element CER 0 against a page CER of 0.505 on the
+  test page; the order rates (Kendall's share of pairs the other way round, and OmniDocBench's order edit distance)
+  carry the difference.
+- **Defaults still to calibrate** against OmniDocBench's own evaluation (containment 0.5, short 4, n-gram 3,
+  candidates 8, matching lane the benchmark's first): see the agreement run below when it is made.
+- `ELEMENTS_VERSION` 1 is in evidence records and `Evidence3.comparable`: a change to how elements are cut, matched
+  or attributed raises it.
+
+### Typography from Omni Parse Bench
+
+linecaster's `typography`, `cjk-punctuation`, `checkboxes`, `footnote-markers`, `bullets`, `leaders`,
+`superscript-digits`, `romanian-comma-below` and `line-end-hyphens` normalizations, and the `typographic` lane, adopt
+the rules of Omni Parse Bench's `omni_parse_bench.normalize.fold` (Apache-2.0).
+
+- *Adopted as they are:* the checkbox glyphs and brackets (to ☒ ☐); the footnote markers (to their label); the
+  bullet glyphs at a line's start; the leaders (with the sign rule for a dash before a digit); the superscript
+  digits after a digit; the quote and prime classes (″ ‴ and TeX's quotes); the minus sign; the special spaces, the
+  four arrow families, the fraction slash, `…`, the decimal middle dot, ≦ and ♢; ∗ as *; the CJK punctuation;
+  ş ţ Ş Ţ as ș ț Ș Ț.
+- *Adapted:* one-rule catalog entries applied in a lane's order, not one function; `typography` also folds ⁗, ‶ ‷ ‵,
+  ‹ ›, the two- and three-em dashes, the small and full-width hyphen-minus and the ′′ NFKC makes of ″ (so it works
+  after `nfkc` as well as before); `cjk-punctuation` also maps the full-width ASCII punctuation, the half-width
+  ｡ ､ ｢ ｣, the corner brackets, 〝〞〟 and 《》 (as "), 〈〉 (as '), the lenticular and tortoise-shell brackets (as
+  [ ]) and 〜 (Omni Parse Bench folds none of the brackets; they are modeled on the guillemets); `leaders` counts
+  U+2010–U+2015 and the minus sign as dashes; the Romanian fold is for `ro` only, opt-in, and covers the decomposed
+  letter with U+0327; the line-end hyphen rule uses the `regex` engine's `\p{Ll}`, joins only across a line break,
+  and is opt-in by name, never in a lane: dehyphenation is a strategy's decision (the 94.5 % measurement).
+- *Left out:* lowercasing (the lane casefolds); Omni Parse Bench's LaTeX reading (linecaster has `latex-text`);
+  removing every Cf and private-use character (`invisible` keeps its fixed list); spacing accents after a letter as
+  combining ones and ´ between letters as an apostrophe (rules for TeX-copied text that change letters); the CJK
+  middle dots as · (・ separates words in Japanese); gershayim as " (Hebrew-specific); `squeeze` and wrapping
+  hyphens' continuation positions (matchers, not normalizations). No measurement was made: no default names the
+  lane.
+
+### Descriptions in the body
+
+`page-layers-described` puts what an annotator wrote about a zone in the body, after its region (a picture without
+lines in its place; the page's last). In a document it is a `paragraph` block with the role `description`: the
+document format's block kinds stay as they are, and the role says what the text is.
+
+### OmniDocBench's ground truth, imported
+
+- On 10 of the 18 pages of OmniDocBench's demo ground truth, `page_info`'s width and height are the image's size
+  transposed while the polygons fit the image; `import.omnidocbench.v1` does not rescale such pages and keeps the
+  stated size (`omnidocbench__stated_size`). Imported without `--read-images`, `truth check` reports their boxes
+  as outside the image.
+- Its block `text` rejoins words divided at a line end ("evap-" + "orator" as "evaporator", also "point-of-" +
+  "contact" as "point-ofcontact"); the importer keeps the printed division mark on the line and records the
+  source's joined word as `joined` edits, so `divided-words` writes OmniDocBench's form.
+- It gives no `order` to page furniture and discarded elements, so its pages' reading order is partial by
+  construction.
+- Decision: its `en_ch_mixed` is the page language `mul` (BCP 47's multiple languages), the raw value kept on the
+  source.
+
 ## Tesseract on other scripts (2026-11-15, aarch64 machine with a GB10 GPU; CPU only)
 
 The script samples (`linecaster.testing.scripts`) drawn as page images with the installed fonts (`script_image`:

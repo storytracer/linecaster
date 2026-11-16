@@ -10,7 +10,7 @@ term is added here before it is used.
 |---|---|---|
 | **block** | One processing unit of a pipeline: a datatrove `PipelineStep`. Blocks are named as role nouns (`LineRecognizer`, `Composer`, `PageJsonlWriter`). An HTTP server's refusal is a *block* too, always named with its host or proxy (below, **block (HTTP)**). | not a "step" (that is a catalog term), not a "component", not a "module" |
 | **role** | What a block does, defined by its contract; implementations and strategies of one role are interchangeable. | |
-| **family** | A group of roles of one kind: readers, layout, lines, recognition, conversion, composition, binding, validation, servers, writers, composites. One subpackage of `linecaster.blocks` each. | |
+| **family** | A group of roles of one kind: readers, layout, lines, recognition, conversion, composition, tagging, binding, validation, servers, writers, composites. One subpackage of `linecaster.blocks` each. | |
 | **contract** | What a block reads, adds, replaces and removes in the page record (or item record), and its unit. The builder checks contracts before a run. | not a Python type signature |
 | **part** | One named piece of the page record (or item record) a contract names: page-level (`image`, `metadata`), or of one transcription (`ocr_new:lines`); the vocabulary is `PARTS` (below). | not a datatrove `Document` field |
 | **unit** | What one call of a block or engine processes: `line`, `region`, `page` or `item`. | |
@@ -77,6 +77,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | `line_regions` | Lines assigned to the layout regions and ordered within them (the `LineAssigner`). |
 | `hierarchy` | Heading levels, headline splits and drop capitals (the `Typographer`). |
 | `paragraphs` | The paragraphs of the rows, with the decisions that made them (the `Recomposer`): structure, no text. |
+| `tags` | Classifications in property schemes, each with its evidence (the `Tagger`). |
 | `document` | The document of a page (the `Composer`) or of an item (`Composer(unit="item")`, `linecaster.document`): a rendering that travels with the datatrove document (`doc.metadata["document"]`), not stored in the page record. |
 
 ## The catalog
@@ -84,10 +85,15 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | Term | Meaning | Not |
 |---|---|---|
 | **catalog** | linecaster's register of models, engines, presets, recipes, rendering policies and conventions, in `src/linecaster/catalog/data/`. | not a data repository: it holds no measurements |
-| **catalog entry** | One registered thing: a model, a preset, a recipe, a rendering policy or a conventions entry; a YAML file, with a Markdown sidecar for its prose (required for conventions). | not a "component", not a "document" |
-| **step** | A catalog step: what an engine does, e.g. `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `typography`, `recomposition`, `composition`, `import`. A preset belongs to one step. | not a block |
+| **catalog entry** | One registered thing: a model, a preset, a recipe, a rendering policy, a conventions entry, a normalization, a strategy or a vocabulary; a YAML file, with a Markdown sidecar for its prose (required for conventions). | not a "component", not a "document" |
+| **step** | A catalog step: what an engine does, e.g. `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `typography`, `recomposition`, `composition`, `import`, `tagging`. A preset belongs to one step. | not a block |
 | **engine** | Code with a versioned id (`kraken.recognition.v1`, `recomposition.unicode.v1`, `import.alto.v1`) that implements one step: a class with `Options`, capabilities, `load()` and a call per unit (an image and a transcription, a transcription, or, for an importer, a source document). Built-in engines live in the core; engine packages (`linecaster-kraken`, `linecaster-mediawiki`, ...) add more. | not saturate's `Engine` class (its server launcher) |
 | **transcription strategy**, **strategy** | How a text is written from the record: `literal` (the readings exactly as given, nothing changed, not even NFC) or a strategy of the catalog, normalizations in order (`latin-historic`; `nfc+long-s+flow` names an unnamed one). Applied when a text is written or compared, never stored. A text is `<strategy>:<format>` (`literal:txt`). | not a by-script strategy |
+| **vocabulary** | A catalog entry (`vocabularies/<scheme>.yaml`, `linecaster.vocabulary`) that says what the values of one classification scheme mean: each value's definition, what counts and what does not (a property scheme's also its answers). The one text the docs, the taggers' questions and the reviewers share. | not a model's tokenizer vocabulary |
+| **property scheme** | A classification scheme whose values are `yes` and `no` and that says what content is like (`linecaster.data.PROPERTIES`: `degraded`, `tiny`, `rotated`, `multi_column`, `form`), defined by its vocabulary; a model is asked for the answers named after the property (`degraded`, `not_degraded`). | not a content role |
+| **tag** | A classification in a property scheme, by a tagger, with its evidence. A target without a tag is not `no`: where the evidence does not decide, nothing is recorded. | not a git tag, not a model's tag of a pin |
+| **tagger** | An engine of the `tagging` step (`linecaster.engines.tagging`): rules on geometry (`tagging.geometry.v1`) or a panel of models behind chat servers (`tagging.chat.v1`). | not a block (the `Tagger` runs one) |
+| **tagging** | The catalog step that classifies zones in property schemes, on the narrowest target each is true of (a line, a region, the page): the evidence from most to least certain, rules first, then a panel of two models and a third on their splits, the rest written for review. | |
 | **normalization** | One named change of a text, one rule each (a catalog entry: `long-s`, `nfc`, `flow`, `unicode-marks`, `divided-words`); a strategy names them. Nothing is normalized unless a strategy says so. | not Unicode normalization only |
 | **literal** | The strategy that changes nothing: the readings as the source or model gave them, rows as laid out. A document as the builder makes it is literal. | not "diplomatic" (a lane) |
 | **by-script strategy** | The engine a by-script engine routes a script's decisions to (a preset of the same step, `by_script`). Such a strategy declares the scripts it covers. | not a transcription strategy |
@@ -138,7 +144,7 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **region** | A zone from a layout step, with the annotator's own label; what it is comes from classifications. | not a "block" |
 | **reading** | What a recognizer read on one line (`Reading`): its text, alternatives, words and glyphs. | not a reading order; not the `reading@1` lane |
 | **glyph** | One character of a word with its box and confidence, from engines with character positions. | |
-| **classification** | A value of one scheme given to a target (`Classification`): content role, production, heading level, language, script, status, picture class, code language. | not a role of a block |
+| **classification** | A value of one scheme given to a target (`Classification`): content role, production, heading level, language, script, status, picture class, code language, and the property schemes. | not a role of a block |
 | **content role** | What a region, line or range is (`role` scheme): paragraph, heading, marginalia, footnote, header, page number, ... (PAGE-XML's region types, with names of linecaster's own where PAGE has no word). | not a block's role |
 | **production** | How content was made (`production` scheme): printed, typewritten, handwritten, stamped, born digital. | |
 | **edit** | Another form of a target's text as the source states it (`Edit`): `corrected`, `joined` (a half of a divided word: the whole word), `expanded`, `regularized`. The target's own text stays; a strategy applies an edit when it names it. | not an edit operation of a score |
@@ -176,11 +182,19 @@ What contracts name besides the parts presets produce (`PRODUCES` in `linecaster
 | **ground truth** | A transcription made or checked by people, the reference a run is scored against (`source.kind` `ground_truth`). | not "gold" |
 | **line image** | An image of one line with its text, as line-level ground-truth datasets give them: imported as a page whose one line is the whole image (`text-import`'s `line_image`). | not a line's crop from a page image |
 | **anchor** | Where a zone's text comes from in the source text it was read from: characters `[start, end)` of `Source.uri`/`record` at `Source.revision` (`Zone.anchor`). | not a box: an anchor is in the source, a box on the image |
-| **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/1`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
+| **benchmark** | A definition of how runs are scored against one ground truth (`linecaster.benchmark/2`): dataset, page set, policy, texts, lanes, metrics, bootstrap; kept by an evaluation. | not a catalog entry |
+| **evaluation** | Runs scored under a benchmark, with their score records and evidence, kept in the evaluation's own repository; linecaster ships the tools, never an evaluation. | not a benchmark: a benchmark is the definition an evaluation scores by |
+| **external benchmark** | Another project's ground-truth format, scorer and dataset (OmniDocBench). linecaster reads its ground truth with an importer and writes runs for it with an exporter; its code never runs inside linecaster. | not a benchmark (`linecaster.benchmark/2`) |
+| **export** | A ground truth and a run written as an external benchmark's files, for its own evaluation (`linecaster export omnidocbench`). | not a serializer's output for reading (ALTO, PAGE-XML) |
 | **tokenizer** | How the word metrics cut a lane's text into words (`linecaster.scoring.tokens`): `uax29` (Unicode's word boundaries, the default), `whitespace` or `characters`, named by a benchmark (`words`). | not a model's tokenizer (tokens of a VLM) |
-| **lane** | A comparison strategy both sides of a comparison go through before counting (`diplomatic`, the default, `reading`, `alnum`, `alnum-nonmark`, `ascii-alnum`), named by id and recorded with its hash. | not a text |
+| **lane** | A comparison strategy both sides of a comparison go through before counting (`diplomatic`, the default, `reading`, `typographic`, `alnum`, `alnum-nonmark`, `ascii-alnum`), named by id and recorded with its hash. | not a text |
 | **score record** | One page's counts for one text and lane (`linecaster.score/1`), from which every rate is derived. | not evidence |
-| **stratum** | A group of pages a benchmark reports rates for separately (a collection, a century, a script). | |
+| **element** | A unit of a page the element metrics compare on its own (`linecaster.scoring.elements`): a region's run of lines, a table or a formula, on either side. | not a region: an output without regions has elements too |
+| **match group** | Elements of the ground truth and the output matched to each other (`linecaster.scoring.matching`): `one`, `split`, `merge`, `many`, `missed`, `extra` (or the whole `page`), compared as wholes. | |
+| **slice** | The pages of a benchmark whose ground truth has data tables (`tables`), formulas (`formulas`), or neither (`plain`), with rates of their own (`linecaster.scoring.slices`). | not a stratum |
+| **stratum** | The elements or pages with one value of a dimension (role, kind, a recorded language, script or tag), whose rates are reported separately (`linecaster.scoring.strata`); `unrecorded` holds those that record none. | not a slice: slices are fixed page sets |
+| **split** | A named share of a ground truth's items (`test`, `train`), every page of an item in the same one, chosen by a hash of the item id and a seed (`linecaster.data.sample.split_of`; a sample rule's `splits`, `truth publish --split`). | not *splitting* (the `Splitter`), not a datatrove shard |
+| **stratified sample** | A sample whose pages are chosen apart for each value of a page value (a stratum: the language a ground truth records), so each value gets its share (a sample rule's `stratify`; `linecaster.data.sample`). | |
 
 ## Tests
 
