@@ -11,7 +11,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.adapters.lighton_grounding import ground, place
+from linecaster.adapters.lighton_grounding import ground, inline_formulas, place
 
 PRESETS = ("lightonocr-3-0.8b", "lightonocr-3-4b")
 
@@ -168,7 +168,8 @@ def test_a_completion_cut_off_marks_its_last_block_truncated():
     t = ground("![text](0,0,1000,500)\nA full block.\n![table](0,500,1000,1000)\n<table><tr><td>1</td>", "length")
     assert t.regions[-1].lighton__truncated and "lighton__truncated" not in t.regions[0].extensions
     assert t.lighton__grounding["truncated"] and t.outputs[0].finish_reason == "length"
-    assert t.text.endswith("<table><tr><td>1</td>")
+    assert t.lines[-1].reading.text == "<table><tr><td>1</td>"           # the line as written; the text: its table
+    assert t.text.endswith("| 1 |\n|---|")
 
 
 def test_malformed_placeholders_text_before_any_and_no_placeholder_at_all():
@@ -249,3 +250,31 @@ def test_records_written_by_0_7_3_are_parsed_again_from_their_raw_completion():
     assert new.annotators == old.annotators and new.outputs == old.outputs
     assert new.lighton__grounding["malformed"] == [] and new.lighton__grounding["coordinates"] == "page"
     assert "page2__grounding" not in new.extensions and all(r.annotator == 0 for r in new.regions)
+
+
+def test_a_table_block_is_read_into_a_table_and_its_lines_stay_its_html():
+    raw = ("![table](0,0,1000,500)\n<table>\n  <tr>\n    <th>Chapter</th>\n    <th>Page</th>\n  </tr>\n  <tr>\n"
+           "    <td colspan=\"2\">I. THE GRASSHOPPER &amp; HIS KIN</td>\n  </tr>\n</table>")
+    t = ground(raw, "stop")
+    (table,) = t.tables
+    assert table.target == "table_0" and (table.num_rows, table.num_cols) == (2, 2) and table.html.startswith("<table>")
+    assert [(c.start_row, c.start_col, c.end_col, c.text, c.column_header) for c in table.cells] == [
+        (0, 0, 1, "Chapter", True), (0, 1, 2, "Page", True), (1, 0, 2, "I. THE GRASSHOPPER & HIS KIN", False)]
+    assert "\n".join(ln.reading.text for ln in t.lines) == raw.split("\n", 1)[1]   # the lines: the HTML, verbatim
+    assert t.text == ("<table><tr><th>Chapter</th><th>Page</th></tr>"                # the text: its table (a span:
+                      '<tr><td colspan="2">I. THE GRASSHOPPER &amp; HIS KIN</td></tr></table>')   # as HTML)
+
+
+def test_inline_formulas_are_formulas_on_their_spans_and_currency_is_text():
+    raw = "![text](0,0,1000,500) writing $ q_1, \\ldots q_n $ for the coordinates, at $5 or $10 each, and $x^2$."
+    t = ground(raw, "stop")
+    line, text = t.lines[0].id, t.text_of(t.lines[0])
+    a, b = text.index("$ q_1"), text.index("$x^2$")
+    assert [(f.target, f.latex) for f in t.formulas] == [
+        (f"{line}[{a}:{a + len('$ q_1, \\ldots q_n $')}]", "q_1, \\ldots q_n"), (f"{line}[{b}:{b + 5}]", "x^2")]
+    assert inline_formulas("\\(\\alpha\\) and $$") == [(0, 10, "\\alpha")]
+
+
+def test_a_formula_block_is_one_formula_of_its_region_not_inline_ones():
+    t = ground("![formula](0,0,1000,100)\n$$\nF_1 dq_1 + F_2 dq_2\n$$", "stop")
+    assert [(f.target, f.latex) for f in t.formulas] == [("formula_0", "F_1 dq_1 + F_2 dq_2")]

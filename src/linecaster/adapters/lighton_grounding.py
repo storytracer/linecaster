@@ -20,8 +20,10 @@ all by the step's annotator and naming the output they were parsed from:
   on the region, and a ``Link`` of kind ``continues`` to the last block of the same label on the page, where there is
   one; without one it continues the previous page or column). The blocks stay separate regions, linked.
 * **Text**: a block's content lines are its lines (``region``, rows in order), each read as it is, so the page's
-  text, the composition and the transcription strategies see them like any layout's: tables stay HTML, formulas LaTeX
-  (also a ``Formula``, without ``$$``). The model gives boxes for blocks, not lines: a line's box is the block's split
+  text, the composition and the transcription strategies see them like any layout's: a table's lines stay its HTML,
+  read into a ``Table`` of the region too (``linecaster.formats.html_table``); a formula block's lines stay its LaTeX,
+  also a ``Formula`` of the region (without ``$$``); an inline formula in a text line (``$ q_1 $``, ``\\(…\\)``,
+  ``inline_formulas``) a ``Formula`` on its span, delimiters included, as a ground truth marks one. The model gives boxes for blocks, not lines: a line's box is the block's split
   into equal rows, one per content line, and says so (``lighton__estimated``). The page's text keeps the furniture,
   the document's body leaves it out (``linecaster.document``). Each region keeps the box as the
   model wrote it (``lighton__box_1000``).
@@ -50,6 +52,7 @@ import re
 from typing import Any, ClassVar
 
 from ..data.transcription import Annotator, Description, Formula, Link, RawOutput, Source, Transcription
+from ..formats.html_table import table_from_html
 from . import data_url
 from .lighton_ocr3 import LightOnOCR3Adapter
 
@@ -177,7 +180,13 @@ def ground_output(t: Transcription, annotator: int, output: int) -> Transcriptio
         if role == "formula" and content:
             t.formulas.append(Formula(annotator=a, output=o, target=rid, latex="\n".join(content).strip()
                                       .removeprefix("$$").removesuffix("$$").strip()))
+        if role == "table" and content and (table := table_from_html("\n".join(content), a, rid, o)) is not None:
+            t.tables.append(table)
         add_lines(content, rid, rid, [x1, y1, x2, y2])
+        if role not in ("formula", "table", "code"):
+            for line_id, text in zip(lines[len(lines) - len(content):], content):
+                for start, end, latex in inline_formulas(text):
+                    t.formulas.append(Formula(annotator=a, output=o, target=f"{line_id}[{start}:{end}]", latex=latex))
     t.add_order(a, regions, lines, rows)
     t.source.image_width = t.source.image_height = SCALE
     placed = sum(1 for b in blocks if b["raw"] is not None)
@@ -186,6 +195,23 @@ def ground_output(t: Transcription, annotator: int, output: int) -> Transcriptio
                             "truncated": finish_reason == "length" and bool(regions) and blocks[-1]["raw"] is not None,
                             "coordinates": f"0-{SCALE}"}
     return t
+
+
+#: an inline formula as LightOnOCR-3 writes one: ``\\(…\\)``, or ``$…$`` (not ``$$``) whose content is spaced from its
+#: dollars (``$ q_1 $``, the model's way) or holds LaTeX's ``\\ ^ _ { }``; ``$5 and $10`` is printed text
+_INLINE = re.compile(r"\\\((?P<paren>.+?)\\\)|(?<!\$)\$(?!\$)(?P<dollar>[^$\n]+?)(?<!\$)\$(?!\$)")
+_LATEXY = re.compile(r"[\\^_{}]")
+
+
+def inline_formulas(text: str) -> list[tuple[int, int, str]]:
+    """The inline formulas of a line of text: (start, end, LaTeX), the span with its delimiters, the LaTeX without."""
+    out = []
+    for m in _INLINE.finditer(text):
+        if m.group("paren") is not None:
+            out.append((m.start(), m.end(), m.group("paren").strip()))
+        elif (d := m.group("dollar")).strip() and (d[0] == d[-1] == " " or _LATEXY.search(d)):
+            out.append((m.start(), m.end(), d.strip()))
+    return out
 
 
 def _trim(texts: list[str]) -> list[str]:

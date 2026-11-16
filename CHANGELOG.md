@@ -25,6 +25,12 @@ the tags; the first is `v0.1.0`.
 
 ### Changed
 
+- **LightOnOCR-3's grounding mode reads its tables and inline formulas**: a `table` block's HTML is also a
+  `Table` of its region (`linecaster.formats.html_table.table_from_html`: cells on the grid with their spans, `th`
+  a header), so the page's text and the scorer render it as every other table; an inline formula in a text line
+  (`$ q_1 $`, `\(…\)`) is a `Formula` on its span, delimiters included, as a ground truth marks one (`$5 or $10`
+  stays text). The lines keep the completion as written. On the 141,461 stored grounding pages of 2026-11-13 every
+  one of the 3,592 table blocks is read, and 29,628 inline formulas are marked.
 - **On Ray, a run without engines runs every task at once by default** (`--workers`): Ray's reservations
   (`--cpus-per-task`) decide how many fit, not the CPUs of the machine the driver runs on (a driver on a 16-CPU pod
   ran a 32-task scoring job 16 at a time). Rate limits and proxy lists keep their own rules.
