@@ -379,6 +379,9 @@
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/normalizations/invisible/</loc>
       </url>
       <url>
+        <loc>https://storytracer.github.io/linecaster/0.10/catalog/normalizations/latex-text/</loc>
+      </url>
+      <url>
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/normalizations/letters-digits/</loc>
       </url>
       <url>
@@ -547,13 +550,13 @@
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/presets/recognition/lightonocr-2-1b/</loc>
       </url>
       <url>
-        <loc>https://storytracer.github.io/linecaster/0.10/catalog/presets/recognition/lightonocr-3-0.8b-grounding/</loc>
+        <loc>https://storytracer.github.io/linecaster/0.10/catalog/presets/recognition/lightonocr-3-0.8b-plain/</loc>
       </url>
       <url>
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/presets/recognition/lightonocr-3-0.8b/</loc>
       </url>
       <url>
-        <loc>https://storytracer.github.io/linecaster/0.10/catalog/presets/recognition/lightonocr-3-4b-grounding/</loc>
+        <loc>https://storytracer.github.io/linecaster/0.10/catalog/presets/recognition/lightonocr-3-4b-plain/</loc>
       </url>
       <url>
         <loc>https://storytracer.github.io/linecaster/0.10/catalog/presets/recognition/lightonocr-3-4b/</loc>

@@ -309,7 +309,7 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 
 ## 🏷️ Versions
 
-The current release is `v0.10.3`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.10.4`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The
@@ -2724,11 +2724,11 @@ record.
 | `scripts`, `languages` | the ISO 15924 scripts it is meant for (`*` any); BCP 47 tags (a language-specific one is never in a default) |
 | `use` | `output` (a text written), `comparison` (a lane), or both |
 | `subsumes` | normalizations whose effect this one includes (`nfkc`: `nfc`, `long-s`, `ligatures`), for the conventions check of scoring |
-| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
+| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`), `latex` (`text`: each LaTeX formula as the characters it prints); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
 
 The catalog ships the normalizations of the strategies below and of the lanes: `nfc`, `nfkc`, `long-s`,
 `ligatures`, `r-rotunda`, `superscript-e`, `quotes`, `dashes`, `invisible`, `whitespace`, `casefold`, `lowercase`,
-`markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`, `editors-corrections`,
+`latex-text`, `markup`, `html-tags`, `letters-digits`, `letters-marks-digits`, `ascii-letters-digits`, `editors-corrections`,
 `editors-expansions`, `editors-regularizations`, `divided-words`, `unicode-marks`, `flow`. None is applied unless
 a strategy names it: dividing words, dehyphenating, modernizing letter forms are a strategy's choice, never a default.
 
@@ -3496,7 +3496,8 @@ benchmark. Two texts per page are scored:
 | `full` | body, furniture | everything printed on the page, in reading order |
 | `body` | body | the page without its furniture (running heads, page numbers, catchwords, signature marks) |
 
-Each is the page's literal text as laid out (its lines' readings in reading order, tables as Markdown or HTML),
+Each is the page's literal text as laid out (its lines' readings in reading order, tables as Markdown or HTML, a
+formula region as `$LaTeX$` in place of its lines, as a ground truth writes a formula),
 then the benchmark's **output strategy**'s rules on characters (`output`, default `literal`: nothing changed): what
 a model writes about a figure (descriptions) is in neither. A ground truth's `corrected` edits are not applied: the
 output is compared with what is printed. Its `illegible` spans become U+FFFD, one per character.
@@ -3512,8 +3513,8 @@ paragraphs, are equal), case, punctuation, ſ, ligatures, diacritics and markup 
 | Lane | Normalizations |
 |---|---|
 | `diplomatic` (default) | NFC; whitespace runs to one space, trimmed. Case, punctuation, ſ, ligatures and diacritics kept |
-| `reading` | markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's |
-| `alnum` | markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space |
+| `reading` | formulas as the characters they print (`latex-text`: `$\frac{1}{2}$` as `1⁄2`, which NFKC makes of `½` too; `$\alpha$` as `α`; sub- and superscripts as their characters); markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters `` ` * \| ~ { } $ \ ``); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's |
+| `alnum` | formulas as the characters they print (`latex-text`); markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space |
 | `alnum-nonmark` | NFC; casefolded; only letters and digits kept (0.9's `alnum@1`) |
 | `ascii-alnum` | HTML tags removed; lowercased; only the ASCII letters and digits kept (accented letters, ſ and ligatures separate words) |
 
@@ -3587,8 +3588,8 @@ Each task scores a share of the run's page records (`PageScorer`: its pages' gro
 their lines decoded) and writes their score records and page summaries (`ScoreWriter`: `OUT/records`, `OUT/pages`).
 When every task is done, the driver puts them together (`linecaster.scoring.run.aggregate`): the pages the run lacks
 are scored as empty outputs, then the rates, intervals and conventions check as above, into `OUT/scores.parquet` and
-`OUT/evidence.yaml`. The score records are the ones `linecaster score` writes, page for page. A task reads whole
-page-record files, so a run written by N tasks scores in at most N tasks.
+`OUT/evidence.yaml`. The score records are the ones `linecaster score` writes, page for page. With more tasks than
+page-record files, the tasks share each file (every k-th record each), so any number of tasks has work.
 
 ## Benchmarks (`linecaster.benchmark/2`)
 
@@ -3622,6 +3623,7 @@ One measurement per file, kept by the evaluation:
 | `benchmark` | `id@edition` and its `sha256` |
 | `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `scorer` (the linecaster that scored, version and commit) |
 | `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `recall_header`, ... (`<metric>_<text>_<lane>`, `<metric>_<role>`) |
+| `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has tables (`tables`, `table-heavy`: a table of at least 2 x 2 with 6 cells or more, its cells at least 30 % of the page's text), formulas (`formulas`), or neither (`plain`); `linecaster.scoring.slices` |
 | `hardware` | `gpu` (model and count), `driver`, `cuda`, `cpu`, from the run record |
 | `software` | the server's version (vLLM, ...), the engine packages' versions |
 | `date`, `notes` | |
@@ -4148,9 +4150,9 @@ Generated by `linecaster docs` from the catalog's entries and the engines' and p
 | [`indra-ocr`](presets/recognition/indra-ocr.md) | `indra.recognition.v1` | AI Pubs Open RAIL-M License (Modified) |
 | [`lightonocr-2-1b`](presets/recognition/lightonocr-2-1b.md) | `chat.v1` | Apache-2.0 |
 | [`lightonocr-3-0.8b`](presets/recognition/lightonocr-3-0.8b.md) | `chat.v1` | Apache-2.0 |
-| [`lightonocr-3-0.8b-grounding`](presets/recognition/lightonocr-3-0.8b-grounding.md) | `chat.v1` | Apache-2.0 |
+| [`lightonocr-3-0.8b-plain`](presets/recognition/lightonocr-3-0.8b-plain.md) | `chat.v1` | Apache-2.0 |
 | [`lightonocr-3-4b`](presets/recognition/lightonocr-3-4b.md) | `chat.v1` | Apache-2.0 |
-| [`lightonocr-3-4b-grounding`](presets/recognition/lightonocr-3-4b-grounding.md) | `chat.v1` | Apache-2.0 |
+| [`lightonocr-3-4b-plain`](presets/recognition/lightonocr-3-4b-plain.md) | `chat.v1` | Apache-2.0 |
 | [`nemotron-3.5-parse`](presets/recognition/nemotron-3.5-parse.md) | `chat.v1` | OpenMDW-1.1 |
 | [`olmocr-2-7b-1025-fp8`](presets/recognition/olmocr-2-7b-1025-fp8.md) | `chat.v1` | Apache-2.0 |
 | [`ovisocr2`](presets/recognition/ovisocr2.md) | `chat.v1` | Apache-2.0 |
@@ -4183,12 +4185,12 @@ Texts are written `literal` (the readings as given) or by a strategy of normaliz
 
 | Strategy | For | Normalizations |
 |---|---|---|
-| [`alnum`](strategies/alnum.md) | comparison | `markup`, `nfkc`, `invisible`, `casefold`, `nfkc`, `letters-marks-digits`, `whitespace` |
+| [`alnum`](strategies/alnum.md) | comparison | `latex-text`, `markup`, `nfkc`, `invisible`, `casefold`, `nfkc`, `letters-marks-digits`, `whitespace` |
 | [`alnum-nonmark`](strategies/alnum-nonmark.md) | comparison | `nfc`, `casefold`, `letters-digits`, `whitespace` |
 | [`ascii-alnum`](strategies/ascii-alnum.md) | comparison | `html-tags`, `lowercase`, `ascii-letters-digits`, `whitespace` |
 | [`diplomatic`](strategies/diplomatic.md) | comparison | `nfc`, `whitespace` |
 | [`latin-historic`](strategies/latin-historic.md) | output | `nfc`, `superscript-e`, `long-s`, `ligatures`, `r-rotunda`, `nfc` |
-| [`reading`](strategies/reading.md) | comparison | `markup`, `nfkc`, `invisible`, `quotes`, `dashes`, `casefold`, `whitespace` |
+| [`reading`](strategies/reading.md) | comparison | `latex-text`, `markup`, `nfkc`, `invisible`, `quotes`, `dashes`, `casefold`, `whitespace` |
 
 ## 🔤 Normalizations
 
@@ -4204,6 +4206,7 @@ Texts are written `literal` (the readings as given) or by a strategy of normaliz
 | [`flow`](normalizations/flow.md) | output | - |
 | [`html-tags`](normalizations/html-tags.md) | comparison | - |
 | [`invisible`](normalizations/invisible.md) | output, comparison | - |
+| [`latex-text`](normalizations/latex-text.md) | comparison | - |
 | [`letters-digits`](normalizations/letters-digits.md) | comparison | - |
 | [`letters-marks-digits`](normalizations/letters-marks-digits.md) | comparison | - |
 | [`ligatures`](normalizations/ligatures.md) | output, comparison | - |

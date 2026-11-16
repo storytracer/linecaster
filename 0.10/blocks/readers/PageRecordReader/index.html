@@ -970,7 +970,9 @@ name linecaster's transcription <code>ocr</code> (read as <code>ocr_new</code>),
 steps <code>model</code> (read as <code>steps</code>), <code>linecaster.page/2</code> rows in the annotation model
 (<code>linecaster.data.upgrade.upgrade</code>); a folder <code>.../pages</code> that holds no records but has a sibling <code>rows</code>
 (the folder's earlier name) is read from there.</p>
-<p>Files are distributed over tasks in turn. With <code>item_shards</code> the page records were written into item shards
+<p>Files are distributed over tasks in turn; with more tasks than files, each file is shared by the tasks it falls
+to, each keeping every k-th of its records (<code>k</code> such tasks), so every task has work and every record is read by
+one task (a page scorer over a run written by fewer tasks). With <code>item_shards</code> the page records were written into item shards
 (<code>PageJsonlWriter(item_shards=N)</code>): the shard folders are distributed instead, each read whole, so a task
 sees every page of its items (<code>whole_items</code>). No shard folder is a <code>PipelineConfigError</code>.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>

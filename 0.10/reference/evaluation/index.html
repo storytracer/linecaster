@@ -1170,7 +1170,8 @@ benchmark. Two texts per page are scored:</p>
 </tr>
 </tbody>
 </table>
-<p>Each is the page's literal text as laid out (its lines' readings in reading order, tables as Markdown or HTML),
+<p>Each is the page's literal text as laid out (its lines' readings in reading order, tables as Markdown or HTML, a
+formula region as <code>$LaTeX$</code> in place of its lines, as a ground truth writes a formula),
 then the benchmark's <strong>output strategy</strong>'s rules on characters (<code>output</code>, default <code>literal</code>: nothing changed): what
 a model writes about a figure (descriptions) is in neither. A ground truth's <code>corrected</code> edits are not applied: the
 output is compared with what is printed. Its <code>illegible</code> spans become U+FFFD, one per character.</p>
@@ -1194,11 +1195,11 @@ paragraphs, are equal), case, punctuation, ſ, ligatures, diacritics and markup 
 </tr>
 <tr>
 <td><code>reading</code></td>
-<td>markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters <code>` * \| ~ { } $ \</code>); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's</td>
+<td>formulas as the characters they print (<code>latex-text</code>: <code>$\frac{1}{2}$</code> as <code>1⁄2</code>, which NFKC makes of <code>½</code> too; <code>$\alpha$</code> as <code>α</code>; sub- and superscripts as their characters); markup removed (special tokens, box arrays, HTML tags of a fixed list, Markdown headings, bullets and rules, LaTeX macros, and the characters <code>` * \| ~ { } $ \</code>); NFKC; invisible format characters removed; quotes and dashes unified; casefolded; whitespace collapsed. No hyphen at a line end is joined: that is a strategy's choice, never a lane's</td>
 </tr>
 <tr>
 <td><code>alnum</code></td>
-<td>markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space</td>
+<td>formulas as the characters they print (<code>latex-text</code>); markup removed; NFKC (ſ to s, ligatures split, superscript digits to digits); invisible format characters removed; casefolded and NFKC again; only letters, combining marks and digits of any script kept, each run of anything else one space</td>
 </tr>
 <tr>
 <td><code>alnum-nonmark</code></td>
@@ -1296,8 +1297,8 @@ many tasks, here (<code>--workers</code>) or on a Ray cluster (<code>--on ray</c
 their lines decoded) and writes their score records and page summaries (<code>ScoreWriter</code>: <code>OUT/records</code>, <code>OUT/pages</code>).
 When every task is done, the driver puts them together (<code>linecaster.scoring.run.aggregate</code>): the pages the run lacks
 are scored as empty outputs, then the rates, intervals and conventions check as above, into <code>OUT/scores.parquet</code> and
-<code>OUT/evidence.yaml</code>. The score records are the ones <code>linecaster score</code> writes, page for page. A task reads whole
-page-record files, so a run written by N tasks scores in at most N tasks.</p>
+<code>OUT/evidence.yaml</code>. The score records are the ones <code>linecaster score</code> writes, page for page. With more tasks than
+page-record files, the tasks share each file (every k-th record each), so any number of tasks has work.</p>
 <h2 id="benchmarks-linecasterbenchmark2">Benchmarks (<code>linecaster.benchmark/2</code>)<a class="headerlink" href="#benchmarks-linecasterbenchmark2" title="Permanent link">&para;</a></h2>
 <p>A benchmark definition is a YAML file in the evaluation's repository:</p>
 <table>
@@ -1395,6 +1396,10 @@ page-record files, so a run written by N tasks scores in at most N tasks.</p>
 <tr>
 <td><code>metrics</code></td>
 <td>name → <code>{value, lo, hi, n}</code>: <code>cer_full_diplomatic</code>, <code>cer_body_alnum</code>, <code>recall_header</code>, ... (<code>&lt;metric&gt;_&lt;text&gt;_&lt;lane&gt;</code>, <code>&lt;metric&gt;_&lt;role&gt;</code>)</td>
+</tr>
+<tr>
+<td><code>slices</code></td>
+<td>slice → <code>{definition, pages, metrics}</code>: CER and word recall on the pages whose ground truth has tables (<code>tables</code>, <code>table-heavy</code>: a table of at least 2 x 2 with 6 cells or more, its cells at least 30 % of the page's text), formulas (<code>formulas</code>), or neither (<code>plain</code>); <code>linecaster.scoring.slices</code></td>
 </tr>
 <tr>
 <td><code>hardware</code></td>

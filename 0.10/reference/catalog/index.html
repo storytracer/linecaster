@@ -1808,13 +1808,13 @@ record.</p>
 </tr>
 <tr>
 <td><code>rule</code></td>
-<td>exactly one: on characters <code>unicode</code> (<code>NFC</code>, <code>NFKC</code>), <code>map</code> (a table; the longest key first), <code>patterns</code> (regular expressions), <code>case</code> (<code>fold</code>, <code>lower</code>), <code>keep</code> (only these characters), <code>whitespace</code> (<code>collapse</code>); on the document <code>edits</code> (the source's corrections, expansions, regularizations applied), <code>divided_words: source</code> (a word the source marks as divided written whole), <code>division_marks: unicode-marks</code> (squiddleocr's rule, the document's words as its lexicon), <code>flow</code> (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept)</td>
+<td>exactly one: on characters <code>unicode</code> (<code>NFC</code>, <code>NFKC</code>), <code>map</code> (a table; the longest key first), <code>patterns</code> (regular expressions), <code>case</code> (<code>fold</code>, <code>lower</code>), <code>keep</code> (only these characters), <code>whitespace</code> (<code>collapse</code>), <code>latex</code> (<code>text</code>: each LaTeX formula as the characters it prints); on the document <code>edits</code> (the source's corrections, expansions, regularizations applied), <code>divided_words: source</code> (a word the source marks as divided written whole), <code>division_marks: unicode-marks</code> (squiddleocr's rule, the document's words as its lexicon), <code>flow</code> (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept)</td>
 </tr>
 </tbody>
 </table>
 <p>The catalog ships the normalizations of the strategies below and of the lanes: <code>nfc</code>, <code>nfkc</code>, <code>long-s</code>,
 <code>ligatures</code>, <code>r-rotunda</code>, <code>superscript-e</code>, <code>quotes</code>, <code>dashes</code>, <code>invisible</code>, <code>whitespace</code>, <code>casefold</code>, <code>lowercase</code>,
-<code>markup</code>, <code>html-tags</code>, <code>letters-digits</code>, <code>letters-marks-digits</code>, <code>ascii-letters-digits</code>, <code>editors-corrections</code>,
+<code>latex-text</code>, <code>markup</code>, <code>html-tags</code>, <code>letters-digits</code>, <code>letters-marks-digits</code>, <code>ascii-letters-digits</code>, <code>editors-corrections</code>,
 <code>editors-expansions</code>, <code>editors-regularizations</code>, <code>divided-words</code>, <code>unicode-marks</code>, <code>flow</code>. None is applied unless
 a strategy names it: dividing words, dehyphenating, modernizing letter forms are a strategy's choice, never a default.</p>
 <h3 id="strategy-strategiesidyaml">Strategy (<code>strategies/&lt;id&gt;.yaml</code>)<a class="headerlink" href="#strategy-strategiesidyaml" title="Permanent link">&para;</a></h3>
