@@ -70,6 +70,30 @@ the rules of Omni Parse Bench's `omni_parse_bench.normalize.fold` (Apache-2.0).
   hyphens' continuation positions (matchers, not normalizations). No measurement was made: no default names the
   lane.
 
+### Tags: vocabularies and taggers
+
+- **The labelling method is Omni Parse Bench's** (its `docs/tagging.md` and `vocab.py`, Apache-2.0, credited in the
+  vocabularies' `provenance`): a closed vocabulary with one definition per label (what counts, what does not);
+  prompts generated from the definitions, never paraphrased; answers named after the property; the reason asked
+  first; a blind panel of two and a third on splits, settled per scheme by a rule (default: the third must agree
+  with the first member; `majority` and `first` as reviews decide); a cache keyed by the hash of everything shown;
+  the undecided written for review; evidence from computed (the geometry tagger) to the model panel. Undecided
+  means nothing is recorded: a missing tag is never `no`.
+- **The design of the model tagger** is the module docstring of `linecaster.engines.tagging` (the gate of a design
+  document was waived by the maintainer's instruction to implement the plan autonomously).
+- **The geometry tagger's defaults are the definitions' figures, not measured**: `max_tilt` 5° (the definition's
+  own); `tiny` below 0.6 of the median body line height (6 pt fine print against 10–12 pt body type is 0.5–0.6, a
+  running head or footnote at 8–9 pt, which the definition excludes, 0.7–0.8); `min_body_lines` 5; `elongation` 3
+  (a single glyph's polygon gives no angle); `multi_column` overlap across the lines ≥ 0.25, along them ≤ 0.1,
+  `full_width` 0.8. Geometry cannot see a half turn (an upside-down page with level baselines is `rotated: no`), and
+  `tiny` is relative only (no dpi).
+- **No preset of the model tagger**: the panel's members and their order (the first the one found right more often)
+  come from a pilot review, as in Omni Parse Bench's recipe.
+- **Open**: measure the thresholds on reviewed tags; a review page for `linecaster.tagging-review/1`; corrections
+  applied last; the audit (the panel asked about the rules' decisions); a fixed review sample; a tagging slot in the
+  pipelines. The definition of the status `suppressed` ("content the source records but itself keeps out of the
+  page's text") was written for the vocabulary and needs the maintainer's check.
+
 ### Descriptions in the body
 
 `page-layers-described` puts what an annotator wrote about a zone in the body, after its region (a picture without

@@ -72,6 +72,21 @@ records a language and where *Changed outputs* says.
 - **The rendering policy `page-layers-described`**: `page-layers` with descriptions (a picture's description, alt
   text) in the body, after their region, in the scored texts, the elements and documents (a `paragraph` block with
   the role `description`); `RenderingPolicy.described`, and `RenderingPolicy.layer_of` takes a `motivation`.
+- **Vocabularies**, a catalog entry type (`vocabularies/<scheme>.yaml`, `linecaster.vocabulary`): each value of a
+  classification scheme with its definition, what counts and what does not; a property scheme's also names its
+  answers. The catalog ships `role` (every content role), `status` (with its reasons), `production` and the
+  property schemes `degraded`, `tiny`, `rotated`, `multi_column` and `form` (definitions adapted from Omni Parse
+  Bench, Apache-2.0); hashed in `catalog.index` (`vocabularies`), checked against the data model by `catalog
+  verify`, each with a generated page.
+- **Property schemes** (`linecaster.data.PROPERTIES`, in `SCHEMES`): values `yes` and `no` only
+  (`Transcription.classify` refuses others).
+- **The `tagging` step**, with the part `tags` and the measurements `tagged`, `undecided`, `body_line_height`,
+  `asked`, `cached`, `agreed` and `settled`: `tagging.geometry.v1` (preset `geometry-tags`, experimental) tags
+  `rotated` and `tiny` lines and `multi_column` regions by rules on geometry, its evidence a raw output;
+  `tagging.chat.v1` asks a panel of two vision-language models, and a third on splits, behind OpenAI-compatible
+  servers, with questions generated from the vocabularies, answers cached under a hash of everything shown
+  (`~/.cache/linecaster/tagging`) and undecided items written for review (`linecaster.tagging-review/1`); no preset
+  of it yet. The block `Tagger` (`linecaster.blocks.tagging`) runs either.
 - **Strata** (`linecaster.scoring.strata`): element rates by role and kind always, and by a benchmark's `strata`:
   `layer`, `match`, `table_kind`, a recorded `language`, `script` or `direction`, any classification (a tag), and
   for page rates `slice` and the page's recorded values; `unrecorded` where nothing is recorded. Evidence records
