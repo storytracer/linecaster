@@ -8,7 +8,10 @@ the tags; the first is `v0.1.0`.
 
 ### Added
 
-- **Servers built by uv** (`--server-env uv`, the default except on HF Jobs; `linecaster.blocks.servers.provision`):
+- **The server here, else built by uv** (`--server-env auto`, the default): a preset is served by the server on
+  `PATH` or in the image when it is the preset's release (vLLM's image at linecaster's pin serves every preset on
+  it), else by one uv builds (`--server-env uv` always; `path` the one there, whatever it is;
+  `linecaster.blocks.servers.provision`):
   `ChatModelServer` and `ServiceServer` install the server a preset names at its release (vLLM: linecaster's; SGLang:
   its `serve.version` with the preset's `server_packages`) into an environment of its own, once per machine
   (`LINECASTER_SERVER_ENVS`, else `~/.cache/linecaster/servers`), resolved as of the day after the release was

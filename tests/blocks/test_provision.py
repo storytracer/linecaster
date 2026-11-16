@@ -80,3 +80,23 @@ def test_a_server_finds_its_environment_s_cuda_libraries_after_the_machine_s(tmp
     assert provision.library_path(tmp_path) == [str(lib)]
     assert provision.ld_library_path(tmp_path, "/usr/local/cuda-13.0/compat") == f"/usr/local/cuda-13.0/compat:{lib}"
     assert provision.ld_library_path(tmp_path / "none", None) is None
+
+
+def test_auto_serves_with_the_server_here_only_at_the_preset_s_release(monkeypatch):
+    """``--server-env auto``: vLLM's image at linecaster's pin serves a pinned preset; a preset that names another
+    release, or a machine without vLLM, gets uv's."""
+    from linecaster.blocks.servers.serve import ChatModelServer
+
+    monkeypatch.setattr(provision, "found_release", lambda server, path, python=None: "0.30.0")
+    assert ChatModelServer("dots-mocr", server_env="auto").found_here() == "path"          # the pin: 0.30.0
+    assert ChatModelServer("lightonocr-2-1b", server_env="auto").found_here() == "uv"     # names 0.26.0
+    monkeypatch.setattr(provision, "found_release", lambda server, path, python=None: None)
+    assert ChatModelServer("dots-mocr", server_env="auto").found_here() == "uv"           # no vLLM here
+
+
+def test_found_release_reads_the_server_s_own_version(monkeypatch, tmp_path):
+    exe = tmp_path / "vllm"
+    exe.write_text("#!/bin/sh\necho 'INFO some log line 1.2.3-not'\necho 0.30.0\n")
+    exe.chmod(0o755)
+    assert provision.found_release("vllm", str(tmp_path)) == "0.30.0"
+    assert provision.found_release("vllm", str(tmp_path / "none")) is None

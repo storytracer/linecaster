@@ -52,7 +52,8 @@ class ServiceServer(Contracted, PipelineStep):
         boot_timeout: seconds the service may take until it is ready.
         server_env: for ``server: vllm``, where vLLM comes from: ``"path"`` (``vllm`` above) or ``"uv"`` (the
             preset's vLLM release, linecaster's ``VLLM_VERSION`` unless it names another, in an environment uv builds
-            once per machine: ``linecaster.blocks.servers.provision``), its ``bin`` first on the service's ``PATH``.
+            once per machine: ``linecaster.blocks.servers.provision``), its ``bin`` first on the service's ``PATH``,
+            or ``"auto"``: the ``vllm`` on ``PATH`` when it is that release, else uv's.
     """
 
     type = "🔠 - LINECASTER"
@@ -63,8 +64,8 @@ class ServiceServer(Contracted, PipelineStep):
     def __init__(self, preset: str, port: int = 8000, host: str = "127.0.0.1", vllm: str = "vllm",
                  boot_timeout: int = 1800, server_env: str = "path"):
         super().__init__()
-        if server_env not in ("path", "uv"):
-            raise PipelineConfigError(f"ServiceServer: server_env {server_env!r} (path or uv)")
+        if server_env not in ("path", "uv", "auto"):
+            raise PipelineConfigError(f"ServiceServer: server_env {server_env!r} (path, uv or auto)")
         from ...catalog.registry import catalog
 
         r = catalog().resolve(preset)
@@ -134,11 +135,20 @@ class ServiceServer(Contracted, PipelineStep):
         from ...catalog.fetch import check, hf_snapshot
 
         if self.server == "vllm":
+            from ...catalog.schema import Serve
+
+            version = Serve.model_validate(self.serve).version
+            if self.server_env == "auto":                   # vLLM here if it is the preset's release
+                from .provision import found_release, release_of
+
+                here = found_release("vllm", self.environment()["PATH"])
+                self.server_env = "path" if here == release_of(version) else "uv"
+                logger.info("vllm {want}: {how}", want=version, how=f"the one here ({here})"
+                            if self.server_env == "path" else f"built by uv (here: {here or 'none'})")
             if self.server_env == "uv":
-                from ...catalog.schema import Serve
                 from .provision import server_env
 
-                folder = server_env("vllm", Serve.model_validate(self.serve).version)
+                folder = server_env("vllm", version)
                 self._env_dir, self.vllm = str(folder), str(folder / "bin" / "vllm")
             return str(hf_snapshot(self.weights))
         folder = self.serve.get("weights_dir")

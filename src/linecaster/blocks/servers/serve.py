@@ -127,9 +127,10 @@ class ChatModelServer(Contracted, PipelineStep):
         python: the Python that has SGLang (default ``python3``, looked up on the server's ``PATH``, then in the
             usual image locations).
         server_env: where the server comes from: ``"path"`` (the command on ``PATH``, or the image's Python, as
-            above) or ``"uv"`` (its release, ``spec.server_version``, with the preset's ``server_packages``, in an
-            environment uv builds once per machine: ``linecaster.blocks.servers.provision``); the server then runs
-            outside this interpreter's environment, its environment's ``bin`` first on ``PATH``.
+            above), ``"uv"`` (its release, ``spec.server_version``, with the preset's ``server_packages``, in an
+            environment uv builds once per machine: ``linecaster.blocks.servers.provision``; the server then runs
+            outside this interpreter's environment, its environment's ``bin`` first on ``PATH``), or ``"auto"``:
+            the one on ``PATH`` when it is the preset's release (an image at linecaster's vLLM pin), else uv's.
     """
 
     type = "🔠 - LINECASTER"
@@ -141,8 +142,8 @@ class ChatModelServer(Contracted, PipelineStep):
                  extra_args: list[str] | None = None, vllm: str = "vllm", boot_timeout: int = 1800,
                  outside_venv: bool = False, python: str = "python3", server_env: str = "path"):
         super().__init__()
-        if server_env not in ("path", "uv"):
-            raise PipelineConfigError(f"ChatModelServer: server_env {server_env!r} (path or uv)")
+        if server_env not in ("path", "uv", "auto"):
+            raise PipelineConfigError(f"ChatModelServer: server_env {server_env!r} (path, uv or auto)")
         if isinstance(spec, str):
             from ...adapters import chat_model
 
@@ -276,6 +277,25 @@ class ChatModelServer(Contracted, PipelineStep):
         raise ServerError(f"no {self.python} with sglang (outside_venv={self.outside_venv}); PATH={path}; "
                            f"tried: {tried or 'none found'}")
 
+    def found_here(self) -> str:
+        """``"path"`` when the server on this machine's ``PATH`` (vLLM's ``vllm``, SGLang in an image's Python) has
+        the preset's release, else ``"uv"``."""
+        from .provision import found_release, release_of
+
+        want = getattr(self.spec, "server_version", None)
+        python = None
+        if self.server == "sglang":
+            try:
+                python = self.server_python()
+            except ServerError:
+                python = None
+        here = found_release(self.server, self.server_path(), python)
+        mode = "path" if want and here == release_of(want) else "uv"
+        logger.info("{server} {want}: {how}", server=self.server, want=want,
+                    how=f"the one here ({here})" if mode == "path" else
+                    f"built by uv (here: {here or 'none'})")
+        return mode
+
     def install_commands(self, python: str, uv: str = "uv") -> list[list[str]]:
         """One ``uv pip install`` per entry of the spec's ``server_packages``, into ``python``."""
         return [[uv, "pip", "install", "-q", "--python", python, *args] for args in self.spec.server_packages()]
@@ -289,8 +309,12 @@ class ChatModelServer(Contracted, PipelineStep):
         spec = self.spec
         if spec.revision and not getattr(spec, "revision_flag", True):
             check_default_branch(spec.model, spec.revision, getattr(spec, "pin_ignore", ()))
+        if self.server_env == "auto":                       # the server here if it is the preset's release
+            self.server_env = self.found_here()
         if self.server_env == "uv":                         # the server's packages are part of its environment
             from .provision import server_env
+
+            self.outside_venv = True
 
             folder = server_env(self.server, getattr(spec, "server_version", None), spec.server_packages())
             self._env_dir = str(folder)

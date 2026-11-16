@@ -124,6 +124,26 @@ def server_env(server: str, version: str, packages: list[list[str]] = (), python
     return folder
 
 
+def found_release(server: str, path: str, python: str | None = None) -> str | None:
+    """The release of the server already on ``path`` (vLLM's ``vllm``; SGLang in ``python``), ``None`` without one:
+    for ``--server-env auto``, which serves a preset with it when it is the preset's release."""
+    env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME")}
+    env["PATH"] = path
+    if server == "vllm":
+        exe = shutil.which("vllm", path=path)
+        cmd = [exe, "--version"] if exe else None
+    else:
+        cmd = [python, "-c", "import sglang; print(sglang.__version__)"] if python else None
+    if not cmd:
+        return None
+    try:
+        r = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=300, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    found = re.findall(r"\d+\.\d+\.\d+\S*", r.stdout or "")
+    return release_of(found[-1]) if r.returncode == 0 and found else None
+
+
 def library_path(folder: str | Path) -> list[str]:
     """The CUDA library folders of a server environment's NVIDIA packages (``nvidia/cu*/lib``, ``nvidia/*/lib``), for
     the server's ``LD_LIBRARY_PATH``: libraries a CUDA library opens by name at run time (NVRTC its

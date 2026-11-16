@@ -4,7 +4,7 @@ region it finds (``RegionRecognizer``, a region preset), on the ``Chat`` backend
 serves the layout model (``--backend``, ``--endpoint`` as for any engine). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.
 
-    uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr                     # vLLM built by uv
+    uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr                     # vLLM here, else built by uv
     uv run pipelines/transcribe_vlm.py IMAGES OUT --recognition dots-ocr --recognition-endpoint http://127.0.0.1:8000/v1
     uv run pipelines/transcribe_vlm.py IMAGES OUT --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
     uv run pipelines/transcribe_vlm.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha> --recognition unlimited-ocr-2
@@ -16,9 +16,9 @@ model's raw answer is in each page's transcription.
                                                           # the repair pass over page records written before
 
 The server is the preset's release (vLLM: linecaster's ``VLLM_VERSION`` unless the preset names another; SGLang:
-its ``serve.version``, with the preset's ``server_packages``), in an environment uv builds once per machine
-(``--server-env uv``, the default here and on Ray), or the one on ``PATH`` or in the image (``--server-env path``,
-the default on HF Jobs).
+its ``serve.version``, with the preset's ``server_packages``): the one on ``PATH`` or in the image when it is that
+release (``--server-env auto``, the default: vLLM's image at linecaster's pin serves every preset on it), else in an
+environment uv builds once per machine (``--server-env uv`` always; ``path`` takes the one there, whatever it is).
 
 --recognition takes a chat preset of the catalog (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs

@@ -115,10 +115,11 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                    help="engines inside the pipeline or behind a server in each task "
                         "(default: in-process here, served on Ray and HF Jobs)")
     g.add_argument("--endpoint", default=None, help="a running server for the engines")
-    g.add_argument("--server-env", choices=["uv", "path"], default=None,
-                   help="where a model's server (vLLM, SGLang) comes from: uv (its preset's release, built by uv "
-                        "once per machine) or path (the one on PATH or in the image); default: path on HF Jobs (the "
-                        "preset's image), uv elsewhere")
+    g.add_argument("--server-env", choices=["auto", "uv", "path"], default="auto",
+                   help="where a model's server (vLLM, SGLang) comes from: auto (the one on PATH or in the image "
+                        "when it is the preset's release, e.g. vLLM's image at linecaster's pin; else built by uv), "
+                        "uv (the preset's release, built by uv once per machine) or path (the one there, whatever "
+                        "its release)")
     g = ap.add_argument_group("Ray")
     g.add_argument("--address", default="auto",
                    help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
@@ -1095,9 +1096,9 @@ def sample(argv: list[str]) -> None:
 
 
 def server_env(a: argparse.Namespace) -> str:
-    """``--server-env``: as given, else ``path`` on HF Jobs (the preset's image has the server) and ``uv``
-    elsewhere."""
-    return getattr(a, "server_env", None) or ("path" if getattr(a, "on", "local") == "hf-jobs" else "uv")
+    """``--server-env``: as given, ``auto`` by default (the server here when it is the preset's release, else
+    uv's)."""
+    return getattr(a, "server_env", None) or "auto"
 
 
 def code_root(script: str) -> Path:
