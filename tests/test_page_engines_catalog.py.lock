@@ -694,7 +694,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.10.2"
+version = "0.11.0"
 source = { editable = "../" }
 dependencies = [
     { name = "cssselect" },
@@ -733,7 +733,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "rapidfuzz", marker = "extra == 'rapidfuzz'", specifier = ">=3.9" },
-    { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
+    { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = "==2.59.0" },
     { name = "regex", specifier = ">=2024.11.6" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
@@ -753,7 +753,7 @@ docs = [
 
 [[package]]
 name = "linecaster-indra"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "../engines/indra" }
 dependencies = [
     { name = "indra-ocr" },
@@ -765,14 +765,14 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "indra-ocr", specifier = "==1.1.2" },
-    { name = "linecaster", specifier = ">=0.10,<0.11" },
+    { name = "linecaster", specifier = ">=0.11,<0.12" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
 ]
 
 [[package]]
 name = "linecaster-services"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "../engines/services" }
 dependencies = [
     { name = "linecaster" },
@@ -782,14 +782,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.10,<0.11" },
+    { name = "linecaster", specifier = ">=0.11,<0.12" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
 ]
 
 [[package]]
 name = "linecaster-surya"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "../engines/surya" }
 dependencies = [
     { name = "linecaster" },
@@ -799,7 +799,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.10,<0.11" },
+    { name = "linecaster", specifier = ">=0.11,<0.12" },
     { name = "numpy" },
     { name = "surya-ocr", specifier = "==0.23.0" },
 ]

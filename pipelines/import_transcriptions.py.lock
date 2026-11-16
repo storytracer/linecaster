@@ -741,7 +741,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.10.5"
+version = "0.11.0"
 source = { editable = "../" }
 dependencies = [
     { name = "cssselect" },
@@ -805,7 +805,7 @@ docs = [
 
 [[package]]
 name = "linecaster-mediawiki"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "../engines/mediawiki" }
 dependencies = [
     { name = "linecaster" },
@@ -816,7 +816,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.10,<0.11" },
+    { name = "linecaster", specifier = ">=0.11,<0.12" },
     { name = "lxml", specifier = ">=5" },
     { name = "rapidfuzz", specifier = ">=3.9" },
     { name = "wikitextprocessor", git = "https://github.com/tatuylonen/wikitextprocessor?rev=6f96ddf5f3466707f1869fe6618390fd77dfd109" },

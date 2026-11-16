@@ -1106,7 +1106,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.10.2"
+version = "0.11.0"
 source = { editable = "../" }
 dependencies = [
     { name = "cssselect" },
@@ -1145,7 +1145,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "rapidfuzz", marker = "extra == 'rapidfuzz'", specifier = ">=3.9" },
-    { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
+    { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = "==2.59.0" },
     { name = "regex", specifier = ">=2024.11.6" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "saturate", specifier = "==0.3.0" },
@@ -1165,7 +1165,7 @@ docs = [
 
 [[package]]
 name = "linecaster-kraken"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "../engines/kraken" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -1181,7 +1181,7 @@ dependencies = [
 requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", git = "https://github.com/storytracer/kraken?rev=48eecb78" },
-    { name = "linecaster", specifier = ">=0.10,<0.11" },
+    { name = "linecaster", specifier = ">=0.11,<0.12" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },
     { name = "torch", specifier = "==2.14.0" },
@@ -1190,7 +1190,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "../engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
@@ -1212,7 +1212,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.10,<0.11" },
+    { name = "linecaster", specifier = ">=0.11,<0.12" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
@@ -1229,7 +1229,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-tesseract"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "../engines/tesseract" }
 dependencies = [
     { name = "linecaster" },
@@ -1241,7 +1241,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.10,<0.11" },
+    { name = "linecaster", specifier = ">=0.11,<0.12" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },

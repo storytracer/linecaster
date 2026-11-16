@@ -4,12 +4,17 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.11.0 (2026-11-17)
 
 linecaster reads, keeps, writes and scores texts in any writing system: languages, scripts and writing directions
 are recorded where a source or a step says them, ordering follows the writing direction, and the word metrics count
-words in scripts with combining marks and without spaces. English outputs are as before, except where their source
-records a language and where *Changed outputs* says.
+words in scripts with combining marks and without spaces. Runs are scored element by element by default, as
+OmniDocBench does, but in any script and with extra text counted; classification schemes have vocabularies with
+prose definitions, and a tagging step labels pages by rules or by a panel of models; ground truths are checked,
+sampled, published and turned into benchmark definitions by linecaster's own commands. External benchmarks are
+exports: linecaster runs none of their code. English outputs are as before, except where their source records a
+language and where *Changed outputs* says. Engine packages need `linecaster>=0.11,<0.12` (kraken, paddlex,
+tesseract, surya, indra, services 0.2.3; mediawiki 0.2.1).
 
 ### Upgrade notes
 
