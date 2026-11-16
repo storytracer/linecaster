@@ -1373,6 +1373,10 @@
 </thead>
 <tbody>
 <tr>
+<td><a href="scoring/OmniDocBenchScorer/"><code>OmniDocBenchScorer</code></a></td>
+<td>Scores the task's pages by OmniDocBench's evaluation; <code>doc.metadata["omnidocbench"]</code> gets the page (<code>page_summary</code>: name, attributes, categories) and its samples per module, each with its metrics.</td>
+</tr>
+<tr>
 <td><a href="scoring/PageScorer/"><code>PageScorer</code></a></td>
 <td>Scores each page of the stream against its ground truth, by a benchmark.</td>
 </tr>
@@ -1399,6 +1403,10 @@
 <tr>
 <td><a href="writers/ItemTextWriter/"><code>ItemTextWriter</code></a></td>
 <td>Writes the texts of each item record as JSON Lines, a row per item and text.</td>
+</tr>
+<tr>
+<td><a href="writers/OmniDocBenchWriter/"><code>OmniDocBenchWriter</code></a></td>
+<td>Writes each page's OmniDocBench samples (<code>doc.metadata["omnidocbench"]</code>) and passes the page on.</td>
 </tr>
 <tr>
 <td><a href="writers/PageFileWriter/"><code>PageFileWriter</code></a></td>
