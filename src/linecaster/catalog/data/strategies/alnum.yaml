@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../schemas/strategy.json
 schema: linecaster.strategy
 id: alnum
-description: 'Letters, marks and digits of any script (the default lane): formulas as the characters they print, markup removed, compatibility forms folded, case folded, everything else a word boundary.'
+description: 'Letters, marks and digits of any script: formulas as the characters they print, markup removed, compatibility forms folded, case folded, everything else a word boundary.'
 use: comparison
 normalizations:
 - latex-text
