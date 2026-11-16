@@ -157,3 +157,21 @@ def test_workers_given_override_every_rule(tmp_path):
         a = options(tmp_path, *argv, "--broker", str(tmp_path / "broker"), "--workers", "100", out=out, proxies=MANY)
         run.allocate(a, [])
         assert a.workers == 100 and run.workers_note(a) is None
+
+
+def test_on_ray_a_run_without_engines_runs_every_task_at_once(monkeypatch):
+    """On Ray the driver's CPUs do not bound a run's workers (the cluster's reservations do); here they do."""
+    import argparse
+
+    from linecaster.runtime import run
+
+    monkeypatch.setattr(run, "available_cpus", lambda: 16)
+    monkeypatch.setattr(run, "_proxy_plan", lambda a: (False, []))
+    monkeypatch.setattr(run, "_policy_rate_limited", lambda a: False)
+    monkeypatch.setattr(run, "has_engines", lambda a: False)
+    ray = argparse.Namespace(on="ray", tasks=64, workers=None, rate_limits=None)
+    run.allocate(ray, [])
+    assert ray.workers == 64
+    here = argparse.Namespace(on="local", tasks=64, workers=None, rate_limits=None)
+    run.allocate(here, [])
+    assert here.workers == 16

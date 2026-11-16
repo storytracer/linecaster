@@ -45,7 +45,9 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
     (``linecaster.data.upgrade.upgrade``); a folder ``.../pages`` that holds no records but has a sibling ``rows``
     (the folder's earlier name) is read from there.
 
-    Files are distributed over tasks in turn. With ``item_shards`` the page records were written into item shards
+    Files are distributed over tasks in turn; with more tasks than files, each file is shared by the tasks it falls
+    to, each keeping every k-th of its records (``k`` such tasks), so every task has work and every record is read by
+    one task (a page scorer over a run written by fewer tasks). With ``item_shards`` the page records were written into item shards
     (``PageJsonlWriter(item_shards=N)``): the shard folders are distributed instead, each read whole, so a task
     sees every page of its items (``whole_items``). No shard folder is a ``PipelineConfigError``.
 
@@ -168,6 +170,12 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
                 raise PipelineConfigError(f"No item shards (<shard>/...) under {self.data_folder.path}")
             mine = set(shards[rank::world_size])
             files = [f for f in files if f.split("/", 1)[0] in mine]
+        elif world_size > len(files) and files:   # more tasks than files: each file shared, every k-th record
+            k = rank % len(files)
+            path, part, parts = files[k], rank // len(files), len(range(k, world_size, len(files)))
+            yield from reported_file(self, path, self._documents(path, None if chosen is None else chosen[path],
+                                                                 share=(part, parts)))
+            return
         else:
             files = files[rank::world_size]
         for path in files:
@@ -180,11 +188,15 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
                 return repl + src[len(prefix):]
         return src
 
-    def _documents(self, path: str, rows: set[int] | None = None):
+    def _documents(self, path: str, rows: set[int] | None = None, share: tuple[int, int] | None = None):
+        """The file's records as documents: those of ``rows`` (a sample) and, with ``share`` ``(part, parts)``, every
+        ``parts``-th record from ``part`` on."""
         from datatrove.data import Document, Media, MediaType
 
         for i, row in enumerate(self._records(path)):
             if rows is not None and i not in rows:
+                continue
+            if share is not None and i % share[1] != share[0]:
                 continue
             row = upgrade(row)
             page = row["page"]

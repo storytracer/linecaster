@@ -579,7 +579,8 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
     (``ceil(available / N)``), never capped by the CPUs (the workers mostly wait on the network); either way at most
     one per task and, with OUT on object storage, at most ``OBJECT_STORAGE_WORKERS``, the reason in
     ``workers_note``. A host with rate limits and no proxy list: one worker (one task keeps them busy,
-    ``linecaster.net.http.prefetched``); one per CPU otherwise. A pipeline with engines: one task, every task at once;
+    ``linecaster.net.http.prefetched``); one per CPU otherwise, and on Ray every task (Ray's reservations,
+    ``--cpus-per-task``, decide how many run at once, not the CPUs of the machine the driver runs on). A pipeline with engines: one task, every task at once;
     on Ray ``RAY_TASKS_PER_GPU`` tasks per GPU of the cluster (at most the reader's ``auto_tasks``), so a task that
     holds slow pages does not hold the run up: a worker that is done takes the next one. A pipeline whose tasks start
     a VLM's server (``starts_vlm_server``) counts as one with engines, with one task per GPU on Ray (the server takes
@@ -609,6 +610,8 @@ def allocate(a: argparse.Namespace, pipeline: list) -> None:
             return
         if direct or getattr(a, "rate_limits", None) or _policy_rate_limited(a):
             a.workers = 1
+        elif getattr(a, "on", "local") == "ray":     # the cluster's reservations bound it, not the driver's CPUs
+            a.workers = a.tasks
         else:
             a.workers = min(a.tasks, available_cpus())
 

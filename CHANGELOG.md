@@ -4,6 +4,17 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- **On Ray, a run without engines runs every task at once by default** (`--workers`): Ray's reservations
+  (`--cpus-per-task`) decide how many fit, not the CPUs of the machine the driver runs on (a driver on a 16-CPU pod
+  ran a 32-task scoring job 16 at a time). Rate limits and proxy lists keep their own rules.
+- **More tasks than page-record files**: `PageRecordReader` shares each file among the tasks it falls to, each
+  keeping every k-th record, so every task has work (scoring a run written by 32 tasks over 100 cores); with as many
+  tasks as files or fewer, each file is read whole by one task, as before.
+
 ## 0.10.3 (2026-11-16)
 
 ### Added

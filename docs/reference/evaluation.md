@@ -141,8 +141,8 @@ Each task scores a share of the run's page records (`PageScorer`: its pages' gro
 their lines decoded) and writes their score records and page summaries (`ScoreWriter`: `OUT/records`, `OUT/pages`).
 When every task is done, the driver puts them together (`linecaster.scoring.run.aggregate`): the pages the run lacks
 are scored as empty outputs, then the rates, intervals and conventions check as above, into `OUT/scores.parquet` and
-`OUT/evidence.yaml`. The score records are the ones `linecaster score` writes, page for page. A task reads whole
-page-record files, so a run written by N tasks scores in at most N tasks.
+`OUT/evidence.yaml`. The score records are the ones `linecaster score` writes, page for page. With more tasks than
+page-record files, the tasks share each file (every k-th record each), so any number of tasks has work.
 
 ## Benchmarks (`linecaster.benchmark/2`)
 

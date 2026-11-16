@@ -331,5 +331,5 @@ def test_a_pipeline_that_starts_a_vlm_server_gets_one_task_per_gpu(monkeypatch):
         assert (a.tasks, a.workers) == (want, want), on
     a = type("A", (), {"tasks": None, "workers": None, "on": "ray", "has_engines": False, "address": "auto",
                        "page": None})()
-    run.allocate(a, [Reader()])                                       # without a server: the reader's tasks, as before
-    assert a.tasks == 100 and a.workers == 4
+    run.allocate(a, [Reader()])                     # without a server: the reader's tasks, every one at once on Ray
+    assert a.tasks == 100 and a.workers == 100    # (the cluster's reservations bound them, not this machine's CPUs)

@@ -324,3 +324,31 @@ def test_uri_map_option_reaches_the_page_records_reader(tmp_path):
         run.uri_map(["/old/images"])
     with pytest.raises(SystemExit):
         run.check(ap, ap.parse_args([str(tmp_path), "OUT", "--uri-map", "/a=/b"]))
+
+
+def test_more_tasks_than_files_share_each_file_and_read_every_record_once(tmp_path):
+    """Two record files over five tasks: each file is shared by the tasks it falls to (three and two), each keeping
+    every k-th record, so every task has records and every record is read by exactly one task; with as many tasks as
+    files (or fewer) each file is read whole by one task, as before."""
+    import json
+
+    folder = tmp_path / "pages"
+    folder.mkdir()
+    ids = {}
+    for f in range(2):
+        rows = []
+        for k in range(7):
+            pid = f"f{f}_{k:02d}"
+            from linecaster.data import Page
+
+            rows.append({"schema": "linecaster.page/5", "id": pid, "text": "",
+                         "page": Page(page_id=pid, item_id="item").record()})
+        (folder / f"{f:05d}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+        ids[f] = [r["id"] for r in rows]
+    reader = PageRecordReader(str(folder), fetch_images=False)
+    seen = [[d.id for d in reader.run(rank=r, world_size=5)] for r in range(5)]
+    assert all(seen) and sorted(i for s in seen for i in s) == sorted(ids[0] + ids[1])
+    assert seen[0] == ids[0][0::3] and seen[2] == ids[0][1::3] and seen[4] == ids[0][2::3]   # file 0: ranks 0, 2, 4
+    assert seen[1] == ids[1][0::2] and seen[3] == ids[1][1::2]                              # file 1: ranks 1, 3
+    whole = [[d.id for d in reader.run(rank=r, world_size=2)] for r in range(2)]
+    assert whole == [ids[0], ids[1]]

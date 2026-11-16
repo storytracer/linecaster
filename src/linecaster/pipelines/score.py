@@ -10,8 +10,8 @@ OUT/scores.parquet and OUT/evidence.yaml, as ``linecaster score`` writes them in
         --benchmark benchmark.yaml --preset lightonocr-3-0.8b --on ray --tasks 32
     ... --workers 64                                   # tasks at once on this machine
 
-The run's page records are read without their images. Tasks: one per page-record file at most (a file is read
-whole by one task). The benchmark's file is read here and travels with the tasks; the ground truth folder must be
+The run's page records are read without their images. Any number of tasks: with more tasks than page-record
+files, the tasks share each file (every k-th record each), so --tasks 100 uses 100 cores whatever the run wrote. The benchmark's file is read here and travels with the tasks; the ground truth folder must be
 readable where the tasks run (object storage on a cluster). --preset names the preset measured when the run follows
 no recipe (as ``linecaster score``), --context the rest of the pipeline it was measured in.
 """
