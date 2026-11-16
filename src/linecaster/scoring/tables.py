@@ -7,11 +7,12 @@ or one cell), so a table metric is meaningful only on its ``data`` tables (``lin
 page slices). The kind is computed, never stored: the ground truth keeps every table as it is.
 
 ``contents``: at least three rows; in at least 60 % of the rows with an entry the last cell is a reference (a page,
-chapter or section number, arabic or roman, with or without ``p.``, ``pp.``, ``page``, ``cap.``, ``ch.``, ``§``, …, one or
-a list or range of them: ``45, 172``, ``12–15``) and the first cell has letters; and either the references do not go
+chapter or section number, in any script's digits or roman, with or without ``p.``, ``pp.``, ``page``, ``cap.``,
+``ch.``, ``§``, …, any abbreviation of up to four letters (``S.``, ``стр.``) or ``第…頁``, one or a list or range of
+them: ``45, 172``, ``12–15``) and the first cell has letters; and either the references do not go
 down in at least 70 % of the steps from row to row (a table of contents), or the entries do not (an index, in
-alphabetical order). A table of contents' entries are titles (a median of three words or more); an index's entries
-have two words or more and the index is long (15 entries or more) or a fifth of its entries have several references.
+alphabetical order). A table of contents' entries are titles (a median of three words or more: runs between spaces, or
+in a script without spaces Unicode's words, a character each); an index's entries have two words or more and the index is long (15 entries or more) or a fifth of its entries have several references.
 A column of counts, amounts or years with short labels rarely meets either, so a data table whose last column holds
 numbers stays a data table. ``layout``: one row, one column or one cell, or fewer than two rows, or under a third of
 them, with two filled cells (a table that is one column in practice); or a table of at most six rows with a cell that
@@ -22,11 +23,13 @@ import re
 
 from ..data.transcription import Table
 
-#: a reference as a contents page or index prints it: a page, chapter or section, arabic or roman (``j`` for ``i``), with
-#: or without its word; one, or a list or range (only the first counts)
+#: a reference as a contents page or index prints it: a page, chapter or section, in the digits of any script or roman
+#: (``j`` for ``i``), with or without its word (one of these, or any abbreviation of up to four letters with its
+#: period: ``S. 12``, ``стр. 5``, ``pág. 3``; ``第12頁``, ``12页``); one, or a list or range (only the first counts)
 _REF = r"(?:\d{1,4}|[ivxlcdmj]{1,8})"
-REFERENCE = re.compile(r"^\s*(?:(?:p|pp|page|pages|cap|ca|ch|chap|chapter|sect|sec|art|no|§|pl|plate|fig)\.?\s*)?"
-                       rf"({_REF})\.?((?:\s*[,–—-]\s*{_REF}\.?)*)\s*$", re.I)
+REFERENCE = re.compile(r"^\s*(?:(?:p|pp|page|pages|cap|ca|ch|chap|chapter|sect|sec|art|no|§|pl|plate|fig)\.?\s*"
+                       r"|[^\W\d_]{1,4}\.\s*|第\s*)?"
+                       rf"({_REF})\.?((?:\s*[,–—-]\s*{_REF}\.?)*)\s*[頁页章節节回]?\s*$", re.I)
 #: a cell that holds only brackets and braces: a brace grouping lines
 BRACE = re.compile(r"^[\s{}()\[\]⎫⎬⎭⎧⎨⎩⎪]+$")
 _LETTER = re.compile(r"[^\W\d_]")
@@ -59,6 +62,17 @@ def _rows(table: Table) -> list[list[str]]:
     return [[t for _, t in sorted(r)] for _, r in sorted(rows.items())]
 
 
+def _words(text: str) -> int:
+    """An entry's words: its runs between spaces, or, in a script written without spaces (Chinese, Japanese, Thai: one
+    run), Unicode's words (``linecaster.scoring.tokens``, ``uax29``: a character each)."""
+    runs = text.split()
+    if len(runs) > 1:
+        return len(runs)
+    from .tokens import tokens
+
+    return max(len(runs), len(tokens(text, "uax29")))
+
+
 def is_contents(table: Table) -> bool:
     """Whether ``table`` is a list of entries with references: a table of contents or an index (module docstring)."""
     rows = [[t for t in r if t] for r in _rows(table)]
@@ -69,7 +83,7 @@ def is_contents(table: Table) -> bool:
     numbered = [r for r in entries if _number(r[-1]) is not None and _LETTER.search(r[0])]
     if len(numbered) < 3 or len(numbered) < 0.6 * max(len(entries), 1):
         return False
-    words = sorted(len(" ".join(r[:-1]).split()) for r in numbered)[len(numbered) // 2]    # the median entry's words
+    words = sorted(_words(" ".join(r[:-1])) for r in numbered)[len(numbered) // 2]    # the median entry's words
     if _rising([_number(r[-1]) for r in numbered]) and words >= 3:          # a table of contents: titles, pages rising
         return True
     several = sum(1 for r in numbered if REFERENCE.match(r[-1]).group(2).strip())

@@ -42,3 +42,18 @@ def test_one_row_one_column_one_cell_mostly_empty_and_braces_are_layout():
     assert table_kind(table([["vol. 85, no. 3, pl. 15", ""], ["", ""], ["Burgess Shale Fossils", ""]])) == "layout"
     assert table_kind(table([["1639, December 4th", "}", "121½ years"], ["1761, June 5th", "", ""],
                              ["1761, June 5th", "}", "8 years"]])) == "layout"
+
+
+def test_contents_in_other_scripts_and_with_other_abbreviations():
+    german = [["Einleitung in die Geschichte", "S. 1"], ["Das alte Reich der Franken", "S. 17"],
+              ["Die Zeit der Ottonen und Salier", "S. 45"], ["Das Ende der Staufer", "S. 88"]]
+    assert table_kind(table(german)) == "contents"
+    russian = [["Предисловие к первому изданию", "стр. 3"], ["Глава первая о начале", "стр. 9"],
+               ["Глава вторая о пути", "стр. 21"]]
+    assert table_kind(table(russian)) == "contents"
+    arabic = [["مقدمة الكتاب الأولى", "٣"], ["الفصل الأول في البداية", "١٧"], ["الفصل الثاني في الطريق", "٤٥"]]
+    assert table_kind(table(arabic)) == "contents"
+    chinese = [["天地玄黃之說", "第1頁"], ["宇宙洪荒之論", "第12頁"], ["日月盈昃之辨", "第30頁"]]
+    assert table_kind(table(chinese)) == "contents"                # titles of three characters or more
+    counts = [["Schulen", "Zahl"], ["Universität", "1"], ["Gymnasium", "4"], ["Volksschule", "31"]]
+    assert table_kind(table(counts)) == "data"                    # short labels with counts stay data

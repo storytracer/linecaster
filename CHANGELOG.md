@@ -118,6 +118,11 @@ records a language and where *Changed outputs* says.
 - An IIIF annotation page's edit of a span targets those characters of the line's annotation (a
   `TextPositionSelector`), and an edit of a word the word's annotation; they targeted the whole line's annotation,
   so the span was lost (an ALTO page's divided words, for example).
+- **Table kinds read contents lists in any script** (`linecaster.scoring.tables`): a reference may be in any script's
+  digits and follow any abbreviation of up to four letters with its period (`S. 12`, `стр. 5`, `Vol. 3`) or be
+  written `第12頁`; in a script written without spaces an entry's words are counted as Unicode's words. More German,
+  Russian, Arabic or Chinese contents lists are `contents`, no longer `data`, in the `tables` slice and the
+  OmniDocBench export; English counts of words are unchanged (not re-measured on Wikisource).
 - **The OmniDocBench export writes only data tables as tables** (`--tables data`, the default; `--tables all` as
   before), on both sides alike: a table is `data` (printed as a table: at least two rows and two columns of filled
   cells, text or numbers alike), `contents` (a table of contents or an index laid out as a table: titles or entries
