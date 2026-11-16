@@ -6,6 +6,15 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Added
+
+- **Omni Parse Bench** (`pipelines/omniparsebench.py`, `omniparsebench.v1`; the extra `omniparsebench`): a run's
+  pages written as Omni Parse Bench predictions (`OmniParseBenchPredictionWriter`,
+  `linecaster.formats.omniparsebench`) and graded by Omni Parse Bench's own code on any Omni Parse Bench dataset,
+  its unit-test scorer in its own process pool (`--grade-workers`). linecaster makes no tests: they are the
+  dataset's.
+- `linecaster.formats.omnidocbench.reading_blocks`: a page's blocks in reading order (was private).
+
 ### Changed outputs
 
 - **OmniDocBench scoring counts only data tables as tables** (`--tables data`, the default; `--tables all` as

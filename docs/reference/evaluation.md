@@ -187,6 +187,28 @@ codepoint`, marked not comparable with evidence/3 where a hash is missing); `lin
 file of any version, and `linecaster evidence compare` puts evidence records side by side, only those scored the same
 way (benchmark, policy, output strategy, lanes by hash, unit).
 
+## Omni Parse Bench (`pipelines/omniparsebench.py`)
+
+[Omni Parse Bench](https://github.com/datalab-to/omni_parse_bench) grades a parse by unit tests: yes/no facts about
+a page (a passage is there, one passage comes before another, a value sits in a table cell under its heading, a
+formula renders the same), each from its dataset's gold files. **linecaster writes the predictions; Omni Parse Bench
+grades them, its code unchanged** (the package `omni-parse-bench`, the extra `omniparsebench`). The tests are the
+dataset's, made by whoever owns the ground truth: a folder of `manifest.parquet` and `gold/<page_id>.json`
+(Omni Parse Bench's `docs/API.md`), checked by `opb check --dataset DATASET`.
+
+    uv run pipelines/omniparsebench.py OUT --pages RUN/pages --dataset DATASET --tasks 32     # omniparsebench.v1
+    ... --no-grade                     # only the predictions; then: opb grade OUT --dataset DATASET
+
+Each task writes its pages as predictions (`OmniParseBenchPredictionWriter`): `OUT/predictions/<page_id>.json`,
+`{"pages": [{"html": ...}]}`, the page's Markdown (as for OmniDocBench below: blocks in reading order, tables as
+HTML, formulas as `$$…$$`, nothing normalized) through Omni Parse Bench's own Markdown converter; a page an earlier
+block failed on is `OUT/records/<page_id>.json` with its failure, which Omni Parse Bench counts as the system's. When
+every task is done, Omni Parse Bench's own grading (`Benchmark.grade`, what `opb grade` runs) writes
+`OUT/unit_tests/` (`summary.json`, `scores.jsonl`, `details/`); its unit-test scorer scores `--grade-workers` pages
+at once in its own process pool (omni-bench-core's `Scorer.workers`, 1 under `opb grade`), with the same results.
+`OUT/omniparsebench.yaml` records the dataset (and its `dataset.yaml`), the packages' versions and the headline.
+OUT and the dataset are local folders: Omni Parse Bench reads files.
+
 ## OmniDocBench's own evaluation (`pipelines/harness.py`)
 
 linecaster's scorer is literal and page-based; OmniDocBench scores the way it publishes its numbers. linecaster runs

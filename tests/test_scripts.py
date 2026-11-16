@@ -198,6 +198,9 @@ def test_torch_per_environment(script):
 SOURCE_BUILDS = {
     # kraken's CoreML format (the blla .mlmodel); no Linux aarch64 wheel; not on the recognition path
     "coremltools": "aarch64",
+    # Omni Parse Bench's approximate matching (pipelines/omniparsebench.py); no Linux aarch64 wheel; its C extension
+    # and its pure-Python fallback find the same matches (an exact algorithm), and grading runs on CPUs anywhere
+    "fuzzysearch": "aarch64",
 }
 
 

@@ -1084,6 +1084,25 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b3/0d/bf0567477f7281d9a3926c582bfef21bff7498fc0ffd3e9de21811896a0b/func_timeout-4.3.5.tar.gz", hash = "sha256:74cd3c428ec94f4edfba81f9b2f14904846d5ffccc27c92433b8b5939b5575dd", size = 44264, upload-time = "2019-08-19T21:32:07.43Z" }
 
 [[package]]
+name = "fuzzysearch"
+version = "0.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/b4/d92b429ba4bfe5461faa358f84092eceb5ea8985cd2e448daf38bba17737/fuzzysearch-0.8.1.tar.gz", hash = "sha256:e5f50962c6b1c3dfc6c8cdfd5e2604838c95cb10118e4cab518e5292e9e0b1c6", size = 39510, upload-time = "2025-11-11T08:47:10.321Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ef/5f/0b0b2a56d59472becda3b7788e532e25d6a74451679d7d99b411a24553e7/fuzzysearch-0.8.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:d3caa5c635ac87c67f58b8a50792073014989e0689263c494e81f5d2ced24101", size = 31830, upload-time = "2025-11-11T08:46:42.163Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/ce/f75349a22df809ea7a4433ff9e24edfbc3cfa160600f159b50e0e4e272a4/fuzzysearch-0.8.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:a8187ebcfea9f76387b57a618480ff536ff2a5da67d5dd31af4c252bf8842d45", size = 32507, upload-time = "2025-11-11T08:46:43.315Z" },
+    { url = "https://files.pythonhosted.org/packages/36/3c/d193b6b80d88d7e3b2c3a45fd582dedcb3b47c3bf2ffb2b85083e3b3ba8a/fuzzysearch-0.8.1-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:5d19cf0ebfefe54737a0477defc218123a0addb9d52f43711286aab94603e288", size = 55361, upload-time = "2025-11-11T08:46:44.714Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/36/71a9bd65e361083ed3cbab135cd3a82ae2b089cbca6608af6106acc9017c/fuzzysearch-0.8.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:85e5a4f8099517b2bfa384668160fd06b020106e86c6077d21e93a6b4fb348eb", size = 57213, upload-time = "2025-11-11T08:46:45.826Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/7d/23f8d9d137187f5dfececd14f16f79e8257eb0fd2e85397306474f987710/fuzzysearch-0.8.1-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:ea17a28427fb750bbec47f2169f223f81a8388e81535f90d0590efd94489f803", size = 56287, upload-time = "2025-11-11T08:46:46.924Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/a6/c73e8ebc7e6e4ee7f8d2c509c232781dfc79451ebda2254915e0cef17566/fuzzysearch-0.8.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:f4f11634b0d22dbd36513dae77b2f794d63b0275879da050b379f91bab398225", size = 56718, upload-time = "2025-11-11T08:46:47.921Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/3f/29d666a60f711a77354a5b23082fe210b4d0277e5d6e9e5146cf56162315/fuzzysearch-0.8.1-cp312-cp312-win32.whl", hash = "sha256:040693ed5c6c3b15807a240b7acf535cacd12771ca5094cec1df62c960010642", size = 35104, upload-time = "2025-11-11T08:46:49.378Z" },
+    { url = "https://files.pythonhosted.org/packages/58/10/f2cef42d66311554723cfc1f7295ba1a83b3dd763845219bba3120bb3c08/fuzzysearch-0.8.1-cp312-cp312-win_amd64.whl", hash = "sha256:46bb36a6c5a966d951125136379a8674377ceea9f755fd542536065a6d47d23e", size = 36766, upload-time = "2025-11-11T08:46:50.362Z" },
+]
+
+[[package]]
 name = "google-api-core"
 version = "2.43.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1707,6 +1726,9 @@ omnidocbench = [
     { name = "tabulate" },
     { name = "tqdm" },
 ]
+omniparsebench = [
+    { name = "omni-parse-bench" },
+]
 pypdfium2 = [
     { name = "pypdfium2" },
 ]
@@ -1747,6 +1769,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2" },
     { name = "numpy", marker = "extra == 'omnidocbench'", specifier = ">=1.24" },
     { name = "nvidia-nvimgcodec-cu13", extras = ["nvjpeg", "nvjpeg2k", "nvtiff"], marker = "extra == 'nvimgcodec'", specifier = ">=0.10,<0.11" },
+    { name = "omni-parse-bench", marker = "extra == 'omniparsebench'", specifier = "==1.5.0" },
     { name = "opentelemetry-api", specifier = ">=1.45.2" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
@@ -1766,7 +1789,7 @@ requires-dist = [
     { name = "tqdm", marker = "extra == 'omnidocbench'", specifier = ">=4.66" },
     { name = "uniseg", specifier = ">=0.10" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "nvimgcodec", "pypdfium2", "rapidfuzz", "omnidocbench", "jsonpath-rfc9535", "docling"]
+provides-extras = ["minicpm-ocr", "ray", "nvimgcodec", "pypdfium2", "rapidfuzz", "omnidocbench", "omniparsebench", "jsonpath-rfc9535", "docling"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2114,6 +2137,22 @@ dependencies = [
     { name = "pyparsing" },
     { name = "verspec" },
     { name = "zensical" },
+]
+
+[[package]]
+name = "mini-racer"
+version = "0.14.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/b0/5b200bdf093433f1933f783fbc908c23349a1a575c28c81aff75b609c7c1/mini_racer-0.14.1.tar.gz", hash = "sha256:0df25889b7c4e753520324a1687d85e41f9f64984efa81963339ed400f004d49", size = 41771, upload-time = "2026-02-01T05:53:27.408Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/2c/5857ee4e1714db8956aa878dc90255557458c124f93163704e7de948be03/mini_racer-0.14.1-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:a401ecdf5f73d4714b76dc3a4c9b5780059cf4c59a5b64cff7497dc6c219d5a0", size = 19988474, upload-time = "2026-02-01T05:53:03.998Z" },
+    { url = "https://files.pythonhosted.org/packages/09/bf/ecaad0c208b9d8bd8f2141f7fa5e520b66915945a2ed56c520524df75fcb/mini_racer-0.14.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:56cc6965a1665a50d8d613bc43aa83b4cec6b1f09acc69dc4c2845dacb201463", size = 18511166, upload-time = "2026-02-01T05:53:07.059Z" },
+    { url = "https://files.pythonhosted.org/packages/56/0c/5260cc29908777c91391dd8b61be9042a3d1c089e6bfc798cd403e44e87d/mini_racer-0.14.1-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:7f93d91973ddb2da4e899e06ecb426bfe7ea103cd1c92687ec9c38f206f375eb", size = 21929528, upload-time = "2026-02-01T05:53:10.22Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/3c/c5bd479784826bbbc69f713aae2bcfd5ef353ba4e5e0e661666938474535/mini_racer-0.14.1-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:cdf3a088e1363f16a695288f882abf76b3705b8e1df21418208b87ed010037a4", size = 22178205, upload-time = "2026-02-01T05:53:13.407Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/d4/89905a4238be7ea9afec2f10533668f68898c82914ddd91b2729be547eca/mini_racer-0.14.1-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:6788f31608c6c5d0faac4e6b4f36fc5498885f951e510717e8825eaebae6a4c5", size = 21837359, upload-time = "2026-02-01T05:53:16.762Z" },
+    { url = "https://files.pythonhosted.org/packages/11/1d/735c5d74239bd0d7d3b271d7f3c91f337c7f937d748dadc2c1c9579df475/mini_racer-0.14.1-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:ad4b5c15993caab571fac3d67e0d55157b358bd439e629e0fef26c45a12c8bab", size = 22178200, upload-time = "2026-02-01T05:53:19.414Z" },
+    { url = "https://files.pythonhosted.org/packages/78/60/e0708ea8533e928f10f985be35af4c02dd2b61f4a7501dc88e8c927d85e5/mini_racer-0.14.1-py3-none-win_amd64.whl", hash = "sha256:4abd58c62c9955988dbc0cbf5a798914334fe570d2b192f8890bec20135ab6d1", size = 15515732, upload-time = "2026-02-01T05:53:22.276Z" },
+    { url = "https://files.pythonhosted.org/packages/99/fd/7fb43e269c44e5d44ef02fbd164fc11833d8293b47ddcd48e4fb1649f4d2/mini_racer-0.14.1-py3-none-win_arm64.whl", hash = "sha256:440bef1269655b1da94b550612b50669de9881c3d88b805c139f7f1b5ec8ae7b", size = 14829128, upload-time = "2026-02-01T05:53:24.983Z" },
 ]
 
 [[package]]
@@ -2498,6 +2537,38 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/45/7d/cb7eb3aba407cc248aaa4c3d5470f4179fb4b30df32fae634d0ca56db073/nvidia_nvtiff_cu13-0.9.0.86-py3-none-manylinux2014_aarch64.whl", hash = "sha256:5f88ba13a93482c31e05a405f833fd1f2194b5814dd9739410168bae1954fb69", size = 2768798, upload-time = "2026-10-28T21:53:38.96Z" },
     { url = "https://files.pythonhosted.org/packages/6e/00/ce6e468ec82f8c451ccfcdc535d02236a3bb02092b3d77efedc47eedd8dd/nvidia_nvtiff_cu13-0.9.0.86-py3-none-manylinux2014_x86_64.whl", hash = "sha256:192303a9024ac0cb04c5c2dd2393b57042453b0e72528584c83f7c4073278e94", size = 2554400, upload-time = "2026-10-28T21:54:01.792Z" },
     { url = "https://files.pythonhosted.org/packages/98/0b/ebef234b67520056f6cceb7967bfdc2cdc57ed4b4989f77a32d0ab11335a/nvidia_nvtiff_cu13-0.9.0.86-py3-none-win_amd64.whl", hash = "sha256:7d10c901c4a7fd127969cb15683a16acf8cdb515eddf706d75d0b1fbd5d48da2", size = 1982198, upload-time = "2026-10-28T21:54:25.069Z" },
+]
+
+[[package]]
+name = "omni-bench-core"
+version = "0.14.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyarrow" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "rich" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7e/e3/07f9afe5fa31a5bcf71b039d3cfa8450d954c03274409cfeaafb9a3f7d3b/omni_bench_core-0.14.1.tar.gz", hash = "sha256:1af288787c7e211f4fc3d222a7a28e5651f92d14f6157d69ce5da493f1747ac9", size = 71011, upload-time = "2026-11-09T18:43:06.908Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/f8/6facc98444fb5a179896ee97b8282e9069175b95d1de2614b0ce09cb6adf/omni_bench_core-0.14.1-py3-none-any.whl", hash = "sha256:e3000dceaae38c0d11df9ddd1c892c5d6948df2546cda6d4ef22cade6ec546e4", size = 52295, upload-time = "2026-11-09T18:43:05.649Z" },
+]
+
+[[package]]
+name = "omni-parse-bench"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "fuzzysearch" },
+    { name = "mini-racer" },
+    { name = "omni-bench-core" },
+    { name = "pylatexenc" },
+    { name = "rapidfuzz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4f/09/80d22fd66a790e2850d671849d24a1151f1c94d38abfa112c98d06df285c/omni_parse_bench-1.5.0.tar.gz", hash = "sha256:79796e9af4d2359923d3b5d2a9cff34b9c46cae4a50a602da96edcb23b9cf873", size = 528496, upload-time = "2026-11-02T23:20:40.85Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/95/e5f4ddb3b4cb3fe8ac127173347088b654e456a205fdcbda81a3a882a3db/omni_parse_bench-1.5.0-py3-none-any.whl", hash = "sha256:c660c2eeb213f1eda48d4e574daa92ffa2badcf05e6144062c3907fe001d1ea6", size = 422079, upload-time = "2026-11-02T23:20:39.39Z" },
 ]
 
 [[package]]

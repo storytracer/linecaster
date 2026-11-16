@@ -58,6 +58,9 @@ rapidfuzz = ["rapidfuzz>=3.9"]
 omnidocbench = ["apted>=1.0.3", "beautifulsoup4>=4.11", "evaluate>=0.4.3", "func-timeout>=4.3.5", "levenshtein>=0.25",
                 "lxml>=4.9", "numpy>=1.24", "pandas>=2.0", "pylatexenc==2.10", "scipy>=1.10", "tabulate>=0.9",
                 "tqdm>=4.66", "matplotlib>=3.7", "pillow>=10"]   # matplotlib, Pillow: imported by its CDM modules
+# Omni Parse Bench: its Markdown converter for predictions (linecaster.formats.omniparsebench), its grading
+# (pipelines/omniparsebench.py)
+omniparsebench = ["omni-parse-bench==1.5.0"]
 # conventions of JSON formats: JSONPath queries, RFC 9535 (linecaster.markup.JsonMatcher)
 jsonpath-rfc9535 = ["jsonpath-rfc9535>=2.0"]
 # DoclingDocuments as a source (the importer import.docling.v1, linecaster.formats.docling) and SmolDocling's DocTags

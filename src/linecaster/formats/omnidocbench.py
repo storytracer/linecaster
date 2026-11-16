@@ -56,7 +56,7 @@ def table_html(table: Table) -> str:
     return "<table>" + "".join(f"<tr>{''.join(r)}</tr>" for _, r in sorted(rows.items())) + "</table>"
 
 
-def _blocks(t: Transcription, policy: RenderingPolicy) -> Iterator[tuple[str | None, str | None, Any]]:
+def reading_blocks(t: Transcription, policy: RenderingPolicy) -> Iterator[tuple[str | None, str | None, Any]]:
     """The page in reading order as (region, role, what): a region's ``Table``, its ``Formula`` (a formula region),
     or the list of its lines; a table or formula region without lines in its place in the regions' order."""
     tables = {tb.target: tb for tb in t.tables if tb.cells}
@@ -134,7 +134,7 @@ def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT
         dets.append({"category_type": category, "order": len(dets) + 1, "anno_id": len(dets), "ignore": False,
                      **content})
 
-    for region, role, what in _blocks(t, policy):
+    for region, role, what in reading_blocks(t, policy):
         if isinstance(what, Table):
             if tables == "all" or table_kind(what) == "data":
                 add("table", html=table_html(what), text="")
@@ -171,7 +171,7 @@ def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAU
     if not t.regions:                                               # a completion read as lines: as the model wrote it
         return "\n".join(t.text_of(ln) or "" for ln in t.ordered_lines())
     out: list[str] = []
-    for region, role, what in _blocks(t, policy):
+    for region, role, what in reading_blocks(t, policy):
         if isinstance(what, Table):
             out.append(table_html(what))
         elif not isinstance(what, list):
