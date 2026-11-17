@@ -62,7 +62,7 @@ A page is one datatrove `Document`: `id` is the page id, `text` the primary tran
 (`Transcription.text`, under the default policy), `media[0]` the image bytes, `metadata["page"]` the page record.
 
 **A page's time in the run** is on its record, `Page.measurements`: `seconds`, the wall time from when the reader
-handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
+handed the page over to when it reached the first component that writes pages, binds or serves (the components' times
 between, waiting in served windows and queues included), and `datetime`, when the reader handed it over (ISO 8601,
 UTC). `linecaster.core.observers.PageTiming` sets them on every page stage that writes pages; a record read from
 an earlier run adds the new run's time to the one it carries and keeps the first `datetime`. Each annotator's own
@@ -164,8 +164,8 @@ meaning; linecaster code writes no other key. Values vary from run to run.
 | `regions`, `failed` | regions sent to a VLM one by one, and those whose request failed |
 | `tables`, `formulas` | table regions given a structure, formula regions read |
 | `changed` | strings a normalization changed |
-| `body_size`, `leveled`, `demoted`, `split`, `drop_capitals`, `numbers_dropped` | typography: the body type size in pixels, headings given a level, section headers classified as text, headlines split off, drop capitals joined, page numbers classified removed |
-| `paragraphs`, `continuations`, `marks_removed`, `marks_kept` | recomposition: paragraphs made, continued, division marks removed, hyphens kept |
+| `body_size`, `leveled`, `demoted`, `split`, `drop_capitals`, `numbers_dropped` | the hierarchy step: the body type size in pixels, headings given a level, section headers classified as text, headlines split off, drop capitals joined, page numbers classified removed |
+| `paragraphs`, `continuations`, `marks_removed`, `marks_kept` | the paragraphs step: paragraphs made, continued, division marks removed, hyphens kept |
 
 ## Annotations
 
@@ -217,7 +217,7 @@ an annotator of its own (a word, a glyph, a cell) is a **shape** (`Shape`).
 
 Lines are found across the whole page and assigned to regions later; zones are therefore flat lists with stable ids,
 and a line names its region, set once by the step that assigned it. A later step that moves a line into another
-region (typography splitting a headline off) adds a `part_of` link; the line's region is the latest `part_of`
+region (the hierarchy step splitting a headline off) adds a `part_of` link; the line's region is the latest `part_of`
 target, else `Line.region` (`Transcription.region_of`). A line's `confidence` is its detection score; its
 reading's is the recognizer's.
 
@@ -245,17 +245,17 @@ differs (a wiki's formula as its software normalizes it).
 ### Classifications
 
 A `Classification` gives one `target` one `value` in one `scheme`. Several annotators may classify the same target
-in the same scheme (the layout model and the typography rules); none overwrites another.
+in the same scheme (the layout model and the hierarchy rules); none overwrites another.
 
 | Scheme | Values | Typical annotator |
 |---|---|---|
-| `role` | what the content is ([content roles](#content-roles)) | layout, typography, a grounding VLM, a ground truth |
+| `role` | what the content is ([content roles](#content-roles)) | layout, hierarchy, a grounding VLM, a ground truth |
 | `production` | how it was made: `printed`, `typewritten`, `handwritten`, `stamped`, `born_digital` | layout, a ground truth |
-| `heading_level` | `1`, `2`, ... (1 the highest below the title) | typography |
+| `heading_level` | `1`, `2`, ... (1 the highest below the title) | hierarchy |
 | `language` | a BCP 47 tag (well-formed), on the page (`""`), a zone, a word or a span | recognition, a ground truth, an importer |
 | `script` | an ISO 15924 code (`Latn`, `Arab`, `Jpan`), on the page, a zone, a word or a span | a ground truth, an importer |
 | `direction` | the writing direction: `horizontal-lr`, `horizontal-rl` (right to left), `vertical-rl` (columns, right to left: Chinese, Japanese, Korean set vertically), `vertical-lr` (columns, left to right: Mongolian) | a ground truth, an importer, a layout step |
-| `status` | `illegible`, `gap` (text left out), `suppressed`, `duplicate`, `removed`; a status may say why (`reason`, below) | a ground truth, typography, an importer |
+| `status` | `illegible`, `gap` (text left out), `suppressed`, `duplicate`, `removed`; a status may say why (`reason`, below) | a ground truth, hierarchy, an importer |
 | `picture_class` | what a picture shows (`photograph`, `map`, `stamp`, `signature`, `music`, ...) | a picture classifier |
 | `code_language` | the programming language of a code region | a VLM |
 | `degraded` | a property, `yes` or `no`: the content is harder to read than in a clean scan, because of the image's condition | a model tagger |
@@ -293,7 +293,7 @@ else on the page (`""`); `None` where nothing records one. A value is never gues
 records it, and `linecaster.text.scripts` infers a text's script (`dominant_script`, with ISO 15924's `Jpan` and
 `Kore` for the combinations) or direction (`first_strong_direction`, the Unicode bidirectional algorithm's paragraph
 level) where a caller asks. What orders zones follows the direction (`linecaster.data.geometry.frames`: XY-cut,
-XY-Cut++, the line assigner's rows, unordered regions slotted in, the recomposition's margins, drop capitals): boxes
+XY-Cut++, the line assigner's rows, unordered regions slotted in, the paragraphs step's margins, drop capitals): boxes
 are seen in the direction's frame, mirrored for `horizontal-rl` and turned for the vertical directions, so that
 right-to-left text reads from the right and vertical text by columns, from the right for `vertical-rl` and from the
 left for `vertical-lr`. The direction is a block's or engine's option where it has one, else the one recorded for
@@ -340,7 +340,7 @@ writes its letter at that line's start).
 
 A `ReadingOrder` orders the page: `regions` (region ids in reading order), `lines` (line ids in reading order) and
 `rows` (parallel to `lines`: each line's visual row within its region). An order of regions alone leaves `lines`
-empty. A layout model that learned an order, the line assigner, typography, XY-Cut++ and a ground truth each add
+empty. A layout model that learned an order, the line assigner, the hierarchy step, XY-Cut++ and a ground truth each add
 their own; the latest counts unless the policy's `precedence` says otherwise.
 
 **Processing order** is separate: the list order of `lines` (regions in the layout step's order, orphan rows last,
@@ -446,12 +446,12 @@ annotations go into which **layer** of a rendering: `body`, `furniture` (running
 |---|---|
 | `id` | as a preset's |
 | `rules` | `RenderingRule`s, the first that matches wins: `role`, `production`, `status`, `motivation` (each `None`: any) → `to` (a layer, `metadata` or `none`) |
-| `precedence` | whose annotations count where several annotators gave one of a kind: an ordered list of steps or annotator names, per scheme (`role: [typography, layout]`), for reading orders (`order: [layout, ordering]`) and ranges |
+| `precedence` | whose annotations count where several annotators gave one of a kind: an ordered list of steps or annotator names, per scheme (`role: [hierarchy, layout]`), for reading orders (`order: [layout, ordering]`) and ranges |
 | `tables`, `markdown` | what counts as a table when written out (`TableRules`); the Markdown a rendering writes (`MarkdownRules`) |
 
 The default policy, `page-layers`, gives every role its default layer, `status` `suppressed`, `duplicate` and
 `removed` → `none`, descriptions → `metadata`; without `precedence` the latest annotator's classifications count
-(typography's over the layout's). `page-layers-described` puts descriptions (`motivation` `describing`) in the
+(the hierarchy step's over the layout's). `page-layers-described` puts descriptions (`motivation` `describing`) in the
 `body` instead: the texts, the elements and the document then have each one after its region (a picture without lines
 in its place in the reading order; the page's last), a document as a `paragraph` block with the role `description`
 (`RenderingPolicy.described`). A policy decides layers, never text. A run names its policy (`--policy`); without one
@@ -476,9 +476,9 @@ and the characters of the block's text it gives. The document's `language` and `
 every page records the same one; like a block's, they are only what the transcriptions record
 (`Transcription.language`, `.direction`), never inferred, and absent from the JSON where nothing records one.
 
-`DocumentBuilder` makes it ([composition](#steps-and-what-they-add)), literal (`strategy: literal`): one block per
+`DocumentBuilder` makes it ([the document step](#steps-and-what-they-add)), literal (`strategy: literal`): one block per
 region as laid out (one row per visual row: lines share a row when the order says so and their boxes overlap), or
-per paragraph of a recomposition (every break between its rows a wrap); a paragraph or region that continues another
+per paragraph where the paragraphs step ran (every break between its rows a wrap); a paragraph or region that continues another
 (its `continues` link, on the same or an earlier page of the item) is one block with it, on a new row (a wrap, unless
 a part has several rows and the first does not end in a division mark: verse). A drop capital (`part_of` its line) is
 written at its line's start. `linecaster.document.strategy.apply(document, strategy)` writes a strategy's document
@@ -509,10 +509,10 @@ the document as JSON, literal. The scope (full page or body only) is the layer c
 | assignment | each line's `region` |
 | recognition | readings (words, glyphs, formatting), raw outputs; `language`, `script` classifications |
 | tables, formulas | tables, formulas |
-| typography | `role` and `heading_level` classifications (a demoted heading is classified `paragraph` again, by typography), `status` `removed` for what it drops, a `part_of` link from a drop capital's region to the line it begins, a split-off headline as a region with `parent` and `part_of` links, a new reading order |
+| hierarchy | `role` and `heading_level` classifications (a demoted heading is classified `paragraph` again), `status` `removed` for what it drops, a `part_of` link from a drop capital's region to the line it begins, a split-off headline as a region with `parent` and `part_of` links, a new reading order |
 | ordering | a reading order (XY-cut, XY-Cut++) |
 | tagging | classifications in property schemes (and other closed schemes), each naming the raw output that holds its evidence: the geometry tagger's measurements, or every panel member's answer |
-| recomposition | paragraphs (rows and decisions, no text) and their `runs_into` and `continues` links |
+| paragraphs | paragraphs (rows and decisions, no text) and their `runs_into` and `continues` links |
 | a VLM page step | regions, lines with readings, tables, formulas, descriptions, classifications, raw outputs |
 | a ground-truth import | everything its source has, `source.kind` `ground_truth`, an annotator of kind `human` or `file` |
 
@@ -571,7 +571,7 @@ transcription, with the text granularity extension's `textGranularity`), edits (
 ## From `linecaster.page/2`
 
 `PageRecordReader` upgrades a page/2 record when it reads one (`linecaster.data.upgrade.page_2_to_3`). What page/2
-had already lost cannot come back: text before the `unicode` step, labels before typography, regions typography
+had already lost cannot come back: text before the `unicode` step, labels before the hierarchy step, regions that step
 dropped beyond `extra["retyper_dropped"]`. Every field:
 
 | page/2 | page/3 |
@@ -581,7 +581,7 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `PageImage.uri`, `format`, `width`, `height`, `sha256`, `pixels_sha256`, `source_width`, `source_height`, `scale`, `decoder`, `extra` | the same |
 | `Transcription.regions` | `regions` |
 | `Region.id` | `Region.id` |
-| `Region.label` | a `role` classification (region label → role), by the layout annotator; by typography where its step changed it |
+| `Region.label` | a `role` classification (region label → role), by the layout annotator; by the hierarchy step where it changed it |
 | `Region.raw_label` | `Region.label` |
 | `Region.polygon` | `Region.polygon` |
 | `Region.bbox` | `Region.box` |
@@ -625,7 +625,7 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 | `Source.extra["scale"]` | `Source.scale` |
 | `Source.extra` (other keys) | extension fields `page2__<key>` |
 | `Transcription.extra["raw"]`, `["passes"]`, `["kept"]`, `["finish_reason"]` | `outputs` |
-| `Transcription.extra["retyper_dropped"]` | the regions again, with one line holding their text, classified `status` `removed` by typography |
+| `Transcription.extra["retyper_dropped"]` | the regions again, with one line holding their text, classified `status` `removed` by the hierarchy step |
 | `Transcription.extra` (other keys) | extension fields `page2__<key>` |
 
 ## From `linecaster.page/4`
@@ -633,6 +633,6 @@ dropped beyond `extra["retyper_dropped"]`. Every field:
 A page/4 record is upgraded when it is read (`linecaster.data.upgrade.page_4_to_5`), and so is every older one,
 through page/4: the derived text goes, the source's stays. Dropped: the `nfc` and `normalized` edits, `Paragraph.text`,
 `ParagraphRow.charspan`, the decisions on division marks (`mark_removed`, `hyphen_kept`) and `Decision.separator`. A
-drop capital's whole-line `joined` edit (typography's) becomes a `part_of` link from its region to the line, and the
-`removed` status typography gave the region goes. The source's edits (`corrected`, `expanded`, `regularized`, a
+drop capital's whole-line `joined` edit (the hierarchy step's) becomes a `part_of` link from its region to the line, and the
+`removed` status the hierarchy step gave the region goes. The source's edits (`corrected`, `expanded`, `regularized`, a
 divided word's halves) stay as they were.

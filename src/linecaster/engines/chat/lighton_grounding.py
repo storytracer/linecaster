@@ -39,7 +39,7 @@ all by the step's annotator and naming the output they were parsed from:
   on the region; the repair pass applies as in transcription mode).
 
 The boxes come out in 0-1000 units, on a page of 1000 x 1000 (``lighton__grounding["coordinates"]``); ``place``
-scales them to the page image the block read (its full size, not the thumbnail's), which ``PageRecognizer`` does with
+scales them to the page image the component read (its full size, not the thumbnail's), which ``PageRecognizer`` does with
 the page's size.
 
 vLLM's repetition detection (on by default: a pattern of 8 to 100 tokens repeated 16 times in a row) sees the

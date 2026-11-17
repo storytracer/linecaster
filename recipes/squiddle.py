@@ -16,7 +16,7 @@
 # linecaster-kraken = { git = "https://github.com/storytracer/linecaster", branch = "main", subdirectory = "engines/kraken" }
 # linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", branch = "main", subdirectory = "engines/paddlex" }
 # ///
-"""The recipe ``squiddle`` (its presets and editions are the catalog's): this script gives it its environment.
+"""The recipe ``squiddle`` (its presets are the catalog's): this script gives it its environment.
 ``--help`` lists the options; ``uv run recipes/squiddle.py IMAGES OUT``."""
 from linecaster.execution import run
 

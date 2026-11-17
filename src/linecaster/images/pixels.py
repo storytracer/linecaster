@@ -12,11 +12,11 @@ refuses, or a GPU that fails, is decoded with Pillow (``Pixels.fallback``: ``ref
 ``accel`` and the CUDA device come from the call, else from the process's choice (``set_decoding``), which linecaster's
 model components set from their ``image_decode`` (``--image-decode``) and the worker's GPU. A process decodes a page once:
 the last decodes are kept by the file's content (Python's hash of the bytes, kept on the bytes object, then an equality
-check), so the blocks after the first that needs the image use the same pixels, which are read-only, whether they
+check), so the components after the first that needs the image use the same pixels, which are read-only, whether they
 hold the same bytes object (a page's ``media_bytes`` in a task) or a copy (each request to ``linecaster serve``). How
 many: ``KEPT`` pages by default (a page passes a task's in-process blocks before the next is read), and at most
 ``bytes`` of pixels where ``keep`` sets it (a server, which sees the requests of many pages in between). ``decodes()`` counts the files actually decoded; ``last_decode()`` is the calling thread's last decode (kept or
-new), which a block that hands the bytes to code that decodes them (a chat adapter) reads afterwards.
+new), which a component that hands the bytes to code that decodes them (a chat adapter) reads afterwards.
 """
 from __future__ import annotations
 

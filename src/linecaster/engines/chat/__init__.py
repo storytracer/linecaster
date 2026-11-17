@@ -446,7 +446,7 @@ class ChatAdapter:
         return None
 
     def place(self, t: Transcription, width: int, height: int) -> Transcription:
-        """The parsed transcription placed on the page image the block read (``width`` x ``height`` px): for an
+        """The parsed transcription placed on the page image the component read (``width`` x ``height`` px): for an
         adapter whose model answers in its own coordinates (``lighton-ocr-3-grounding``: 0-1000); default as it is."""
         return t
 

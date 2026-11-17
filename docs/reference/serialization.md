@@ -69,9 +69,9 @@ size).
    a page number as a header or footer) come back as that label's role. The **annotators** are the steps the file
    names (provenance, below); without any, the file is the one annotator (kind `file`, step `transcription`, named
    after its format). What each annotator made: regions by
-   the latest layout step (else recognition, else lines), roles and heading levels by the latest typography step
+   the latest layout step (else recognition, else lines), roles and heading levels by the latest hierarchy step
    (else layout, else recognition), lines by the line step (else recognition, else layout), readings by recognition
-   (else lines), the reading order by the latest of typography, assignment, ordering, lines, layout and recognition,
+   (else lines), the reading order by the latest of hierarchy, assignment, ordering, lines, layout and recognition,
    and by the first annotator where none of these ran. The **source** is `kind="converted"`, `format`, `uri` and
    the image size, with ALTO's scale factors (`scale`) and the extension fields `alto__namespace` (the file's
    namespace), `alto__measurement_unit` (when not `pixel`), `alto__other_languages` (`OTHERLANGS`),

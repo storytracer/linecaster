@@ -23,7 +23,7 @@ class Contract:
     adds: frozenset[Part]
     replaces: frozenset[Part]
     removes: frozenset[Part]   # parts the component does not pass on (gone for every later component)
-    role: str                  # reader, writer, server, model, transform, binder, splitter, validator, composite
+    kind: str                  # reader, writer, server, model, transform, binder, splitter, validator, composite
 ```
 
 - **The vocabulary** is `PARTS` in `linecaster.catalog.schema`: `image`, `metadata` and `transcription_file` (a
@@ -169,7 +169,7 @@ pipeline, unless the reader already gives each task whole items (`ManifestReader
 True)`). The first stage writes its page records in item shards into `<run_folder>/pages/` (the pipeline's own
 `PageJsonlWriter` there, now with `item_shards=N`, N = `tasks` unless it set its own); the second starts with
 `PageRecordReader(item_shards=True, fetch_images=False)` declaring the parts the first stage added, runs the binder
-and what follows, as N tasks. A `ItemSplitter` after the binder needs no cut of its own: the items are whole in the
+and what follows, as N tasks. An `ItemSplitter` after the binder needs no cut of its own: the items are whole in the
 task, so its pages are too. One stage logs to `OUT/logs/`, two to `OUT/logs/pages/` and `OUT/logs/items/`; the run
 record lists the stages. Each stage gets its own executor, and the later one `depends=` on the earlier one:
 
@@ -350,7 +350,7 @@ are the document's context, `record`, `revision` and `dataset` its source's fiel
 
 ## The item stage
 
-The item-level steps follow a `ItemAssembler`; the usual shape (`pipelines/bind.py`, and `--item-texts` of
+The item-level steps follow an `ItemAssembler`; the usual shape (`pipelines/bind.py`, and `--item-texts` of
 `pipelines/transcribe_modular.py`):
 
 ```python
@@ -370,8 +370,8 @@ others. A JSON Lines row holds `id` (the item), `text`, `spec`, `strategy`, `str
 `format`, `page_ids`, `pages` and `token_count` with a token counter. The page files (`PageFileWriter`) take one
 `strategy` too (`--strategy`, default `literal`).
 
-A `ItemSplitter` after the item-level components passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
-the paragraphs of the item recomposition.
+An `ItemSplitter` after the item-level components passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
+the paragraphs made for the item.
 
 ## Page records
 

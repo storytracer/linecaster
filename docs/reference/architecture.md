@@ -7,8 +7,8 @@ builder, failures and the run record are in [pipelines](pipelines.md), models, p
 ## What linecaster is
 
 An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new documents). It
-combines layout, line, text, table and formula recognizers with rule-based steps (typography, recomposition,
-composition) into reproducible datatrove pipelines that turn page images into text: the text as read, texts written
+combines layout, line, text, table and formula recognizers with rule-based steps (hierarchy, paragraphs,
+document) into reproducible datatrove pipelines that turn page images into text: the text as read, texts written
 by the transcription strategies a run names (normalized, flowed, dehyphenated only where a strategy says so), ALTO,
 PAGE-XML and hOCR on request. It also reads ground truth in any format into the same
 data model, writes it as page records and scores runs against it. It is a generalist tool: built on protocols (HTTP,

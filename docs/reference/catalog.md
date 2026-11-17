@@ -185,7 +185,7 @@ The catalog ships the normalizations of the strategies below and of the lanes: `
 traditions `arabic-tatweel`, `arabic-marks`, `arabic-letters`, `persian-arabic-letters` (Persian and Urdu),
 `hebrew-points`, `greek-monotonic`, `cyrillic-prereform` (Russian), `japanese-iteration-marks` and
 `romanian-comma-below` (Romanian). For comparing international typography (Omni Parse Bench's comparison fold,
-Apache-2.0) it ships `hierarchy` (quotes, primes, the minus sign and other dash-likes, spaces, arrows, the fraction
+Apache-2.0) it ships `typography` (quotes, primes, the minus sign and other dash-likes, spaces, arrows, the fraction
 slash, the ellipsis, a decimal middle dot), `cjk-punctuation` (CJK and full-width punctuation as ASCII), `checkboxes`
 (as ☒ and ☐), `footnote-markers` (`[1]`, `[^a]` as their label), `bullets` (a bullet glyph starting a line),
 `leaders` (runs of dots, dashes, underscores), `superscript-digits` (set apart after a digit) and `line-end-hyphens`
@@ -468,11 +468,11 @@ A preset whose engine is a by-script engine names its strategies in `by_script`:
 needs its own rules, `"*"` for every other script.
 
 ```yaml
-id: hebrew-latin-recomposition
+id: hebrew-latin-paragraphs
 step: paragraphs
 engine: paragraphs.by-script.v1
 by_script:
-  Hebr: hebrew-recomposition
+  Hebr: hebrew-paragraphs
   "*": unicode-paragraphs
 ```
 
@@ -492,7 +492,7 @@ Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`
 `import_transcriptions.v1`, `score.v1`). A script with slots also declares `SLOTS` (slot →
 option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...; the rule-based steps are slots
 too: `transcribe_modular.v1` has `--hierarchy`, `--paragraphs` and `--document`, `bind.v1`
-`--paragraphs` and `--document`; a slot left empty leaves its step out, e.g. no recomposition: the page stays
+`--paragraphs` and `--document`; a slot left empty leaves its step out, e.g. no paragraphs step: the page stays
 as laid out). It has no default presets: the user fills every slot, or names a recipe (`--recipe id`), with single
 flags on top recorded as overrides in the run record (`recipe`: the id, the pipeline id, the hash and the
 overrides). The texts a run writes are no slot: `--text <strategy>:<format>` names each (a recipe may name them in
