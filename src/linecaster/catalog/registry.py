@@ -35,7 +35,7 @@ from linecaster.engines.importers import IMPORTERS
 from linecaster.conventions.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
 from linecaster.conventions.resolve import ConventionsError, ResolvedConventions, resolve
 from linecaster.catalog.schema import (SCHEMA_DIR, ModelDoc, NormalizationDoc, PolicyDoc, PresetDoc, RecipeDoc, StrategyDoc,
-                     json_schemas, schema_file)
+                     schema_file)
 from linecaster.catalog.vocabulary import VocabularyDoc
 
 CORE = Path(__file__).resolve().parent / "data"
@@ -705,6 +705,8 @@ PROSE_REQUIRED = ("core",)
 
 def schema_problems(folder: Path = SCHEMA_DIR) -> list[str]:
     """The committed JSON Schemas against fresh ones from the models."""
+    from linecaster.catalog.formats import json_schemas
+
     fresh = json_schemas()
     problems = [f"schema {name} differs from the models: run `linecaster catalog schemas`"
                 for name, text in fresh.items()

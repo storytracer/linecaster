@@ -271,7 +271,7 @@ def test_the_score_pipeline_gives_score_run_s_element_rates(tmp_path):
 
 
 def test_evidence_compares_the_element_metrics():
-    from linecaster.catalog.schema import Evidence3
+    from linecaster.evaluation.evidence_format import Evidence3
 
     def ev(elements=None):
         named = {"id": "x", "sha256": "sha256:" + "1" * 64}

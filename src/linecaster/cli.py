@@ -169,7 +169,7 @@ def _score(a) -> None:
 def _evidence(a) -> None:
     """``linecaster evidence check|compare``: evidence records validated, or put side by side."""
     from linecaster.catalog import yamlio
-    from linecaster.catalog.schema import Evidence3, read_evidence
+    from linecaster.evaluation.evidence_format import Evidence3, read_evidence
 
     records = []
     for path in a.files:
@@ -303,9 +303,9 @@ def _catalog(a) -> None:
         for path in registry.Catalog().write_index():
             print(path)
     elif a.action == "schemas":
-        from linecaster.catalog import schema
+        from linecaster.catalog import formats
 
-        for path in schema.write_schemas(*([a.out] if a.out else [])):
+        for path in formats.write_schemas(*([a.out] if a.out else [])):
             print(path)
     elif a.action == "pin":
         from linecaster.catalog import pin

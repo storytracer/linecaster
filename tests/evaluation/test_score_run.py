@@ -121,7 +121,7 @@ def test_a_benchmark_checks_its_page_set_and_what_its_ground_truth_supports():
 
 
 def test_evidence_from_before_0_10_is_read_upgraded_and_compared_with_none():
-    from linecaster.catalog.schema import Evidence3, read_evidence
+    from linecaster.evaluation.evidence_format import Evidence3, read_evidence
 
     old = {"schema": "linecaster.evidence/2", "recipe": "squiddle@2", "source": "own-run",
            "benchmark": {"ref": "b@1", "sha256": "sha256:" + "0" * 64},

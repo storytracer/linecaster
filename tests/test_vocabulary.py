@@ -35,7 +35,7 @@ ALLOWED = (
     ("src/linecaster/catalog/registry.py", None),           # RENAMED: ids of earlier releases
     ("src/linecaster/catalog/data/models/", None),          # upstream cards, verbatim
     ("docs/reference/compatibility.md", None),
-    ("src/linecaster/catalog/schema.py", r"edition"),       # evidence records of earlier formats named editions
+    ("src/linecaster/evaluation/evidence_format.py", r"edition"),   # evidence records of earlier formats named editions
     ("src/linecaster/evaluation/benchmark.py", r"edition"), # a benchmark has editions
     ("docs/reference/evaluation.md", r"edition"),
     ("docs/reference/catalog.md", r"edition"),              # how a reference from before 0.10 resolves

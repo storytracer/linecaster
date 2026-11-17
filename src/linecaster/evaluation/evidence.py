@@ -33,9 +33,9 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
              context: str | None = None, notes: str | None = None, date: dt.date | None = None):
     """The evidence record of ``result`` (``score_run``'s) for the run folder ``run`` (its ``pages/`` or the
     folder itself): the run record's recipe unless ``preset`` names the preset measured; a
-    ``linecaster.catalog.schema.Evidence3``."""
+    ``linecaster.evaluation.evidence_format.Evidence3``."""
     from linecaster.catalog.registry import catalog, canonical_sha256, entry_id
-    from linecaster.catalog.schema import Evidence3
+    from linecaster.evaluation.evidence_format import Evidence3
     from linecaster.evaluation.elements import ELEMENTS_VERSION
     from linecaster.evaluation.lanes import resolve
     from linecaster.evaluation.tokens import WORDS_VERSION

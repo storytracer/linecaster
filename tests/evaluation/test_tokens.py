@@ -109,7 +109,7 @@ def test_an_output_strategy_that_changes_structure_is_refused():
 
 
 def test_evidence_compares_the_word_metrics():
-    from linecaster.catalog.schema import Evidence3
+    from linecaster.evaluation.evidence_format import Evidence3
 
     def ev(words=None):
         named = {"id": "x", "sha256": "sha256:" + "1" * 64}

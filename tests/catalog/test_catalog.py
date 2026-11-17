@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from linecaster.catalog import Evidence, yamlio
+from linecaster.catalog import yamlio
+from linecaster.evaluation.evidence_format import Evidence
 from linecaster.catalog.registry import Catalog, Directory, sha256_file, write_entry
 from linecaster.errors import CatalogError, PipelineConfigError
 
@@ -259,7 +260,8 @@ def test_recipe_stamp_names_the_recipe_on_every_step():
 def test_committed_schemas_are_the_models():
     """``schemas/`` holds what the Pydantic models generate (`linecaster catalog schemas` rewrites it)."""
     from linecaster.catalog.registry import schema_problems
-    from linecaster.catalog.schema import SCHEMA_DIR, json_schemas
+    from linecaster.catalog.formats import json_schemas
+    from linecaster.catalog.schema import SCHEMA_DIR
 
     assert schema_problems() == []
     assert sorted(p.name for p in SCHEMA_DIR.glob("*.json")) == sorted(json_schemas())
