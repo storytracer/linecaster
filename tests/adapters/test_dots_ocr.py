@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 REVISION = "c0111ce6bc07803dbc267932ffef0ae3a51dc951"
 

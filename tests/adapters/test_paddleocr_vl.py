@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 MIN_PIXELS, MAX_PIXELS = 28 * 28 * 130, 28 * 28 * 1280        # the recipe's smart_resize bounds
 smart_resize = chat_model("paddleocr-vl-1.6").smart_resize

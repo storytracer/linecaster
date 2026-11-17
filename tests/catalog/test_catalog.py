@@ -221,7 +221,7 @@ def test_the_index_records_a_recipes_expanded_pipeline(tmp_path):
     make_recipe(tmp_path)
     c = Catalog([tmp_path])
     built = c.recipe_pipeline("r")
-    assert [b["block"] for b in built["pipeline"]] == ["ImageFolderReader", "PageRecognizer", "RecipeStamper",
+    assert [b["component"] for b in built["pipeline"]] == ["ImageFolderReader", "PageRecognizer", "RecipeStamper",
                                                        "RejectWriter", "PageJsonlWriter"]
     recognizer = built["pipeline"][1]["params"]
     assert recognizer["backend"]["preset"] == "p" and "endpoint" not in recognizer["backend"]
@@ -243,7 +243,7 @@ def test_the_index_records_a_recipes_expanded_pipeline(tmp_path):
     assert any("recipe r: its pipeline cannot be built" in p for p in Catalog([tmp_path]).verify())
 
 def test_recipe_stamp_names_the_recipe_on_every_step():
-    from linecaster.blocks.validation.recipe import RecipeStamper
+    from linecaster.components.validation.recipe_stamper import RecipeStamper
     from linecaster.data import Annotator, Transcription
     from linecaster.data.page import Page
 
@@ -330,7 +330,7 @@ def test_whole_page_vlms_are_recognition_presets():
 
 
 def test_describing_a_recipe_imports_no_engine():
-    """The describe mode builds the modular pipeline's blocks without its engines: nothing of them is imported."""
+    """The describe mode builds the modular pipeline's components without its engines: nothing of them is imported."""
     import json
     import subprocess
     import sys

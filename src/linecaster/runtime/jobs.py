@@ -115,7 +115,7 @@ def script_metadata(path: str | Path, commit: str | None = None) -> dict:
 
     m = _SCRIPT.search(at_commit(path, commit))
     if not m:
-        raise PipelineConfigError(f"{path}: no '# /// script' block")
+        raise PipelineConfigError(f"{path}: no '# /// script' component")
     return tomllib.loads("".join(line[2:] if line.startswith("# ") else line[1:]
                                  for line in m.group("content").splitlines(keepends=True)))
 
@@ -393,12 +393,12 @@ class JobsExecutor(JobsPipelineExecutor):
 
 
 def point_to_gpu(pipeline: list, local: int) -> list:
-    """The pipeline for task ``local`` of a multi-GPU machine: every block that starts a server
+    """The pipeline for task ``local`` of a multi-GPU machine: every component that starts a server
     (``ModelServer``, ``ChatModelServer``: attribute ``port``) and every served backend on loopback
     moves ``local`` ports up, so each GPU has its own servers and clients (a layout server on 8100 and
     vLLM on 8000 become 8103 and 8003 on GPU 3)."""
     from linecaster.backends import Chat, Served
-    from linecaster.blocks.servers.serve import ChatModelServer, ModelServer
+    from linecaster.components.servers.serve import ChatModelServer, ModelServer
 
     pipeline = deepcopy(pipeline)
     for step in pipeline:

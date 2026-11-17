@@ -90,3 +90,16 @@ Contributing.
 - A recipe and a VLM preset over a fixed set of real pages give the same literal texts as 0.11.0, on an
   aarch64 and an x86_64 machine with GPUs.
 - Page records and run records written by 0.11 still load.
+
+## Progress on 0.12
+
+Done: absolute imports; `blocks` → `components` and `core` (modules, base classes, prose, generated pages).
+
+Open:
+- formats: run record (`component` keys) and page record (`errors[].component`, `Annotator.role`) versions and upgrades;
+  trace attributes `linecaster.component*`
+- roles: `step` → `role`, role ids, class renames (print shop, servers), engine ids, preset ids, flags
+- `Contract.role` → `kind`
+- package moves: `runtime`, `pipelines`, `markup`, `scoring`, `adapters`, `broker`, `text`
+- HTTP config and refusals; CLI renames; `SourceFile`; `text_block`
+- large files split; vocabulary test; docs; migration guide; engine packages' linecaster range; locks; release

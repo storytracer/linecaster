@@ -8,7 +8,7 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # ///
-"""The item stage (``bind.v1``): its blocks, options and slots are the pipeline shape ``linecaster.pipelines.bind``;
+"""The item stage (``bind.v1``): its components, options and slots are the pipeline shape ``linecaster.pipelines.bind``;
 this script gives it its environment. ``--help`` lists the options."""
 from linecaster.pipelines import bind as shape
 from linecaster.runtime import run

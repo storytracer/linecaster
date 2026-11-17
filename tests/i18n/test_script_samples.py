@@ -7,7 +7,7 @@ import random
 
 import pytest
 
-from linecaster.blocks.lines.assigner import order_rows
+from linecaster.components.lines.line_assigner import order_rows
 from linecaster.data.geometry.order import xy_cut_order
 from linecaster.scoring import score_page, tokens
 from linecaster.testing.scripts import SCRIPT_SAMPLES, script_page
@@ -159,8 +159,8 @@ def _detected(sid: str, record_direction: bool):
 def test_the_line_assigner_orders_rows_in_the_direction(sid, recorded):
     from conftest import page_doc
 
-    from linecaster.blocks.base.page import page_of
-    from linecaster.blocks.lines.assigner import LineAssigner
+    from linecaster.core.page import page_of
+    from linecaster.components.lines.line_assigner import LineAssigner
 
     s = SCRIPT_SAMPLES[sid]
     block = LineAssigner() if recorded else LineAssigner(direction=s.direction)

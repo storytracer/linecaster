@@ -82,7 +82,7 @@ presets:
 recipes:
   squiddle:
     sha256: sha256:5157d9170135aed499c4a7bdae986742169b7cc3cf0aa9bdc5109451e81f6797
-    pipeline_sha256: sha256:b4ba7f2292869632c9d6d5c0ca67c2bc00f556acda512962121bed9882e7d580
+    pipeline_sha256: sha256:5fa758f1165c1c8f91ada09bcb11360217dcbccf985b2c821794d4de276e3b00
 policies:
   page-layers: sha256:9be1019d6f2212d5e38a9b963f14f3f2a77127c80c2b661ced6d70b54fd9fe65
   page-layers-described: sha256:8b1ba61d75e270262f032c9c55850ee408ccb7823caa8cd0453ade5faea9b84e

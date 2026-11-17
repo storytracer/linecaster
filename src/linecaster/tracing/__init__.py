@@ -9,12 +9,12 @@ The builder installs a ``Tracing`` observer in every stage (``linecaster.runtime
 provider in ``on_task_start`` and flushes and shuts it down in ``on_task_end``, also when the task fails. It keeps
 no state between tasks, and pickles without any (``__getstate__``), so it works on every executor.
 
-* **Task spans**, always: ``linecaster.task`` (the task), ``linecaster.warm_up`` (per block that loads something),
-  ``linecaster.server.start`` (a server block's warm-up), ``linecaster.reader.file`` (a file a reader read),
+* **Task spans**, always: ``linecaster.task`` (the task), ``linecaster.warm_up`` (per component that loads something),
+  ``linecaster.server.start`` (a server component's warm-up), ``linecaster.reader.file`` (a file a reader read),
   ``linecaster.writer.flush`` (a writer closing its files).
 * **Unit traces**: the reader's boundary gives every page a trace (``doc.metadata["trace"]["traceparent"]``, W3C);
-  its root ``linecaster.page`` has one ``linecaster.block`` per block, ``linecaster.request.prepare`` and
-  ``linecaster.request`` inside served blocks (the server continues the trace: ``linecaster.serve.*``), and
+  its root ``linecaster.page`` has one ``linecaster.component`` per component, ``linecaster.request.prepare`` and
+  ``linecaster.request`` inside served components (the server continues the trace: ``linecaster.serve.*``), and
   ``linecaster.http.fetch`` for what the reader fetched. Items made by a binder get ``linecaster.item`` traces.
   Every span has its parent set explicitly from the unit's context, never from "the current span": pages are
   interleaved in the stream.
@@ -54,7 +54,7 @@ TRACES_ENV = "LINECASTER_TRACES"
 RUN_ENV, TASK_ENV = "LINECASTER_RUN", "LINECASTER_TASK"
 
 #: the attribute names (all under ``linecaster.``); values are identifiers and numbers, never content
-ATTRIBUTES = ("block", "block.name", "block.family", "unit", "page.id", "item.id", "preset", "edition", "engine",
+ATTRIBUTES = ("component", "component.name", "component.family", "unit", "page.id", "item.id", "preset", "edition", "engine",
               "model", "backend", "server", "step", "lines", "regions", "words", "tokens.prompt",
               "tokens.completion", "finish_reason", "error.type", "region", "file", "pages", "seconds.own",
               "http.host", "http.status", "http.attempts", "http.retries", "http.wait_seconds", "http.pause_seconds",
@@ -234,31 +234,31 @@ def _ns() -> int:
 
 # ------------------------------------------------------------------------------------------------ the observer
 
-def _family(block) -> str:
-    parts = type(block).__module__.split(".")
-    if len(parts) > 2 and parts[0] == "linecaster" and parts[1] == "blocks":
+def _family(component) -> str:
+    parts = type(component).__module__.split(".")
+    if len(parts) > 2 and parts[0] == "linecaster" and parts[1] == "components":
         return parts[2]
     return parts[0]
 
 
-def block_attributes(block) -> dict:
-    """The identifying attributes of a block's spans: class, name, family, unit; a model block's step, preset,
+def component_attributes(component) -> dict:
+    """The identifying attributes of a component's spans: class, name, family, unit; a model component's step, preset,
     engine, model, backend and server."""
-    from linecaster.blocks.base.contract import contract_of
+    from linecaster.core.contract import contract_of
 
-    attrs = {"linecaster.block": type(block).__name__, "linecaster.block.family": _family(block)}
-    name = getattr(block, "name", None)
+    attrs = {"linecaster.component": type(component).__name__, "linecaster.component.family": _family(component)}
+    name = getattr(component, "name", None)
     if isinstance(name, str) and name:
-        attrs["linecaster.block.name"] = name
+        attrs["linecaster.component.name"] = name
     try:
-        attrs["linecaster.unit"] = contract_of(block).unit
-    except Exception:  # noqa: BLE001 - a block whose contract cannot be computed here
+        attrs["linecaster.unit"] = contract_of(component).unit
+    except Exception:  # noqa: BLE001 - a component whose contract cannot be computed here
         pass
-    step = getattr(block, "step", None)
+    step = getattr(component, "step", None)
     if isinstance(step, str) and step != "model":
         attrs["linecaster.step"] = step
-    backend = getattr(block, "backend", None)
-    spec = getattr(block, "spec", None) or getattr(backend, "adapter", None)      # a chat preset's adapter
+    backend = getattr(component, "backend", None)
+    spec = getattr(component, "spec", None) or getattr(backend, "adapter", None)      # a chat preset's adapter
     preset = getattr(spec, "preset", None) or getattr(backend, "preset", None)
     if isinstance(preset, str):
         attrs["linecaster.preset"] = preset
@@ -275,25 +275,25 @@ def block_attributes(block) -> dict:
     return attrs
 
 
-def server_attributes(block) -> dict:
-    """A server block's: what it serves (``linecaster serve``'s models, or the chat model) and its port."""
-    attrs = {"linecaster.block": type(block).__name__, "linecaster.block.family": _family(block)}
-    if hasattr(block, "models"):
+def server_attributes(component) -> dict:
+    """A server component's: what it serves (``linecaster serve``'s models, or the chat model) and its port."""
+    attrs = {"linecaster.component": type(component).__name__, "linecaster.component.family": _family(component)}
+    if hasattr(component, "models"):
         attrs["linecaster.server"] = "linecaster"
-        attrs["linecaster.model"] = [m.get("name", "") for m in block.models]
-        presets = [m["preset"] for m in block.models if m.get("preset")]
+        attrs["linecaster.model"] = [m.get("name", "") for m in component.models]
+        presets = [m["preset"] for m in component.models if m.get("preset")]
         if presets:
             attrs["linecaster.preset"] = presets
-    elif hasattr(block, "spec"):
-        attrs["linecaster.server"] = getattr(block, "server", "vllm")
-        attrs["linecaster.model"] = getattr(block.spec, "model", "")
-        if getattr(block.spec, "preset", None):
-            attrs["linecaster.preset"] = block.spec.preset
-    elif hasattr(block, "serve"):                     # ServiceServer: the service a page preset names
-        attrs["linecaster.server"] = block.server
-        attrs["linecaster.preset"] = block.ref
-    if isinstance(getattr(block, "port", None), int):
-        attrs["linecaster.port"] = block.port
+    elif hasattr(component, "spec"):
+        attrs["linecaster.server"] = getattr(component, "server", "vllm")
+        attrs["linecaster.model"] = getattr(component.spec, "model", "")
+        if getattr(component.spec, "preset", None):
+            attrs["linecaster.preset"] = component.spec.preset
+    elif hasattr(component, "serve"):                     # ServiceServer: the service a page preset names
+        attrs["linecaster.server"] = component.server
+        attrs["linecaster.preset"] = component.ref
+    if isinstance(getattr(component, "port", None), int):
+        attrs["linecaster.port"] = component.port
     return attrs
 
 
@@ -312,15 +312,15 @@ def counts(doc, transcription: str | None) -> dict:
 
 
 class _Unit:
-    """A unit in flight: its id (never the document itself: a page a block drops must not stay in memory with its
+    """A unit in flight: its id (never the document itself: a page a component drops must not stay in memory with its
     image), root span and context, whether it failed in this stage, its open spans."""
 
-    __slots__ = ("id", "root", "context", "failed", "blocks", "requests")
+    __slots__ = ("id", "root", "context", "failed", "components", "requests")
 
     def __init__(self, doc, root, context):
         self.id, self.root, self.context, self.failed = str(doc.id), root, context, False
-        self.blocks: dict[int, object] = {}             # id(block) -> its open linecaster.block span
-        self.requests: dict[tuple, object] = {}         # (id(block), region) -> the open prepare or request span
+        self.components: dict[int, object] = {}             # id(component) -> its open linecaster.component span
+        self.requests: dict[tuple, object] = {}         # (id(component), region) -> the open prepare or request span
 
 
 class Tracing(Observer):
@@ -343,7 +343,7 @@ class Tracing(Observer):
         self.provider = self.buffer = self.tracer = self.ids = None
         self.task_span, self.task_context, self.rank, self.path = None, None, 0, None
         self._units: dict[int, _Unit] = {}
-        self._inside: dict[int, int] = {}               # id(per-unit block) -> id() of the unit it works on
+        self._inside: dict[int, int] = {}               # id(per-unit component) -> id() of the unit it works on
         self._attrs: dict[int, dict] = {}
         self._lock = threading.RLock()
         self._local = threading.local()
@@ -394,7 +394,7 @@ class Tracing(Observer):
             self.provider = self.tracer = None
 
     def environment(self) -> dict[str, str]:
-        """For a server a block starts in this task: the file its spans go to, the run and the task."""
+        """For a server a component starts in this task: the file its spans go to, the run and the task."""
         env = {TASK_ENV: str(self.rank)}
         if self.run:
             env[RUN_ENV] = self.run
@@ -405,33 +405,33 @@ class Tracing(Observer):
     def _child(self, name: str, parent_context, start: int | None = None, attributes: dict | None = None):
         return self.tracer.start_span(name, context=parent_context, start_time=start, attributes=attributes)
 
-    def _attributes(self, block) -> dict:
-        return self._info(block)[0]
+    def _attributes(self, component) -> dict:
+        return self._info(component)[0]
 
-    def _info(self, block) -> tuple[dict, bool]:
-        """A block's attributes and whether it changes the stream's unit (a binder), computed once per task."""
-        key = id(block)
+    def _info(self, component) -> tuple[dict, bool]:
+        """A component's attributes and whether it changes the stream's unit (a binder), computed once per task."""
+        key = id(component)
         info = self._attrs.get(key)
         if info is None:
-            info = self._attrs[key] = (block_attributes(block), _changes_unit(block))
+            info = self._attrs[key] = (component_attributes(component), _changes_unit(component))
         return info
 
-    def on_warm_up(self, block, seconds: float) -> None:
+    def on_warm_up(self, component, seconds: float) -> None:
         if self.tracer is None:
             return
         end = _ns()
-        server = getattr(block, "role", None) == "server" or type(block).__name__ in (
+        server = getattr(component, "role", None) == "server" or type(component).__name__ in (
             "ModelServer", "ChatModelServer", "ServiceServer")
         name = "linecaster.server.start" if server else "linecaster.warm_up"
-        attrs = server_attributes(block) if server else dict(self._attributes(block))
+        attrs = server_attributes(component) if server else dict(self._attributes(component))
         span = self._child(name, self.task_context, end - int(seconds * 1e9), attrs)
         span.end(end)
 
-    def on_task_event(self, block, event: str, start_ns: int, end_ns: int, **attributes) -> None:
+    def on_task_event(self, component, event: str, start_ns: int, end_ns: int, **attributes) -> None:
         if self.tracer is None:
             return
         name = {"file": "linecaster.reader.file", "flush": "linecaster.writer.flush"}.get(event, f"linecaster.{event}")
-        attrs = {"linecaster.block": type(block).__name__,
+        attrs = {"linecaster.component": type(component).__name__,
                  **{f"linecaster.{k.replace('_', '.')}": v for k, v in attributes.items() if v is not None}}
         span = self._child(name, self.task_context, start_ns, attrs)
         span.end(end_ns)
@@ -465,16 +465,16 @@ class Tracing(Observer):
         self._units[id(doc)] = u
         return u
 
-    def _dropped_before(self, block, doc) -> None:
-        """A per-unit block works on one unit at a time: if the unit it had before ``doc`` never came out of it, the
-        block dropped it (or passed on another object in its place), and its trace ends here, as unfinished (called
+    def _dropped_before(self, component, doc) -> None:
+        """A per-unit component works on one unit at a time: if the unit it had before ``doc`` never came out of it, the
+        component dropped it (or passed on another object in its place), and its trace ends here, as unfinished (called
         with the lock held)."""
-        if getattr(block, "shape", None) != "unit":
+        if getattr(component, "shape", None) != "unit":
             return
-        before = self._inside.get(id(block))
-        self._inside[id(block)] = id(doc)
+        before = self._inside.get(id(component))
+        self._inside[id(component)] = id(doc)
         u = self._units.get(before) if before is not None and before != id(doc) else None
-        if u is not None and id(block) in u.blocks:
+        if u is not None and id(component) in u.components:
             del self._units[before]
             self._end_unit(u, unfinished=True)
 
@@ -495,44 +495,44 @@ class Tracing(Observer):
 
     def _end_unit(self, u: _Unit, unfinished: bool = False) -> None:
         now = _ns()
-        for span in [*u.requests.values(), *u.blocks.values()]:
+        for span in [*u.requests.values(), *u.components.values()]:
             span.end(now)
         u.requests.clear()
-        u.blocks.clear()
+        u.components.clear()
         if unfinished:
             u.root.set_attribute("linecaster.unfinished", True)
         if u.failed:
             u.root.set_status(StatusCode.ERROR)
         u.root.end(now)
 
-    def on_enter(self, block, doc) -> None:
+    def on_enter(self, component, doc) -> None:
         if self.tracer is None:
             return
         with self._lock:
-            self._dropped_before(block, doc)
+            self._dropped_before(component, doc)
             u = self._unit(doc)
-            attrs, changes_unit = self._info(block)
+            attrs, changes_unit = self._info(component)
             if changes_unit:
                 self._units.pop(id(doc), None)        # a page going into a binder: its trace ends here
                 self._end_unit(u)
                 return
-            span = self._child("linecaster.block", u.context, None, {**attrs, PAGE_ID if "page" in doc.metadata
+            span = self._child("linecaster.component", u.context, None, {**attrs, PAGE_ID if "page" in doc.metadata
                                                                      else ITEM_ID: str(doc.id)})
-            u.blocks[id(block)] = span
-        if getattr(block, "shape", None) == "unit":
-            self._local.span = span                  # for the logs of a per-unit block (same thread)
+            u.components[id(component)] = span
+        if getattr(component, "shape", None) == "unit":
+            self._local.span = span                  # for the logs of a per-unit component (same thread)
 
-    def on_exit(self, block, doc, error=None) -> None:
+    def on_exit(self, component, doc, error=None) -> None:
         if self.tracer is None:
             return
         self._local.span = None
         with self._lock:
             u = self._unit(doc)
-            span = u.blocks.pop(id(block), None)
+            span = u.components.pop(id(component), None)
             if error is not None:
                 u.failed = True
         if span is not None:
-            span.set_attributes(counts(doc, getattr(block, "transcription", None)))
+            span.set_attributes(counts(doc, getattr(component, "transcription", None)))
             if error is not None:
                 span.set_status(StatusCode.ERROR)
                 span.set_attribute("linecaster.error.type", str(error.get("type") if isinstance(error, dict)
@@ -547,16 +547,16 @@ class Tracing(Observer):
         if u is not None and u.id == str(doc.id):
             self._end_unit(u)
 
-    def on_unit(self, block, doc, event: str, **attributes) -> None:
+    def on_unit(self, component, doc, event: str, **attributes) -> None:
         if self.tracer is None:
             return
         region = attributes.get("region")
-        key = (id(block), region)
+        key = (id(component), region)
         with self._lock:
             u = self._units.get(id(doc))
             if u is None or u.id != str(doc.id):
                 return
-            parent = u.blocks.get(id(block))
+            parent = u.components.get(id(component))
             parent_ctx = trace_api.set_span_in_context(parent) if parent is not None else u.context
             if event == "prepare":
                 attrs = {"linecaster.region": region} if region is not None else None
@@ -586,8 +586,8 @@ class Tracing(Observer):
 
     # ------------------------------------------------------------------------------------------- logs
     def log_ids(self, record) -> tuple[int, int] | None:
-        """The trace and span a log record belongs to: the page it names (``page_id``), else the block span of the
-        per-unit block running in this thread, else the task span."""
+        """The trace and span a log record belongs to: the page it names (``page_id``), else the component span of the
+        per-unit component running in this thread, else the task span."""
         page_id = record["extra"].get("page_id")
         if page_id is not None:
             with self._lock:
@@ -602,11 +602,11 @@ class Tracing(Observer):
         return c.trace_id, c.span_id
 
 
-def _changes_unit(block) -> bool:
-    from linecaster.blocks.base.contract import contract_of
+def _changes_unit(component) -> bool:
+    from linecaster.core.contract import contract_of
 
     try:
-        c = contract_of(block)
+        c = contract_of(component)
     except Exception:  # noqa: BLE001
         return False
     return c.unit_out is not None and c.unit_out != c.unit

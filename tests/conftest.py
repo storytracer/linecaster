@@ -1,5 +1,5 @@
 """Shared fixtures and helpers: the sample transcription (``linecaster.testing``), regions and lines by their boxes,
-and page documents for the blocks; linecaster's markers and the hooks that skip ``gpu`` and ``network`` tests where
+and page documents for the components; linecaster's markers and the hooks that skip ``gpu`` and ``network`` tests where
 they cannot run (``linecaster.testing.markers``)."""
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import io
 import pytest
 from PIL import Image
 
-from linecaster.blocks.base.page import new_page_document, page_of, set_page
+from linecaster.core.page import new_page_document, page_of, set_page
 from linecaster.data import Transcription
 from linecaster.data.upgrade import upgrade_transcription
 from linecaster.testing import box, sample_transcription
@@ -19,7 +19,7 @@ from linecaster.testing.markers import pytest_collection_modifyitems, pytest_con
 def vendor_requests_for_adapters(request, monkeypatch):
     """Under ``tests/adapters`` requests are compared with the model vendors' (cards, reference scripts), which do not
     send vLLM's ``repetition_detection``: the module's ``chat_model`` builds adapters with it off unless a test sets it
-    (``tests/blocks/recognition/test_repetition_detection.py`` covers it, on by default)."""
+    (``tests/components/recognition/test_repetition_detection.py`` covers it, on by default)."""
     chat_model = getattr(request.module, "chat_model", None)
     if "adapters" not in request.node.path.parts or chat_model is None:
         return

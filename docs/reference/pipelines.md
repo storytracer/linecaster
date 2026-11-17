@@ -1,12 +1,12 @@
 # Pipelines: contracts and the builder
 
-A pipeline is a list of blocks (datatrove `PipelineStep`s) and composites. Before it runs, the builder
-(`linecaster.runtime.builder`) checks the blocks' contracts, expands the composites, and cuts the pipeline into
+A pipeline is a list of components (datatrove `PipelineStep`s) and composites. Before it runs, the builder
+(`linecaster.runtime.builder`) checks the components' contracts, expands the composites, and cuts the pipeline into
 stages. Every pipeline script goes through it (`linecaster.runtime.run`). Terms are the [glossary](glossary.md)'s.
 
 ## Contracts
 
-Every block returns its contract from `contract()` (`linecaster.blocks.base.contract`):
+Every component returns its contract from `contract()` (`linecaster.core.contract`):
 
 ```python
 @dataclass(frozen=True)
@@ -18,11 +18,11 @@ class Part:
 @dataclass(frozen=True)
 class Contract:
     unit: str                  # "page", "item" (what the input stream carries) or "any" (servers)
-    unit_out: str | None       # set when the block changes the stream's unit (binder: page -> item, splitter: back)
+    unit_out: str | None       # set when the component changes the stream's unit (binder: page -> item, splitter: back)
     reads: frozenset[Part]
     adds: frozenset[Part]
     replaces: frozenset[Part]
-    removes: frozenset[Part]   # parts the block does not pass on (gone for every later block)
+    removes: frozenset[Part]   # parts the component does not pass on (gone for every later component)
     role: str                  # reader, writer, server, model, transform, binder, splitter, validator, composite
 ```
 
@@ -31,11 +31,11 @@ class Contract:
   `line_confidences`, `tables`, `formulas`, `markdown`, `html`, `doctags`, `layout_json`, `latex`), and
   `line_regions`, `hierarchy`, `paragraphs`, `document`. A part is written `transcription:name` (`ocr_new:lines`);
   `ocr_original:*` is every part of a transcription.
-- **Simple blocks** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`,
+- **Simple components** declare class attributes (`unit`, `role`, `parts_read`, `parts_added`, `parts_replaced`,
   `parts_removed`) that
   the default `contract()` of `Contracted` reads; page-level names stay page-level, the others belong to the
-  block's `transcription`. Blocks whose parts depend on their options compute `contract()`.
-- **Model blocks** read the page image (recognition also `lines`, tables and formulas `regions`) and add their
+  component's `transcription`. Components whose parts depend on their options compute `contract()`.
+- **Model components** read the page image (recognition also `lines`, tables and formulas `regions`) and add their
   preset's `capabilities.produces`: the preset of the `InProcess` backend (`preset`), of the `Served` backend
   (`preset`, set by `runtime.run.engines`) or of the `Chat` backend; without a preset the engine class's
   `capabilities` (read from its source in the repository, else from the class); without either the step's default.
@@ -52,15 +52,15 @@ class Contract:
 - **The `Binder`** changes the unit from pages to items, the **`Splitter`** back: an item record holds its page
   records, so what the pages carried stays available across either (the checks carry the parts over), apart from
   the page image's bytes (`image`: an item record has none) at the binder and the item's `document` at the splitter.
-- **Item-unit blocks** (`Recomposer(unit="item")`, `Composer(unit="item")`)
+- **Item-unit components** (`Recomposer(unit="item")`, `Composer(unit="item")`)
   read item records: one datatrove document per item, `doc.metadata["item"]` holding the item id and its page records
-  in order (`linecaster.blocks.base.item`); they read and add the parts of the pages' transcriptions, the item
+  in order (`linecaster.core.item`); they read and add the parts of the pages' transcriptions, the item
   `Composer` adds the item's `document` next to the record. **Item writers** (`ItemDocumentWriter`, `ItemTextWriter`)
   read the `document` and write it by each text's transcription strategy.
   `RecipeStamper` has unit `any`: before an item writer it stamps the pages of each item record.
 - A step without a contract (a plain datatrove step) passes pages and touches no part.
 
-| Block | Reads | Adds | Replaces, removes |
+| Component | Reads | Adds | Replaces, removes |
 |---|---|---|---|
 | `LineAssigner` | `lines`, `regions` | `line_regions` | `regions`, `reading_order`, `lines` |
 | `Typographer` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
@@ -72,24 +72,24 @@ class Contract:
 | `TranscriptionConverter` | `metadata`, `transcription_file` (with `source="media"`) | `<transcription>:*` | |
 | `RecipeStamper` | | | |
 
-## Block shapes
+## Component shapes
 
-- **Per-unit transform** (`shape = "unit"`): `process_page(doc, page) -> page | None`; `PageBlock` owns the loop
-  and the stats. In-process model blocks have this shape.
+- **Per-unit transform** (`shape = "unit"`): `process_page(doc, page) -> page | None`; `PageComponent` owns the loop
+  and the stats. In-process model components have this shape.
 - **Stream transform** (`shape = "stream"`): overrides `run(data)` and yields each page when it is done, possibly
-  out of order (served model blocks, `PageRecognizer`, `RegionRecognizer`). It reports what happens to each page
+  out of order (served model components, `PageRecognizer`, `RegionRecognizer`). It reports what happens to each page
   inside it with `notify(doc, event)`: `prepare` when a request is built, `done` when its result came back. The
-  served model blocks share one streaming loop (`ModelBlock`): a block names its requests (`_rows`: one per page, one
+  served model components share one streaming loop (`ModelComponent`): a component names its requests (`_rows`: one per page, one
   per region for `RegionRecognizer`), builds and parses each (`_request`, `_parse`) and says which pages a finished
   one completes (`_done`).
-- Only readers and writers see `rank`, `world_size` and files (a test walks every block class, with no exceptions):
-  a block that rejects a page records why on the page, and the `RejectWriter` names the task's file.
+- Only readers and writers see `rank`, `world_size` and files (a test walks every component class, with no exceptions):
+  a component that rejects a page records why on the page, and the `RejectWriter` names the task's file.
 
 ## Backends
 
-A model block's backend (`linecaster.backends`) says where its engine runs:
+A model component's backend (`linecaster.backends`) says where its engine runs:
 
-- `InProcess("pkg:Class", **options)` (or `InProcess.from_preset(ref)`; a model block given a preset ref,
+- `InProcess("pkg:Class", **options)` (or `InProcess.from_preset(ref)`; a model component given a preset ref,
   `LayoutDetector("single-region")`, builds one): the engine loads in the worker;
 - `Served(endpoint, model=name, ...)`: `linecaster serve` (or a server speaking its routes) hosts it, reached through
   saturate on `/v1/linecaster/{step}`; `warm_up()` refuses a server whose `/health` names another transcription
@@ -105,10 +105,10 @@ A model block's backend (`linecaster.backends`) says where its engine runs:
   where the preset's vLLM takes it); the ones that differ from the preset's are recorded with the adapter
   (`overrides`) and count in `pipeline_sha256`. With `repair_max_tokens` set, `PageRecognizer` runs the
   [repair passes](glossary.md): a page whose completion stopped at `max_tokens` waits while its repair requests go
-  into the same window, one per cap while each stops at its cap, and leaves the block with every pass recorded as a
+  into the same window, one per cap while each stops at its cap, and leaves the component with every pass recorded as a
   raw output (`pass`, `kept`: the one its annotations were parsed from); `PageRecognizer(..., repair_only=True)` sends only
   the repair requests, for page records read with `PageRecordReader` (`--pages ... --repair-only`). The streaming
-  loop of `ModelBlock` offers this to every served block: a finished request may ask for a second one
+  loop of `ModelComponent` offers this to every served component: a finished request may ask for a second one
   (`_second_request`), whose response comes back with it (`_second_done`), and that one for another
   (`_next_request`).
   `PageRecognizer` also takes a page engine's `InProcess` or `Served` backend (or its preset's ref): a stream
@@ -119,8 +119,8 @@ The built-in engines (`layout.single-region.v1`, the rule-based steps' and the t
 process only: `runtime.run.engines` keeps a preset of one in-process when the other models are served, and
 `linecaster serve` refuses them.
 
-**The `Tagger`** (`linecaster.blocks.tagging`) runs a tagging engine on every page, by preset or engine spec like
-the rule blocks (`Tagger("geometry-tags")`, `Tagger(InProcess("linecaster.engines:ChatTaggingEngine",
+**The `Tagger`** (`linecaster.components.tagging`) runs a tagging engine on every page, by preset or engine spec like
+the rule components (`Tagger("geometry-tags")`, `Tagger(InProcess("linecaster.engines:ChatTaggingEngine",
 schemes=["degraded"], panel=[...]))`, `options` over either), and adds `tags`: classifications in property schemes
 ([data model](data-model.md#classifications)). It decodes the page image only for an engine that reads it (the
 model tagger, a client of chat servers that the run provides), and passes the page's id, which review items name.
@@ -129,42 +129,42 @@ Stats: `tagged`, `undecided`.
 ## The builder
 
 ```python
-plan = build(blocks, tasks=8, until=None, after=None, taps={"LineAssigner": "OUT/taps/lines"},
+plan = build(components, tasks=8, until=None, after=None, taps={"LineAssigner": "OUT/taps/lines"},
              run_folder="OUT", recipe=("squiddle", "sha256:..."))
 plan.check()          # PipelineConfigError listing every problem
-plan.stages           # [Stage(name, tasks, blocks, pipeline)]: one datatrove pipeline each, run in order
-plan.graph            # nodes (blocks; composites expanded, their group kept), edges (part -> the block reading it)
+plan.stages           # [Stage(name, tasks, components, pipeline)]: one datatrove pipeline each, run in order
+plan.graph            # nodes (components; composites expanded, their group kept), edges (part -> the component reading it)
 plan.mermaid()        # the graph as a Mermaid flowchart: stages and composites as subgraphs
-plan.describe()       # stages with each block's contract, the edges, the problems
+plan.describe()       # stages with each component's contract, the edges, the problems
 ```
 
-**Checks**, all collected: a stage starts with a reader; every part a block reads is added earlier in its stage
+**Checks**, all collected: a stage starts with a reader; every part a component reads is added earlier in its stage
 (or by the stage's reader) and not removed since (`removes`, even after a reader that provides anything); a part
-is added by one block only, unless a later block declares it in `replaces`;
-units fit (a page block cannot follow an item stream, an item block needs a binder before it); the parts carry
-across a binder and a splitter (apart from `image` and the item's `document`); server blocks go last; a served model
-block whose endpoint is a server block of its stage (same loopback port) finds its model in that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,
-`OTHERWISE` last; names given to `until`, `after` and `taps` fit exactly one block.
+is added by one component only, unless a later component declares it in `replaces`;
+units fit (a page component cannot follow an item stream, an item component needs a binder before it); the parts carry
+across a binder and a splitter (apart from `image` and the item's `document`); server components go last; a served model
+component whose endpoint is a server component of its stage (same loopback port) finds its model in that server's list; the alternatives of a group add the same parts, sit next to each other, each with a condition,
+`OTHERWISE` last; names given to `until`, `after` and `taps` fit exactly one component.
 
 **Order** is the given one; the builder checks it and does not reorder. It inserts a `TranscriptionConverter` (into
-`ocr_original`) right after a block that adds `transcription_file` when no later block reads it, the
+`ocr_original`) right after a component that adds `transcription_file` when no later component reads it, the
 `RecipeStamper` before the first writer when the run follows a recipe, a `RejectWriter` into
-`<run_folder>/rejects` before the first writer (or binder) when there is a run folder and the pipeline has none, and moves the server blocks at the end into the
-stage of the model blocks when it cuts. `build(..., max_page_errors=SHARE)` sets every page block's error budget.
+`<run_folder>/rejects` before the first writer (or binder) when there is a run folder and the pipeline has none, and moves the server components at the end into the
+stage of the model components when it cuts. `build(..., max_page_errors=SHARE)` sets every page component's error budget.
 
-**Branches**: `branch(block, when=Condition, group=None)` gives a block a condition, a picklable predicate on the
-page record with a `describe()` (`MetadataEquals(key, value)`, `OTHERWISE`). The block processes the pages the
-condition accepts; the others pass unchanged. Blocks with the same `group` are alternatives: each page goes through
-the first one whose condition accepts it. A per-unit block gets its pages one by one; any other block one stream of
+**Branches**: `branch(component, when=Condition, group=None)` gives a component a condition, a picklable predicate on the
+page record with a `describe()` (`MetadataEquals(key, value)`, `OTHERWISE`). The component processes the pages the
+condition accepts; the others pass unchanged. Components with the same `group` are alternatives: each page goes through
+the first one whose condition accepts it. A per-unit component gets its pages one by one; any other component one stream of
 them, the pages it does not take passed on as it yields.
 
-**Composites**: `Composite(name, blocks, contract=None)` expands into its blocks (nested composites too); its
-outward contract is derived (what its blocks read that none of them adds, what they add and replace) unless given.
+**Composites**: `Composite(name, components, contract=None)` expands into its components (nested composites too); its
+outward contract is derived (what its components read that none of them adds, what they add and replace) unless given.
 `ModularTranscriber(lines, recognition, layout, formulas_separately=False, transcription="ocr_new")` is layout
-(`"single-region"`: the page as one region) → lines → line assignment → line recognition; each step a block, a
+(`"single-region"`: the page as one region) → lines → line assignment → line recognition; each step a component, a
 backend or a preset.
 
-**Stages**: with `tasks > 1`, the first binder (a block whose stream changes from pages to items) cuts the
+**Stages**: with `tasks > 1`, the first binder (a component whose stream changes from pages to items) cuts the
 pipeline, unless the reader already gives each task whole items (`ManifestReader`, `PageRecordReader(item_shards=
 True)`). The first stage writes its page records in item shards into `<run_folder>/pages/` (the pipeline's own
 `PageJsonlWriter` there, now with `item_shards=N`, N = `tasks` unless it set its own); the second starts with
@@ -179,17 +179,17 @@ record lists the stages. Each stage gets its own executor, and the later one `de
 | `ray` | `RayGPUExecutor` for stages with servers, `RayExecutor` for the item stage and pipelines without engines (CPUs only) | the same, through `depends=` |
 | `hf-jobs` | `JobsExecutor` (datatrove's `JobsPipelineExecutor` with JSON-lines logs; `GPUJobsExecutor` for multi-GPU flavors on stages with servers) | consecutive launches: the second launches when the first's Jobs are complete; both on `--flavor` |
 
-**Partial runs** (blocks named by their datatrove `name`, their class name, or a composite's name for its last
-block):
+**Partial runs** (components named by their datatrove `name`, their class name, or a composite's name for its last
+component):
 
-- `until=BLOCK` (`--until`): the blocks up to and including BLOCK, then a `PageJsonlWriter` into
-  `<run_folder>/pages` (and the server blocks);
-- `after=BLOCK` (`--after`, with `--pages DIR`): the pipeline's `PageRecordReader`, then the blocks after BLOCK;
-  the reader declares the parts the blocks up to BLOCK add;
+- `until=BLOCK` (`--until`): the components up to and including BLOCK, then a `PageJsonlWriter` into
+  `<run_folder>/pages` (and the server components);
+- `after=BLOCK` (`--after`, with `--pages DIR`): the pipeline's `PageRecordReader`, then the components after BLOCK;
+  the reader declares the parts the components up to BLOCK add;
 - `taps={BLOCK: DIR}` (`--tap-after BLOCK DIR`, repeatable): a `Tap` observer writes every page record as it
   leaves BLOCK into `DIR/<rank>.jsonl.gz`.
 
-**In this process**: `run_pages(blocks, docs)` checks the blocks and runs them on `docs` (datatrove documents) as
+**In this process**: `run_pages(components, docs)` checks the components and runs them on `docs` (datatrove documents) as
 task 0 of 1, without an executor (a leading reader reads its own input after them); `run_plan(plan)` runs a plan's
 stages that way. A pipeline script's `--page IMAGE OUT` runs its pipeline on one image like that, and `linecaster
 page IMAGE OUT [--recipe R | --pipeline ID] [pipeline options]` finds the script (the recipe's pipeline, else
@@ -200,16 +200,16 @@ a run would when there are problems; a run with problems exits with code 2 befor
 
 ## Observers
 
-`linecaster.runtime.observers.Observer` has `on_task_start(rank, world_size)`, `on_warm_up(block, seconds)`,
-`on_enter(block, doc)`, `on_exit(block, doc, error=None)`, `on_unit(block, doc, event, **attributes)` (from stream
-blocks' `notify`: `prepare` and `request` in saturate's prepare threads, `request` with a `carrier` dict for the
+`linecaster.runtime.observers.Observer` has `on_task_start(rank, world_size)`, `on_warm_up(component, seconds)`,
+`on_enter(component, doc)`, `on_exit(component, doc, error=None)`, `on_unit(component, doc, event, **attributes)` (from stream
+components' `notify`: `prepare` and `request` in saturate's prepare threads, `request` with a `carrier` dict for the
 trace context, `done` with `error`, tokens and `finish_reason`; `region` for a request per region),
-`on_task_event(block, event, start_ns, end_ns, **attributes)` (from `Block.report`: a reader's `file`, a writer's
-`flush`), `on_leave(doc)` (a page leaves the stage's last block), `on_task_end(error=None)` (also when the task
-fails) and `environment()` (variables for a server a block starts in the task). When a stage has observers
-(`build(..., observers=[...])`, taps, tracing), the builder puts a `Boundary` after every block: the boundary
-between block *i* and *i + 1* calls `on_exit(i)` and `on_enter(i + 1)` for each page, so a block's time per page
-includes waiting in a served window; `error` is the entry the block added to `doc.metadata["errors"]`. Boundaries
+`on_task_event(block, event, start_ns, end_ns, **attributes)` (from `Component.report`: a reader's `file`, a writer's
+`flush`), `on_leave(doc)` (a page leaves the stage's last component), `on_task_end(error=None)` (also when the task
+fails) and `environment()` (variables for a server a component starts in the task). When a stage has observers
+(`build(..., observers=[...])`, taps, tracing), the builder puts a `Boundary` after every component: the boundary
+between component *i* and *i + 1* calls `on_exit(i)` and `on_enter(i + 1)` for each page, so a component's time per page
+includes waiting in a served window; `error` is the entry the component added to `doc.metadata["errors"]`. Boundaries
 are plain callables, not datatrove steps, so they add no stats; a stage without observers has none.
 
 Every stage with a run folder (or an OTLP endpoint) is traced: the builder adds a `linecaster.tracing.Tracing`
@@ -217,11 +217,11 @@ observer (`build(..., trace_sample=SHARE)`, `--trace-sample`; [tracing](tracing.
 
 ## Warm-up
 
-Every block has `warm_up()` (idempotent): engines load there (`InProcess.warm_up()`), servers start there
-(`ModelServer`, `ChatModelServer`), a served backend reads its secrets there; blocks with nothing to load keep the
-no-op. A block's `__call__`, which datatrove's executors call, warms it up before its `run` starts: blocks warm up
-as the stream reaches them, the last one first (the servers before the blocks that call them). The time is the
-block's own stat, `warm_up_seconds` (per task), and goes to the observers (`on_warm_up(block, seconds)`); a page's
+Every component has `warm_up()` (idempotent): engines load there (`InProcess.warm_up()`), servers start there
+(`ModelServer`, `ChatModelServer`), a served backend reads its secrets there; components with nothing to load keep the
+no-op. A component's `__call__`, which datatrove's executors call, warms it up before its `run` starts: components warm up
+as the stream reaches them, the last one first (the servers before the components that call them). The time is the
+component's own stat, `warm_up_seconds` (per task), and goes to the observers (`on_warm_up(component, seconds)`); a page's
 measured `seconds` never include loading. An error in a warm-up fails the task (a server that does not start: a
 `ServerError`).
 
@@ -229,35 +229,35 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
 
 - **Per page.** An exception in a per-unit transform's `process_page` (other than a `PipelineConfigError`,
   `CatalogError` or `ServerError`, which fail the task) becomes an entry in the page's `doc.metadata["errors"]`:
-  `{"block": class, "step": a model block's step, "preset": its id or null, "type": the exception's class,
-  "error": the message}`; a failed request of a served block is the same with type `ServerError`; checks
+  `{"component": class, "step": a model component's step, "preset": its id or null, "type": the exception's class,
+  "error": the message}`; a failed request of a served component is the same with type `ServerError`; checks
   (`PageValidator`, `ImageConverter`) add `field` and `raw_value`. The page goes on as it was.
-- **Later model blocks pass it by** (`skip_on_error`, the default for model blocks; stat `skipped_after_error`), at
-  once: in-process the page leaves the block before the next one enters, served it is put straight onto the
-  block's results (it never waits for the window, nor for the end of the input).
+- **Later model components pass it by** (`skip_on_error`, the default for model components; stat `skipped_after_error`), at
+  once: in-process the page leaves the component before the next one enters, served it is put straight onto the
+  component's results (it never waits for the window, nor for the end of the input).
 - **Rejects.** The `RejectWriter` writes every page that carries errors to `OUT/rejects/<rank>.jsonl`, one line
-  per error (`key`, `field`, `error`, `raw_value`, and the entry's `block`, `step`, `preset`, `type`), and passes
+  per error (`key`, `field`, `error`, `raw_value`, and the entry's `component`, `step`, `preset`, `type`), and passes
   it on: the page records keep failed pages with their errors, so a later pipeline reading them passes them by too.
   `PageFileWriter(skip_failed=True)` writes no per-page files for them (the modular pipeline's `--files`), so a
-  file is never what the blocks before the failure made of a page.
-- **The error budget.** A block may fail on `max_page_errors` of a task's pages (`--max-page-errors`, default
+  file is never what the components before the failure made of a page.
+- **The error budget.** A component may fail on `max_page_errors` of a task's pages (`--max-page-errors`, default
   0.01), judged from the 100th page on: from then, more errors than `share × pages` fail the task with a
   `PageError` (with the default: two failures in the first 100 pages, three in 300). Fewer pages are too few to
   judge. datatrove reruns a failed task whole.
-- **Page images** (`linecaster.images.pixels`). The model blocks give engines plain 8-bit RGB pixels (Pillow's
+- **Page images** (`linecaster.images.pixels`). The model components give engines plain 8-bit RGB pixels (Pillow's
   `convert("RGB")` of the file: no ICC profile applied, no EXIF orientation), decoded once per page and process: the
-  blocks after the first that needs a page's image use the same read-only array (stats `image_decoded`,
-  `image_shared`). `--image-decode` (`ModelBlock.image_decode`, set by the builder) says how: `auto` (the default)
+  components after the first that needs a page's image use the same read-only array (stats `image_decoded`,
+  `image_shared`). `--image-decode` (`ModelComponent.image_decode`, set by the builder) says how: `auto` (the default)
   decodes JPEG, JPEG 2000 and TIFF in 8-bit gray or RGB on an NVIDIA GPU where the machine has one and
   `linecaster[nvimgcodec]` is installed, the worker's GPU, everything else with Pillow; `cpu` always with Pillow;
-  `gpu` like `auto`, but a machine without a GPU is an error. A served block sends its choice with the image, and
+  `gpu` like `auto`, but a machine without a GPU is an error. A served component sends its choice with the image, and
   `linecaster serve` decodes there; a chat adapter builds its request from the same pixels. A GPU and Pillow round a
   lossy image's pixels differently, so a step records its decoder (measurement `decoder`); an image a GPU refuses,
   or a GPU that fails, is decoded with Pillow (stats `gpu_decoded`, `cpu_decoded`, `gpu_decode_refused`,
   `gpu_decode_errors`). The option is operational: it is not part of `pipeline_sha256`, since `auto` depends on the
   machine anyway.
 - **Errors** (`linecaster.errors`): library code raises `PipelineConfigError` (a pipeline, option or input that
-  cannot work; `problems` lists them), `CatalogError`, `PageError(page_id, block)` and `ServerError`, all
+  cannot work; `problems` lists them), `CatalogError`, `PageError(page_id, component)` and `ServerError`, all
   `LinecasterError`s, never `SystemExit`; the `linecaster` command and a pipeline script's `main` turn them into
   exit codes (2: nothing was launched).
 
@@ -267,18 +267,18 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
 Schema `catalog/schemas/run-record-1.json`) records the script, the recipe, the command line, the options, where it
 ran and the software, and:
 
-- `pipeline`: per stage its name, tasks and blocks in order, each block as its `to_dict()` (below) with its
+- `pipeline`: per stage its name, tasks and components in order, each component as its `to_dict()` (below) with its
   `contract`, composite, group and condition;
 - `pipeline_sha256`: the hash of the pipeline's **functional** parameters.
 
-**`to_dict()`** gives a block as it was built: `{"block": class name, "class": "module:Class", "params": {...}}`,
+**`to_dict()`** gives a component as it was built: `{"component": class name, "class": "module:Class", "params": {...}}`,
 every constructor parameter with the value it was given or its default (`**kwargs` flattened), JSON-compatible:
 backends as `{"backend": "in-process", "engine", "options", "preset", "preset_sha256"}`, `{"backend": "served",
 "endpoint", "model", "max_window", ..., "preset", "engine"}` or `{"backend": "chat", "adapter", "preset",
 "preset_sha256", "model", "revision", "served_name", "endpoint", "max_window", ...}` (a chat adapter's dict plus where
-its server is), nested blocks as their dicts, secrets as `{"env": NAME}`, folders as paths, callables as `module:name`. A block
+its server is), nested components as their dicts, secrets as `{"env": NAME}`, folders as paths, callables as `module:name`. A component
 keeps the arguments it was constructed with; `live_params` names those the builder may change afterwards (a page
-record reader's `provides`). A composite's dict is its group: its parameters and its blocks' dicts.
+record reader's `provides`). A composite's dict is its group: its parameters and its components' dicts.
 
 **Functional and operational parameters.** A parameter is *functional* when changing it can change what a run
 writes for a page or an item (its page records, files and texts) or how they are partitioned (`item_shards`); it is
@@ -291,15 +291,15 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 | which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
 | servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset and hash, model and revision) | how a server is started and reached |
 | `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes`, `.skip_existing`, `.window`, `.initial_window`, `.max_window`, `ImageFolderReader.read_images` | presentation, file handling, memory, how many pages are in flight |
-| server blocks (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the blocks they serve |
-| the backend (in-process or served) | a model block counts by its engine, the engine's options and the preset with its hash, wherever it runs |
+| server components (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the components they serve |
+| the backend (in-process or served) | a model component counts by its engine, the engine's options and the preset with its hash, wherever it runs |
 
-Everything else is functional: block classes and their order, transcription names, engine options, presets and
+Everything else is functional: component classes and their order, transcription names, engine options, presets and
 their hashes, the recipe stamp, conditions and groups, writers' formats, texts and strategies, `item_shards`. The base list
-is `OPERATIONAL` in `linecaster.blocks.base.block`; a block class adds its own in `operational`. A parameter added
-to a released block with a default that keeps the old behavior is left out while it has that default
+is `OPERATIONAL` in `linecaster.core.component`; a component class adds its own in `operational`. A parameter added
+to a released component with a default that keeps the old behavior is left out while it has that default
 (`unhashed_defaults`, e.g. `PageRecognizer`'s `repair_only`), so the pipelines that do not use it keep their hash. So a resumed run,
-a run on another executor or backend, or into another folder has the same hash; another preset, option or block
+a run on another executor or backend, or into another folder has the same hash; another preset, option or component
 has another.
 
 **Resume.** A run into an OUT that holds a run record is checked against its newest record (`run.yaml`, or a later
@@ -356,7 +356,7 @@ def sample(pairs, seed=0, n=None, k=None, m=None):
 The first 16 hex digits of the SHA-256 sort as `H` does, so SQL can order by them. A stratum is a separate run over
 a filtered input.
 
-**Per input** (the readers' `sample`, `linecaster.blocks.readers.sampling`):
+**Per input** (the readers' `sample`, `linecaster.components.readers.sampling`):
 
 | Input | Ids | Read before the sample | The tasks |
 |---|---|---|---|
@@ -418,7 +418,7 @@ share each`, or `250 proxies available → 250 workers, 1 proxy each`). `--worke
 process with its own memory).
 
 `auto_tasks` is about 1,000 pages per task for `ImageParquetReader` and about 5 items per task for `ManifestReader`
-(`linecaster.blocks.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
+(`linecaster.components.readers.tables.PAGES_PER_TASK`, `ITEMS_PER_TASK`), so a resume repeats little. The harvest
 (`pipelines/harvest.py`) asks its reader for one item per task (`task_per_item`): the tasks divide the items, an
 item's rows wherever they are in the table (`tables.item_runs`), so every item is whole in its task and a task that
 fails costs one item. With `--reuse` (off by default: on some object storage a listing is slow even for an empty
@@ -426,7 +426,7 @@ folder, and only the items a stopped launch was in, or with `--retry-failed` the
 have anything to reuse) its reader also gets `reuse_folder`
 (`OUT/images`): when it reaches an item it lists the item's
 folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
-fetching it from the source (`linecaster.blocks.readers.existing`); only pages of interrupted items (and of the items
+fetching it from the source (`linecaster.components.readers.existing`); only pages of interrupted items (and of the items
 `--retry-failed` runs again, whose failed pages alone are then fetched) are read back, so egress stays small. The reader waits at most `LISTING_TIMEOUT` (60 s) for a listing (on object storage fsspec cancels
 it then on its IO loop): one that times out or fails is a warning and a stat (`reuse_listing_timeouts`,
 `reuse_listing_errors`), and the item's pages are fetched again, their files overwritten. Such a record is complete and says `image.extra.reused`; the console counts it as done but not in
@@ -466,7 +466,7 @@ worker sends a request into another's block, and a restarted run none into a blo
 proxy error, no connection to it, `broken_after` failures in a row, 3 by default) is marked for every host, first for
 `broken_ttl` (5 minutes), doubling up to `block_ttl`. A block does not count as an attempt and the request goes on
 through another proxy at once, so `max_retries` (retries after the first attempt) counts only the attempts that
-reached the server and failed there; a block does not count toward the breaker either. A timeout is mostly a slow
+reached the server and failed there; a component does not count toward the breaker either. A timeout is mostly a slow
 server: it is retried and leaves the proxy in. When none of a worker's proxies is usable for a host and none
 is free to claim, its requests to the host pause until a block ends or another worker gives a proxy back (one warning
 when the pause starts, one when it ends; the wait is in the fetch record's `pause_seconds`); once the waits since the
@@ -485,7 +485,7 @@ from one to ten minutes), and the first answer that is not a server error lets t
 failing. A single server error is retried (with a proxy list without counting against the proxy it came through). A
 block on a direct connection (a status in the host's `block_on`, 429 by default) pauses the worker that got it
 (`linecaster.net.http.Pause`): its requests to that host wait until the response's `Retry-After` has passed (seconds
-or an HTTP-date; without one a minute, doubling while blocks keep coming), then the request that got it is tried
+or an HTTP-date; without one a minute, doubling while components keep coming), then the request that got it is tried
 again, without using up one of its retries; blocks for requests already in flight extend the pause, never shorten
 it. The pages wait instead of failing, and the requests to other hosts and other workers go on. The log says when a pause starts (host,
 status, how long, until when) and when the requests go on, and a page's fetch record has the time paused
@@ -498,7 +498,7 @@ local task that fails is logged and the others go on (`LocalExecutor`); it runs 
 that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
 `--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
 On Ray (`linecaster.runtime.ray.RayExecutor`) the same error stops the run through a marker in the logging folder
-(`stopped.json`): every task after it ends before its pipeline starts, so none sends a request into the block that
+(`stopped.json`): every task after it ends before its pipeline starts, so none sends a request into the component that
 stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
 Ray job does not end as succeeded. A new launch removes the marker. Before it submits a task, a Ray launch checks
 that a live node has what a task reserves (`--cpus-per-task`; `--mem-per-task-gb`, else `--mem-per-cpu-gb` per CPU;
@@ -535,13 +535,13 @@ both presents itself as one client to every host. `--user-agent` or an HTTP poli
 ## The console
 
 A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the
-pipeline (its blocks, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
+pipeline (its components, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
 live progress line (pages done of the total, rate over the last five minutes, size, failed pages, the task, the time
 left) pinned to the terminal's top row, with everything else scrolling below it (a scroll region, `Pinned`), a line per finished task and a summary, in human units
 (`linecaster.runtime.console`). The `Progress` observer, which the runtime puts on every stage, counts the pages
 that leave the pipeline; with several workers each worker process reports its counts to the console about every
 second. Off a terminal the progress is a log line every 30 s instead.
-datatrove's own console output (its pipeline listing and stats block per task, the merged stats) goes only to the
+datatrove's own console output (its pipeline listing and stats component per task, the merged stats) goes only to the
 task logs (`OUT/logs/logs/task_<rank>.log`, in its full line format) and the stats files, which keep it whole. A launch
 lists the completion markers once instead of looking them up task by task.
 
@@ -552,7 +552,7 @@ lists the completion markers once instead of looking them up task by task.
 `Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})` (and
 `Chat(preset, endpoint, api_key=..., headers=...)` alike) sends `Authorization: Bearer <key>` and the headers with
 every request through saturate's `AdaptiveClient(headers=...)`;
-a key given as text is refused. A missing variable fails the block's warm-up.
+a key given as text is refused. A missing variable fails the component's warm-up.
 
 ## Pipeline shapes
 
@@ -560,7 +560,7 @@ A pipeline script's code is a pipeline shape in `linecaster.pipelines` (`harvest
 `transcribe_vlm`, `transcribe_page`, `bind`, `import_transcriptions`, `score`): its docstring (the help text), `options(ap)`, `models(a)`,
 `pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.pipelines.shapes()` lists them by
 pipeline id and `shape(id)` finds one; importing one imports no engine. The script in `pipelines/` is its PEP 723
-block, a docstring and the call that runs the shape:
+component, a docstring and the call that runs the shape:
 
 ```python
 from linecaster.pipelines import transcribe_modular as shape
@@ -607,7 +607,7 @@ others. A JSON Lines row holds `id` (the item), `text`, `spec`, `strategy`, `str
 `format`, `page_ids`, `pages` and `token_count` with a token counter. The page files (`PageFileWriter`) take one
 `strategy` too (`--strategy`, default `literal`).
 
-A `Splitter` after the item-level blocks passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
+A `Splitter` after the item-level components passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
 the paragraphs of the item recomposition.
 
 ## Page records
@@ -625,7 +625,7 @@ its sibling `rows/` (the folder's earlier name).
 
 ## Rendering policy
 
-The blocks that render (`Composer`, `PageFileWriter`, `ItemDocumentWriter`, `ItemTextWriter`) take `policy`, a
+The components that render (`Composer`, `PageFileWriter`, `ItemDocumentWriter`, `ItemTextWriter`) take `policy`, a
 catalog policy (`id`, default `page-layers`; [catalog](catalog.md#policy-policiesidyaml)), which decides the layer of
 each region in the documents, files and texts they write ([data model](data-model.md#rendering)).
 `pipelines/transcribe_modular.py` and `pipelines/bind.py` set it with `--policy`; it is a functional parameter, so the

@@ -4,7 +4,7 @@
 that is not the pages' (``NOT_THE_PAGES``: the configuration, the catalog, a server: a host's ``stop_on``, no proxy
 left, a pause beyond ``max_pause``; a 429 only pauses the worker that got it, ``linecaster.net.http.Pause``) in one
 task stops the whole run, where datatrove only ends that task and starts the next one (whose first request would go
-straight into the block that stopped the first). The task writes a stop marker to the logging folder
+straight into the component that stopped the first). The task writes a stop marker to the logging folder
 (``STOP_MARKER``, as datatrove marks finished tasks), every task after it finds the marker and ends before its
 pipeline starts, and the launch then fails with the first task's error. A launch with tasks that did not finish fails
 too (they run again on the next launch), so a Ray job that left work undone does not end as succeeded. A new launch
@@ -162,7 +162,7 @@ class RayExecutor(RayPipelineExecutor):
         return at_once
 
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
-        from linecaster.blocks.base.page import NOT_THE_PAGES
+        from linecaster.core.page import NOT_THE_PAGES
 
         from linecaster.broker import set_worker_index
 
@@ -201,7 +201,7 @@ class RayExecutor(RayPipelineExecutor):
 
 
 class RayGPUExecutor(RayExecutor):
-    """``RayExecutor`` for pipelines with a server block: one task per GPU, each task's servers on their own ports
+    """``RayExecutor`` for pipelines with a server component: one task per GPU, each task's servers on their own ports
     (``point_to_gpu``). Takes ``RayPipelineExecutor``'s arguments."""
 
     def __init__(self, *args, **kwargs):

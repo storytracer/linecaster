@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.qianfan_ocr import sniff_mime
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 MODEL = "baidu/Qianfan-OCR"
 

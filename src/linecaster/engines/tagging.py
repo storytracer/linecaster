@@ -13,7 +13,7 @@ Two taggers, the evidence ordered from most to least certain:
 
 Both are called like the model steps' engines, ``engine(image, transcription, page=None, **options)`` (the page image
 as an RGB array; the geometry tagger needs none), and both run in the pipeline's process (the chat tagger is a client
-of its servers). ``Tagger`` (``linecaster.blocks.tagging``) runs either by preset.
+of its servers). ``Tagger`` (``linecaster.components.tagging``) runs either by preset.
 
 **The geometry tagger.** Each classification is on the narrowest target its scheme is true of, with its evidence in
 the call's raw output (format ``json``, the engine's native result; each classification names it) and the page's

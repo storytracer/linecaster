@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import pytest
 
-from linecaster.blocks.base.page import new_page_document, page_of, set_page
-from linecaster.blocks.composition.composer import Composer
-from linecaster.blocks.composition.typographer import Typographer
-from linecaster.blocks.writers.files import PageFileWriter
+from linecaster.core.page import new_page_document, page_of, set_page
+from linecaster.components.document.document_builder import Composer
+from linecaster.components.hierarchy.hierarchy_detector import Typographer
+from linecaster.components.writers.files import PageFileWriter
 from linecaster.data.page import Page
 from linecaster.document import build_document, to_markdown, to_text
 from linecaster.document.strategy import apply

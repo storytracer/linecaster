@@ -61,9 +61,9 @@ yet; every other page is written as it was read.
 """
 from linecaster.adapters import preset_ref
 from linecaster.backends import Chat
-from linecaster.blocks.layout.detector import LayoutDetector
-from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.layout.layout_detector import LayoutDetector
+from linecaster.components.recognition.page_recognizer import PageRecognizer, RegionRecognizer
+from linecaster.components.servers.serve import ChatModelServer
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 

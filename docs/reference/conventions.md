@@ -7,9 +7,9 @@ Rules that hold across the repository. Each rule is followed by its reason. Term
 
 | What | Pattern | Examples |
 |---|---|---|
-| block | `<Object><RoleNoun>`; readers and writers `<Object><Format>Reader` / `Writer` | `LineRecognizer`, `Typographer`, `Composer`, `Binder`, `ManifestReader`, `PageJsonlWriter` |
-| composite block | `<Purpose><RoleNoun>` | `ModularTranscriber` |
-| block base classes | `<Kind>Block` | `PageBlock`, `ModelBlock`, `RuleBlock` |
+| component | `<Object><RoleNoun>`; readers and writers `<Object><Format>Reader` / `Writer` | `LineRecognizer`, `Typographer`, `Composer`, `Binder`, `ManifestReader`, `PageJsonlWriter` |
+| composite component | `<Purpose><RoleNoun>` | `ModularTranscriber` |
+| component base classes | `<Kind>Component` | `PageComponent`, `ModelComponent`, `RuleComponent` |
 | engine class | `<Provider><Step>Engine` | `KrakenRecognitionEngine`, `UnicodeRecompositionEngine` |
 | engine id | `<provider>.<step>.v<n>` | `kraken.recognition.v1`, `recomposition.unicode.v1` |
 | VLM adapter | `<Model>Adapter` | `ChandraOCRAdapter` |
@@ -19,7 +19,7 @@ Rules that hold across the repository. Each rule is followed by its reason. Term
 | catalog step | a noun for the activity | `layout`, `recognition`, `recomposition` |
 | transcription names | `ocr_new`, `ocr_original`, `ground_truth`, or `<source>` | |
 
-Reason: one pattern makes names guessable, and role nouns say what a block is in a pipeline. Pipeline scripts are
+Reason: one pattern makes names guessable, and role nouns say what a component is in a pipeline. Pipeline scripts are
 verbs because they are what one runs.
 
 ## Spelling
@@ -55,13 +55,13 @@ their format in a `schema` field of their row (`linecaster.page/5`).
 
 ## Docstrings
 
-Google style, checked by `tests/test_docstrings.py` (with `ast`, no extra tool) for every public block, built-in
+Google style, checked by `tests/test_docstrings.py` (with `ast`, no extra tool) for every public component, built-in
 engine, backend, serializer, `build`, `run_pages`, `runtime.run.main`, public function of `linecaster.catalog` and
 public name of `linecaster.engines.api` and `linecaster.testing`:
 
-- **Summary line**: what the block or function does, in the present tense, starting with a verb, one sentence:
-  "Recognizes the text of every line with its engine." It may wrap; it ends at the first blank line. The block
-  index and the README's block table show it.
+- **Summary line**: what the component or function does, in the present tense, starting with a verb, one sentence:
+  "Recognizes the text of every line with its engine." It may wrap; it ends at the first blank line. The component
+  index and the README's component table show it.
 - **Body**: the contract in words (what it reads, adds and replaces), edge cases, what it records (annotators,
   stats, errors on the page).
 - **`Args:`** names every parameter of the signature (a class documents its constructor's), and no other: one entry
@@ -70,25 +70,25 @@ public name of `linecaster.engines.api` and `linecaster.testing`:
   inherited reader and writer arguments do; `**kwargs` is an entry too. A class that keeps its base's constructor
   keeps its base's `Args:`.
 - **`Example:`** (indented Python code) is required for `runtime.run.main`, `build()`, the serializers (`to_alto`,
-  `from_alto`, ...) and the public functions of `linecaster.catalog`; optional for blocks, whose generated pages show
+  `from_alto`, ...) and the public functions of `linecaster.catalog`; optional for components, whose generated pages show
   it.
 - Inline code in double or single backticks; the generated pages render both as code. Engine options are described
   in their `Options` model (`Field(description=...)`), not in a docstring.
 
-Reason: the generated block pages come from the docstrings, so the reference is only as good as they
+Reason: the generated component pages come from the docstrings, so the reference is only as good as they
 are, and a test keeps them complete as signatures change.
 
 ## Contracts
 
-- Every block declares its unit and what it reads, adds and replaces ([pipelines](pipelines.md)). A part of the
-  record is added by one block only, unless a later block declares that it replaces it. Reason: the builder can then
+- Every component declares its unit and what it reads, adds and replaces ([pipelines](pipelines.md)). A part of the
+  record is added by one component only, unless a later component declares that it replaces it. Reason: the builder can then
   check a pipeline before it runs and derive its graph.
-- Blocks are pure transforms of their unit; only readers and writers know about tasks, ranks and files. Reason:
-  the same blocks run on any executor and in `run_pages()`.
+- Components are pure transforms of their unit; only readers and writers know about tasks, ranks and files. Reason:
+  the same components run on any executor and in `run_pages()`.
 
 ## Tests
 
-- Every built-in engine passes `linecaster.testing.check_engine` and every public block `check_block`
+- Every built-in engine passes `linecaster.testing.check_engine` and every public component `check_component`
   (`tests/testing/test_conformance.py`); an engine package checks its engines the same way in
   `engines/<engine>/tests/`. Reason: the protocol and the contracts hold for every implementation, not only the
   ones a pipeline happens to run.
@@ -102,7 +102,7 @@ are, and a test keeps them complete as signatures change.
 
 - Tracing (OpenTelemetry) is always on. Spans per task always; spans per page for a trace sample chosen by page id, plus
   every page that failed. Reason: where a run loses time is only visible per page and across processes.
-- A page carries its trace context from the reader on; blocks open spans as children of the page's context, never
+- A page carries its trace context from the reader on; components open spans as children of the page's context, never
   of "the current span". Reason: pages are interleaved in the stream.
 - Attributes are identifiers and numbers under `linecaster.*`, never content (text, images). Reason: content
   belongs in the rows, which the page id links to.
@@ -117,7 +117,7 @@ opt-in. Reason: libraries and archives run it on their own infrastructure under 
 ## Logging
 
 loguru (datatrove's), with `{placeholder}` templates and named values, never formatted strings:
-`logger.warning("page {page_id} failed in {block}: {error}", page_id=..., block=..., error=...)` (the values land in
+`logger.warning("page {page_id} failed in {component}: {error}", page_id=..., component=..., error=...)` (the values land in
 the record's `extra`). JSON lines on Jobs: the pipeline scripts set `LINECASTER_LOG_JSON=1` in their Jobs, where the
 tasks (`linecaster.runtime.jobs.JobsExecutor`) and `linecaster serve` log with loguru's `serialize=True`
 (`linecaster.runtime.logs`). Log records carry `trace_id` and `span_id`. Reason: logs can be filtered and joined to
@@ -134,7 +134,7 @@ linecaster can catch what went wrong, and a run's exit code says whether anythin
 ## Secrets
 
 A credential is never a value in a pipeline: it is an `EnvVar("NAME")` (`linecaster.runtime.secrets`), read in the
-task. Reason: datatrove pickles the pipeline for every executor, and the run record lists every block's parameters.
+task. Reason: datatrove pickles the pipeline for every executor, and the run record lists every component's parameters.
 
 ## Changes
 

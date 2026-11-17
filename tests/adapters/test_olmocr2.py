@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.olmocr2 import body, split_front_matter
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 PROMPT = chat_model("olmocr-2-7b-1025-fp8").prompt
 

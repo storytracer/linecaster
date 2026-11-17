@@ -18,7 +18,7 @@ def test_the_default_policy_is_the_catalog_s():
 
 
 def test_an_unknown_policy_is_refused():
-    from linecaster.blocks.composition import Composer
+    from linecaster.components.document import Composer
     from linecaster.errors import CatalogError
 
     with pytest.raises(CatalogError):

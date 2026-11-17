@@ -141,7 +141,7 @@ def reference_pages(out: Path) -> list[Path]:
 
 def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) -> tuple[str, str]:
     """``llms.txt`` (title, summary, sections of links to the pages' Markdown) and ``llms-full.txt`` (the README, the
-    reference pages, the block index and the catalog index, concatenated)."""
+    reference pages, the component index and the catalog index, concatenated)."""
     def text_of(p: Path) -> str:
         return generated[p] if p in generated else p.read_text(encoding="utf-8")
 
@@ -156,10 +156,10 @@ def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) ->
     tagline = next((ln.lstrip("# ").strip() for ln in readme_text.splitlines() if ln.startswith("### ")), "")
     ref = reference_pages(out)
     lines = ["# Linecaster", "", f"> {tagline}: text recognition (OCR and HTR) for print and handwriting, with "
-             "layout, line, text, table and formula recognizers and post-processing as blocks of datatrove "
+             "layout, line, text, table and formula recognizers and post-processing as components of datatrove "
              "pipelines that run in-process or against model servers, on a laptop, a cluster or Hugging Face Jobs.",
              "", "Every model configuration is a catalog preset at a pinned revision; tested combinations are recipes. "
-             "The pages below are Markdown, except the generated Blocks and Catalog, which are the site's pages "
+             "The pages below are Markdown, except the generated Components and Catalog, which are the site's pages "
              "(llms-full.txt holds their indexes).", "", "## Start", "",
              f"- [README]({raw(readme)}): why, quick start, how it works, running anywhere, outputs", "",
              "## Reference", ""]
@@ -167,14 +167,14 @@ def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) ->
         title, summary = _title_and_summary(text_of(p))
         lines.append(f"- [{title}]({raw(p)}): {summary}")
     lines += ["", "## Generated", "",
-              f"- [Blocks]({SITE}/blocks/): every block by family, with a page each "
+              f"- [Components]({SITE}/components/): every component by family, with a page each "
               "(contract, backends, options, behavior)",
               f"- [Catalog]({SITE}/catalog/): engines, models, presets, pipelines and recipes, "
               "with a page each", "", "## Optional", "",
               f"- [Changelog]({raw(repo / 'CHANGELOG.md')}): upgrade notes and changes",
               f"- [Repository]({GITHUB.rsplit('/blob/', 1)[0]}): the source", ""]
     full = []
-    for p in [readme, *ref, out / "blocks" / "README.md", out / "catalog" / "README.md"]:
+    for p in [readme, *ref, out / "components" / "README.md", out / "catalog" / "README.md"]:
         body = readme_text if p == readme else text_of(p)
         full += [f"<!-- {rel(p)} -->", "",
                  _strip_header(body).strip(), ""]

@@ -8,7 +8,7 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # ///
-"""Scoring (``score.v1``): its blocks, options and slots are the pipeline shape ``linecaster.pipelines.score``; this
+"""Scoring (``score.v1``): its components, options and slots are the pipeline shape ``linecaster.pipelines.score``; this
 script gives it its environment. ``--help`` lists the options."""
 from linecaster.pipelines import score as shape
 from linecaster.runtime import run

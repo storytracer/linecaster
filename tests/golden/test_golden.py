@@ -9,13 +9,15 @@ from pathlib import Path
 
 from linecaster import document, formats
 from linecaster.backends import InProcess
-from linecaster.blocks.base.item import item_pages
-from linecaster.blocks.base.page import page_of
-from linecaster.blocks.binding import Binder
-from linecaster.blocks.composition import Composer, Recomposer, Typographer
-from linecaster.blocks.layout import LayoutDetector
-from linecaster.blocks.lines import LineAssigner, LineDetector
-from linecaster.blocks.recognition import LineRecognizer
+from linecaster.core.item import item_pages
+from linecaster.core.page import page_of
+from linecaster.components.items import Binder
+from linecaster.components.document import Composer
+from linecaster.components.hierarchy import Typographer
+from linecaster.components.paragraphs import Recomposer
+from linecaster.components.layout import LayoutDetector
+from linecaster.components.lines import LineAssigner, LineDetector
+from linecaster.components.recognition import LineRecognizer
 from linecaster.document import strategy
 from linecaster.runtime.builder import run_pages
 from linecaster.testing import sample_documents
@@ -60,7 +62,7 @@ def renamed(value):
 
 
 def _models():
-    """The model blocks, with the fake engines: the layout, the lines, their assignment and the readings."""
+    """The model components, with the fake engines: the layout, the lines, their assignment and the readings."""
     return [LayoutDetector(InProcess(FAKE.format("Layout"), rows=2, cols=1)),
             LineDetector(InProcess(FAKE.format("Line"), split=3)), LineAssigner(),
             LineRecognizer(InProcess(FAKE.format("Recognition"), template="line {index}"))]

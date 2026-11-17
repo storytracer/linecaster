@@ -1,13 +1,13 @@
 """The console of a local run (``linecaster.runtime.console``, ``linecaster.runtime.local.LocalExecutor``): human
 units; one line naming the pipeline without the builder's boundaries; a line per finished task and a summary; a
 progress line from ``Progress`` counting the pages that leave the pipeline; datatrove's pipeline listing and stats
-blocks only in the task logs."""
+components only in the task logs."""
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
 from linecaster.runtime import console
-from linecaster.runtime.console import Console, Progress, block_label, count, duration, size
+from linecaster.runtime.console import Console, Progress, component_label, count, duration, size
 from linecaster.testing import sample_png
 
 
@@ -23,12 +23,12 @@ def test_size(n, text):
     assert size(n) == text
 
 
-def test_count_and_block_labels():
+def test_count_and_component_labels():
     class Step:
         name = "🖼️ image parquet"
 
     assert count(28_699_997) == "28,699,997"
-    assert block_label(Step()) == "image parquet" and block_label(object()) == "object"
+    assert component_label(Step()) == "image parquet" and component_label(object()) == "object"
 
 
 def test_status_shows_progress_rate_size_failures_task_and_time_left(monkeypatch):
@@ -58,8 +58,8 @@ def page_table(tmp_path, n):
 
 
 def test_a_local_run_shows_its_own_lines_and_keeps_datatroves_in_the_task_logs(tmp_path, capsys):
-    from linecaster.blocks.readers.images import ImageParquetReader
-    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.components.readers.images import ImageParquetReader
+    from linecaster.components.writers.records import PageJsonlWriter
     from linecaster.runtime.builder import build
     from linecaster.runtime.local import LocalExecutor
 
@@ -93,8 +93,8 @@ def test_progress_survives_pickling_without_its_counts():
 
 
 def test_with_several_workers_the_console_counts_the_pages_of_every_process(tmp_path, capsys):
-    from linecaster.blocks.readers.images import ImageParquetReader
-    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.components.readers.images import ImageParquetReader
+    from linecaster.components.writers.records import PageJsonlWriter
     from linecaster.runtime.builder import build
     from linecaster.runtime.local import LocalExecutor
 

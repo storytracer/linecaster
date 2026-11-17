@@ -28,14 +28,18 @@ server started from it.
 
 ``linecaster.runtime.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
-from linecaster.blocks.binding import Binder
-from linecaster.blocks.composites.modular import ModularTranscriber
-from linecaster.blocks.composition import Composer, Recomposer, Typographer
-from linecaster.blocks.layout.detector import LayoutDetector
-from linecaster.blocks.lines.detector import LineDetector
-from linecaster.blocks.recognition.recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
-from linecaster.blocks.writers.files import PAGE_FILE_EXTENSIONS, PageFileWriter
-from linecaster.blocks.writers.items import ItemDocumentWriter, ItemTextWriter, parse_texts
+from linecaster.components.items import Binder
+from linecaster.components.composites.modular_transcriber import ModularTranscriber
+from linecaster.components.document import Composer
+from linecaster.components.hierarchy import Typographer
+from linecaster.components.paragraphs import Recomposer
+from linecaster.components.layout.layout_detector import LayoutDetector
+from linecaster.components.lines.line_detector import LineDetector
+from linecaster.components.formulas.formula_recognizer import FormulaRecognizer
+from linecaster.components.recognition.line_recognizer import LineRecognizer
+from linecaster.components.tables.table_recognizer import TableRecognizer
+from linecaster.components.writers.files import PAGE_FILE_EXTENSIONS, PageFileWriter
+from linecaster.components.writers.items import ItemDocumentWriter, ItemTextWriter, parse_texts
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
@@ -65,7 +69,7 @@ def options(ap):
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
     ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming, "
-                                                   "--suffix); none for a page a block failed on (OUT/rejects lists it)")
+                                                   "--suffix); none for a page a component failed on (OUT/rejects lists it)")
     ap.add_argument("--formats", default="hocr,alto,page,txt,md,json",
                     help=f"formats for --files, comma-separated: {', '.join(PAGE_FILE_EXTENSIONS)}")
     ap.add_argument("--naming", choices=list(NAMING), default="item",
@@ -142,7 +146,7 @@ def pipeline(a, script: str) -> list:
         *([Typographer(a.typography, options=over.get("typography"))] if a.typography else []),
         *([Recomposer(a.recomposition, options=over.get("recomposition"))] if a.recomposition else []),
         *([Composer(a.composition, options=over.get("composition"), policy=a.policy)] if a.composition else []),
-        # no files for a page a block failed on: OUT/rejects lists it, the page records keep it with its errors
+        # no files for a page a component failed on: OUT/rejects lists it, the page records keep it with its errors
         *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, skip_failed=True, suffix=a.suffix,
                           policy=a.policy, strategy=a.strategy, **NAMING[a.naming])]
           if a.files else []),

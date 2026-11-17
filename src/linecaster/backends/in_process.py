@@ -24,12 +24,12 @@ def resolve(spec: str):
 
 
 class InProcess:
-    """Runs a model block's engine in the pipeline's process.
+    """Runs a model component's engine in the pipeline's process.
 
     Nothing is imported until ``warm_up()`` (or the first ``model()``): a pipeline builds, checks and describes
     without the engine installed. The engine is loaded in the worker and never pickled (a pickled backend carries
     its spec and options only). ``InProcess.from_preset(ref)`` builds one from a catalog preset and records the
-    preset and its hash, which the block stamps on every step it records.
+    preset and its hash, which the component stamps on every step it records.
 
     Args:
         spec: the engine's class, ``"package.module:Class"``.
@@ -37,7 +37,7 @@ class InProcess:
 
     Example:
         from linecaster.backends import InProcess
-        from linecaster.blocks.recognition import LineRecognizer
+        from linecaster.components.recognition import LineRecognizer
 
         LineRecognizer(InProcess("linecaster_kraken:KrakenRecognitionEngine", model="medium"))
         LineRecognizer(InProcess.from_preset("kraken-ppocrv6-medium"))
@@ -82,7 +82,7 @@ class InProcess:
         for k in ("preset", "preset_sha256", "overrides"):
             if getattr(self, k, None):
                 out[k] = getattr(self, k)
-        from linecaster.blocks.base.block import plain
+        from linecaster.core.component import plain
 
         return plain(out)
 

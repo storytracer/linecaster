@@ -8,7 +8,7 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # ///
-"""The harvest stage (``harvest.v1``): its blocks and options are the pipeline shape
+"""The harvest stage (``harvest.v1``): its components and options are the pipeline shape
 ``linecaster.pipelines.harvest``; this script gives it its environment. ``--help`` lists the options."""
 from linecaster.pipelines import harvest as shape
 from linecaster.runtime import run

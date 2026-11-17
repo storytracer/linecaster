@@ -5,13 +5,13 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "description": "the block's node in the plan's graph",
+          "description": "the component's node in the plan's graph",
           "title": "Id",
           "type": "string"
         },
-        "block": {
+        "component": {
           "description": "its class name",
-          "title": "Block",
+          "title": "Component",
           "type": "string"
         },
         "name": {
@@ -115,7 +115,7 @@
       },
       "required": [
         "id",
-        "block",
+        "component",
         "class",
         "contract"
       ],
@@ -649,18 +649,18 @@
           "title": "Tasks",
           "type": "integer"
         },
-        "blocks": {
+        "components": {
           "items": {
             "$ref": "#/$defs/BlockEntry"
           },
-          "title": "Blocks",
+          "title": "Components",
           "type": "array"
         }
       },
       "required": [
         "name",
         "tasks",
-        "blocks"
+        "components"
       ],
       "title": "Stage",
       "type": "object"
@@ -777,7 +777,7 @@
       "type": "object"
     },
     "pipeline": {
-      "description": "the stages with their blocks, in order",
+      "description": "the stages with their components, in order",
       "items": {
         "$ref": "#/$defs/Stage"
       },
@@ -797,7 +797,7 @@
         }
       ],
       "default": null,
-      "description": "every catalog entry the pipeline names (its blocks' presets, policies, conventions, the recipe), with its settings and hash",
+      "description": "every catalog entry the pipeline names (its components' presets, policies, conventions, the recipe), with its settings and hash",
       "title": "Catalog"
     },
     "pipeline_sha256": {

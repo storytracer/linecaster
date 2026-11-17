@@ -1,6 +1,6 @@
 """``linecaster.testing``: the sample pages, the fake engines and the fake chat server, the conformance checks
-(``check_engine``, ``check_block``) on engines and blocks built to break them, and every built-in engine and every
-public block through them."""
+(``check_engine``, ``check_component``) on engines and components built to break them, and every built-in engine and every
+public component through them."""
 from __future__ import annotations
 
 import inspect
@@ -13,10 +13,10 @@ import pytest
 from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.backends import Chat, InProcess
-from linecaster.blocks.base.page import page_of
+from linecaster.core.page import page_of
 from linecaster.catalog.registry import BUILTIN_ENGINES, SERVED_ONLY, catalog, engine_class, engine_ids, engine_spec
 from linecaster.data import Annotator
-from linecaster.testing import (FAKE_ENGINES, FakeLineEngine, FakeRecognitionEngine, check_block, check_engine,
+from linecaster.testing import (FAKE_ENGINES, FakeLineEngine, FakeRecognitionEngine, check_component, check_engine,
                                 fake_chat_server, register_fakes, sample_boxes, sample_document, sample_documents,
                                 sample_layout, sample_page, sample_png)
 
@@ -228,12 +228,12 @@ def test_every_builtin_engine_conforms(engine):
     check_engine(engine_class(engine), options=_builtin_options(engine))
 
 
-# ------------------------------------------------------------------------------ check_block finds what is wrong
+# ------------------------------------------------------------------------------ check_component finds what is wrong
 
-def test_check_block_finds_an_undeclared_change():
-    from linecaster.blocks.base.page import PageBlock
+def test_check_component_finds_an_undeclared_change():
+    from linecaster.core.page import PageComponent
 
-    class Stamps(PageBlock):
+    class Stamps(PageComponent):
         """Writes into the page record's metadata without declaring it."""
 
         parts_read = ("lines",)
@@ -243,19 +243,19 @@ def test_check_block_finds_an_undeclared_change():
             return page
 
     with pytest.raises(AssertionError, match=r"changed metadata, which needs one of \['metadata'\]"):
-        check_block(Stamps())
+        check_component(Stamps())
 
     class Declares(Stamps):
         parts_replaced = ("metadata",)
 
-    assert len(check_block(Declares())) == 2
+    assert len(check_component(Declares())) == 2
 
 
-def test_check_block_finds_an_overwritten_annotation():
-    """A block changes nothing a transcription held, except the annotations of the parts its contract replaces."""
-    from linecaster.blocks.base.page import PageBlock
+def test_check_component_finds_an_overwritten_annotation():
+    """A component changes nothing a transcription held, except the annotations of the parts its contract replaces."""
+    from linecaster.core.page import PageComponent
 
-    class Drops(PageBlock):
+    class Drops(PageComponent):
         """Removes a page's last line."""
 
         parts_read = ("lines",)
@@ -266,19 +266,19 @@ def test_check_block_finds_an_overwritten_annotation():
             return page
 
     with pytest.raises(AssertionError, match=r"ocr_new: removed lines 'text_0_l3'"):
-        check_block(Drops())
+        check_component(Drops())
 
     class Replaces(Drops):
         parts_added = ()
         parts_replaced = ("lines",)
 
-    assert len(check_block(Replaces())) == 2
+    assert len(check_component(Replaces())) == 2
 
 
-def test_check_block_finds_an_undeclared_removal(tmp_path):
+def test_check_component_finds_an_undeclared_removal(tmp_path):
     """``ImageConverter`` without ``keep_bytes`` passes pages on without their image: its contract must say so."""
-    from linecaster.blocks.base.contract import Contract, parts
-    from linecaster.blocks.conversion import ImageConverter
+    from linecaster.core.contract import Contract, parts
+    from linecaster.components.images import ImageConverter
 
     class Hides(ImageConverter):
         def contract(self):
@@ -286,12 +286,12 @@ def test_check_block_finds_an_undeclared_removal(tmp_path):
                             replaces=parts(("metadata",), None))
 
     with pytest.raises(AssertionError, match=r"removed \['image'\]; the contract removes nothing"):
-        check_block(Hides(str(tmp_path / "webp"), "working-image"))
-    out = check_block(ImageConverter(str(tmp_path / "webp"), "working-image"))
+        check_component(Hides(str(tmp_path / "webp"), "working-image"))
+    out = check_component(ImageConverter(str(tmp_path / "webp"), "working-image"))
     assert [d.media for d in out] == [[], []]
 
 
-# ------------------------------------------------------------------------------ every public block
+# ------------------------------------------------------------------------------ every public component
 
 def _on_disk(tmp_path: Path) -> list:
     """Sample pages whose image URIs name files that exist."""
@@ -302,7 +302,7 @@ def _on_disk(tmp_path: Path) -> list:
         path = tmp_path / "scans" / f"{d.id}.png"
         path.write_bytes(d.media[0].media_bytes)
         page.image.uri = str(path)
-        from linecaster.blocks.base.page import set_page
+        from linecaster.core.page import set_page
 
         set_page(d, page)
     return docs
@@ -313,7 +313,7 @@ def _inputs(tmp_path: Path) -> dict[str, str]:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from linecaster.blocks.writers import PageJsonlWriter
+    from linecaster.components.writers import PageJsonlWriter
 
     images = tmp_path / "images" / "item1"
     images.mkdir(parents=True)
@@ -341,12 +341,14 @@ def _alto_docs() -> list:
     return docs
 
 
-def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict]]:
-    """One block of every public block class (and the composite), runnable here: fake engines, a fake chat server,
-    sample inputs; with the ``check_block`` arguments each needs, by a label (the class, and what is special)."""
-    from linecaster.blocks import binding, composites, composition, conversion, layout, lines, readers, recognition
-    from linecaster.blocks import scoring, servers, tagging, validation, writers
-    from linecaster.blocks.composition import Composer
+def public_components(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict]]:
+    """One component of every public component class (and the composite), runnable here: fake engines, a fake chat server,
+    sample inputs; with the ``check_component`` arguments each needs, by a label (the class, and what is special)."""
+    from linecaster.components import composites, document, formulas, hierarchy, images, importers, items, layout, lines
+    from linecaster.components import paragraphs, readers, recognition
+    from linecaster.components import tables as table_components
+    from linecaster.components import scoring, servers, tagging, validation, writers
+    from linecaster.components.document import Composer
     from linecaster.data.sample import listing_sha256
 
     i = _inputs(tmp_path)
@@ -357,13 +359,13 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
     t = page_of(tables[0]).transcriptions["ocr_new"]
     for rid, label in (("table_1", "table"), ("formula_2", "formula")):
         t.add_region(0, rid, [0, 0, 10, 10], [[0, 0], [10, 0], [10, 10], [0, 10]], label=label, role=label)
-    from linecaster.blocks.base.page import set_page
+    from linecaster.core.page import set_page
 
     page = page_of(tables[0])
     page.transcriptions["ocr_new"] = t
     set_page(tables[0], page)
     item_docs = list(Composer("linked-composition", unit="item").run(
-        iter(list(binding.Binder().run(iter(sample_documents(2)))))))
+        iter(list(items.Binder().run(iter(sample_documents(2)))))))
     out = tmp_path / "out"
     entries = [
         (readers.ImageFolderReader(i["images"], item_from_parent=True), {}),
@@ -377,24 +379,24 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (lines.LineDetector(fake["lines"]), {}),
         (lines.LineAssigner(), {}),
         (recognition.LineRecognizer(fake["recognition"]), {}),
-        (recognition.TableRecognizer(fake["tables"]), {"docs": tables}),
-        (recognition.FormulaRecognizer(fake["formulas"]), {"docs": tables}),
+        (table_components.TableRecognizer(fake["tables"]), {"docs": tables}),
+        (formulas.FormulaRecognizer(fake["formulas"]), {"docs": tables}),
         (recognition.PageRecognizer(Chat("lightonocr-2-1b", chat_url, max_window=2)), {}),
         (recognition.PageRecognizer(InProcess(f"{FAKES}:FakePageEngine")), {}),
         (recognition.RegionRecognizer(Chat("lightonocr-2-1b-regions", chat_url, max_window=2)), {}),
-        (conversion.ImageFetcher(), {"docs": _on_disk(tmp_path)}),
-        (conversion.ImageConverter(str(out / "webp"), "working-image"), {}),
-        (conversion.ImageConverter(str(out / "webp2"), "working-image", keep_bytes=True), {}),
-        (conversion.TranscriptionImporter("auto-import", transcription="ocr_original",
+        (images.ImageFetcher(), {"docs": _on_disk(tmp_path)}),
+        (images.ImageConverter(str(out / "webp"), "working-image"), {}),
+        (images.ImageConverter(str(out / "webp2"), "working-image", keep_bytes=True), {}),
+        (importers.TranscriptionImporter("auto-import", transcription="ocr_original",
                                           options={"ground_truth": False}), {"docs": _alto_docs()}),
-        (composition.Typographer("ratios"), {}),
-        (composition.Recomposer("unicode-recomposition"), {}),
-        (composition.Recomposer("unicode-recomposition", unit="item"), {}),
-        (composition.Composer("linked-composition"), {}),
-        (composition.Composer("linked-composition", unit="item"), {}),
+        (hierarchy.Typographer("ratios"), {}),
+        (paragraphs.Recomposer("unicode-recomposition"), {}),
+        (paragraphs.Recomposer("unicode-recomposition", unit="item"), {}),
+        (document.Composer("linked-composition"), {}),
+        (document.Composer("linked-composition", unit="item"), {}),
         (tagging.Tagger("geometry-tags"), {}),
-        (binding.Binder(), {}),
-        (binding.Splitter(), {}),
+        (items.Binder(), {}),
+        (items.Splitter(), {}),
         (validation.PageValidator(required=("ocr_new",)), {}),
         (validation.RecipeStamper("squiddle", catalog().resolve_recipe("squiddle").sha256), {}),
         (servers.ModelServer([{"name": "lines", "spec": f"{FAKES}:FakeLineEngine", "kwargs": {}}]), {"run": False}),
@@ -417,15 +419,15 @@ def public_blocks(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, dict
         (composites.ModularTranscriber(fake["lines"], fake["recognition"], "single-region"), {}),
     ]
     labels: dict[str, tuple[object, dict]] = {}
-    for block, kwargs in entries:
-        name = type(block).__name__
+    for component, kwargs in entries:
+        name = type(component).__name__
         while name in labels:
             name += "+"
-        labels[name] = (block, kwargs)
+        labels[name] = (component, kwargs)
     return labels
 
 
-#: the labels of ``public_blocks`` (a class built twice: ``+``)
+#: the labels of ``public_components`` (a class built twice: ``+``)
 BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader", "ResourceReader",
           "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "TableRecognizer", "FormulaRecognizer",
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
@@ -437,16 +439,16 @@ BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordRea
           "ModularTranscriber")
 
 
-def test_every_public_block_class_is_covered(tmp_path):
-    from linecaster.blocks.base.block import Block
-    from linecaster.docs.blocks import FAMILIES
+def test_every_public_component_class_is_covered(tmp_path):
+    from linecaster.core.component import Component
+    from linecaster.docs.components import FAMILIES
 
     public = set()
     for family in FAMILIES:
-        m = __import__(f"linecaster.blocks.{family}", fromlist=["__all__"])
-        public |= {name for name in m.__all__ if inspect.isclass(cls := getattr(m, name)) and issubclass(cls, Block)
-                   and not cls.__module__.startswith("linecaster.blocks.base")}
-    built = public_blocks(tmp_path, "http://127.0.0.1:1/v1")
+        m = __import__(f"linecaster.components.{family}", fromlist=["__all__"])
+        public |= {name for name in m.__all__ if inspect.isclass(cls := getattr(m, name)) and issubclass(cls, Component)
+                   and not cls.__module__.startswith("linecaster.core")}
+    built = public_components(tmp_path, "http://127.0.0.1:1/v1")
     assert tuple(built) == BLOCKS
     assert public - {type(b).__name__ for b, _ in built.values()} == set()
 
@@ -457,7 +459,7 @@ def chat_url():
         yield server.url
 
 
-#: blocks whose contract is known not to describe what they do
+#: components whose contract is known not to describe what they do
 KNOWN = {"PageRecognizer": "it replaces the whole transcription with a text-only one (lines without geometry; "
                            "regions gone), which its contract (adds text and the preset's parts) does not declare",
          "PageRecognizer+": "a page engine's transcription replaces the whole transcription too (as PageRecognizer)"}
@@ -465,7 +467,7 @@ KNOWN = {"PageRecognizer": "it replaces the whole transcription with a text-only
 
 @pytest.mark.parametrize("label", [pytest.param(b, marks=pytest.mark.xfail(strict=True, reason=KNOWN[b]))
                                    if b in KNOWN else b for b in BLOCKS])
-def test_every_public_block_conforms(label, tmp_path, chat_url):
-    block, kwargs = public_blocks(tmp_path, chat_url)[label]
-    check_block(block, **kwargs)
+def test_every_public_component_conforms(label, tmp_path, chat_url):
+    component, kwargs = public_components(tmp_path, chat_url)[label]
+    check_component(component, **kwargs)
 

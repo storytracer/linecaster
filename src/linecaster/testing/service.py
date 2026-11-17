@@ -48,7 +48,7 @@ def fake_service(routes: dict[str, Callable[[object], object]]) -> Iterator[Fake
     ``routes`` maps ``"METHOD /path"`` (``"GET /health"``, ``"POST /v1/parse/sync"``) to a function that gets the
     request's body (JSON, a multipart form as ``{name: text, or (filename, bytes)}``, or ``None``) and returns the
     answer: a dict (``200`` with it as JSON) or ``(status, dict)``. Any other route answers 404. The service binds
-    ``127.0.0.1`` on a free port and stops when the block ends.
+    ``127.0.0.1`` on a free port and stops when the component ends.
 
     Args:
         routes: ``"METHOD /path"`` -> the function that answers it.

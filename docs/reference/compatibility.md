@@ -10,8 +10,8 @@ working or starts to mean something else:
 
 | Surface | Breaking | Not breaking |
 |---|---|---|
-| blocks | a block renamed or removed; a constructor argument renamed, removed or made required; a default that changes what a run writes | a new block; a new argument whose default keeps the old behavior |
-| backends | `InProcess`, `Served`, `Chat` renamed or removed, or an argument as for blocks | a new argument with a default that keeps the old behavior |
+| components | a component renamed or removed; a constructor argument renamed, removed or made required; a default that changes what a run writes | a new component; a new argument whose default keeps the old behavior |
+| backends | `InProcess`, `Served`, `Chat` renamed or removed, or an argument as for components | a new argument with a default that keeps the old behavior |
 | commands and flags | a `linecaster` command or a pipeline script's option renamed, removed, or given another meaning or default | a new command or option |
 | pipeline ids and slots | a pipeline id or a slot renamed or removed, a slot's step changed | a new pipeline script; a new slot that can stay empty |
 | data formats (page records, documents, run records, evidence, benchmarks, scores, samples) | a field renamed, removed or given another meaning (a new format version, `linecaster.page/5`); a format version a reader no longer reads | a new optional field (the version stays); a new version that its readers read together with the older ones, upgraded on load |
@@ -42,7 +42,7 @@ from 1.0 on. What a change bumps follows from the table above:
 | Change | While 0.x | From 1.0 |
 |---|---|---|
 | fixes, performance, corrections of the docs, dependency updates that change no output | patch | patch |
-| new blocks, options, presets, recipes, commands or features that keep the old behavior | patch | minor |
+| new components, options, presets, recipes, commands or features that keep the old behavior | patch | minor |
 | breaking (any surface above; it needs an upgrade note) | minor, collected (0.4.0 → 0.5.0) | major |
 
 A release bumps by its largest change; patches are the rule. Ranges such as the engine packages'

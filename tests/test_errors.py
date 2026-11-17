@@ -21,7 +21,7 @@ def test_the_hierarchy():
     assert e.problems == ["a", "b"] and str(e) == "the pipeline cannot run:\n- a\n- b"
     assert PipelineConfigError("one").problems == ["one"]
     p = PageError("b_0001", "LineDetector", "boom")
-    assert (p.page_id, p.block, str(p)) == ("b_0001", "LineDetector", "page b_0001 failed in LineDetector: boom")
+    assert (p.page_id, p.component, str(p)) == ("b_0001", "LineDetector", "page b_0001 failed in LineDetector: boom")
     assert str(PageError("b_0002")) == "page b_0002 failed"
     assert [errors.exit_code(x) for x in (e, CatalogError("x"), p, ServerError("x"), RuntimeError())] == [2, 1, 1, 1, 1]
 
@@ -65,7 +65,7 @@ def test_the_rule_finds_an_exit():
 
 
 def test_library_errors_are_linecaster_errors(tmp_path):
-    from linecaster.blocks.readers.images import ImageFolderReader
+    from linecaster.components.readers.images import ImageFolderReader
     from linecaster.catalog.registry import catalog
     from linecaster.runtime import jobs, run
 

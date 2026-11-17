@@ -1,4 +1,4 @@
-"""The docstring standard (``docs/reference/conventions.md``, "Docstrings"): every public block, built-in engine,
+"""The docstring standard (``docs/reference/conventions.md``, "Docstrings"): every public component, built-in engine,
 backend, serializer, ``build``, ``run_pages``, ``runtime.run.main``, public catalog function and public name of the
 engine API and the test helpers (``API_MODULES``) has a summary line,
 and its ``Args:`` names every parameter of its signature (a class's constructor) and no other; the serializers,
@@ -12,9 +12,9 @@ import inspect
 import re
 from functools import lru_cache
 
-from linecaster.blocks.base.block import Block
+from linecaster.core.component import Component
 from linecaster.docs import docstrings
-from linecaster.docs.blocks import FAMILIES
+from linecaster.docs.components import FAMILIES
 
 ENGINES = "linecaster.engines"
 BACKENDS = ("linecaster.backends:InProcess", "linecaster.backends:Served", "linecaster.backends:Chat")
@@ -35,10 +35,10 @@ def _get(target: str):
 def targets() -> dict[str, object]:
     out = {}
     for family in (*FAMILIES, "base"):
-        m = importlib.import_module(f"linecaster.blocks.{family}")
+        m = importlib.import_module("linecaster.core" if family == "base" else f"linecaster.components.{family}")
         for name in m.__all__:
             obj = getattr(m, name)
-            if inspect.isclass(obj) and issubclass(obj, Block):
+            if inspect.isclass(obj) and issubclass(obj, Component):
                 out[f"{obj.__module__}:{name}"] = obj
     engines = importlib.import_module(ENGINES)
     for name in engines.__all__:
@@ -79,7 +79,7 @@ ONE_SENTENCE = re.compile(r"\.\s+\S")
 
 def constructs(obj) -> bool:
     """Whether ``obj`` is a function, or a class with a constructor of its own or of a linecaster base (a base
-    class whose constructor is datatrove's, as ``PageBlock``, documents none)."""
+    class whose constructor is datatrove's, as ``PageComponent``, documents none)."""
     if not inspect.isclass(obj):
         return True
     if getattr(obj, "_is_protocol", False):         # a protocol is not constructed

@@ -19,7 +19,7 @@ image). Page records in OUT/pages, failed pages in OUT/rejects.
     uv run pipelines/import_transcriptions.py OUT --parquet lines.parquet --data-key text --context-key language \\
         --importer text-import --set import.line_image=true --read-images
 """
-from linecaster.blocks.conversion.transcriptions import TranscriptionImporter
+from linecaster.components.importers.transcription_importer import TranscriptionImporter
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
@@ -46,7 +46,7 @@ def models(a) -> list[dict]:
 
 
 def importer(a):
-    """The importer as a rule block takes it: a preset ref, or an engine id as an in-process engine spec."""
+    """The importer as a rule component takes it: a preset ref, or an engine id as an in-process engine spec."""
     from linecaster.backends import InProcess
     from linecaster.catalog.registry import engine_ids
 
@@ -63,9 +63,9 @@ def pipeline(a, script: str):
         raise PipelineConfigError("import_transcriptions: --data-key or --uri-key, not both")
     source = "metadata" if a.data_key else "uri" if a.uri_key else "media"
     over = run.overrides(a.set, steps=["import"])
-    block = TranscriptionImporter(importer(a), source=source, transcription=a.transcription, uri_key=a.uri_key,
+    component = TranscriptionImporter(importer(a), source=source, transcription=a.transcription, uri_key=a.uri_key,
                                   data_key=a.data_key, context_keys=tuple(a.context_key), options=over.get("import"))
-    return [run.reader(a, read_images=a.read_images, read_metadata=True), block, run.pages(a)], {"engines": False}
+    return [run.reader(a, read_images=a.read_images, read_metadata=True), component, run.pages(a)], {"engines": False}
 
 
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots

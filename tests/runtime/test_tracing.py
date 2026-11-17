@@ -17,11 +17,11 @@ from loguru import logger
 from PIL import Image
 
 from linecaster.backends import InProcess, Served
-from linecaster.blocks.base.page import PageBlock, new_page_document
-from linecaster.blocks.lines import LineDetector
-from linecaster.blocks.readers import ImageFolderReader, PageRecordReader
-from linecaster.blocks.servers import ChatModelServer, ModelServer
-from linecaster.blocks.writers import PageJsonlWriter
+from linecaster.core.page import PageComponent, new_page_document
+from linecaster.components.lines import LineDetector
+from linecaster.components.readers import ImageFolderReader, PageRecordReader
+from linecaster.components.servers import ChatModelServer, ModelServer
+from linecaster.components.writers import PageJsonlWriter
 from linecaster.errors import ServerError
 from linecaster.runtime.builder import build, run_plan
 from linecaster.tracing import (DEFAULT_SAMPLE, PAGE_ID, TRACE_KEY, Tracing, otlp_configured, sampled,
@@ -37,7 +37,7 @@ def no_otlp(monkeypatch):
         monkeypatch.delenv(k, raising=False)
 
 
-class FailsOn(PageBlock):
+class FailsOn(PageComponent):
     """Fails on the pages named in ``ids`` (a per-page failure); logs every page it sees."""
 
     def __init__(self, ids=()):
@@ -52,7 +52,7 @@ class FailsOn(PageBlock):
         return page
 
 
-class Breaks(PageBlock):
+class Breaks(PageComponent):
     """Fails the task (a server error) on its second page."""
 
     def __init__(self):
@@ -67,8 +67,8 @@ class Breaks(PageBlock):
         return page
 
 
-class Interleaves(PageBlock):
-    """A stream block that takes every page in, builds their requests in order and finishes them in reverse, as a
+class Interleaves(PageComponent):
+    """A stream component that takes every page in, builds their requests in order and finishes them in reverse, as a
     served window does when later requests come back first."""
 
     shape = "stream"
@@ -136,9 +136,9 @@ def test_failed_unsampled_pages_are_exported_and_the_others_not(tmp_path: Path):
     assert [p["attrs"][PAGE_ID] for p in pages] == ["p007"] and pages[0]["error"]
     failed = {s["trace"] for s in spans if s["trace"] == pages[0]["trace"]}
     assert len(failed) == 1
-    blocks = [s for s in spans if s["name"] == "linecaster.block" and s["trace"] == pages[0]["trace"]]
-    assert {b["attrs"]["linecaster.block"] for b in blocks} >= {"FailsOn", "PageJsonlWriter"}
-    assert [b for b in blocks if b["attrs"]["linecaster.block"] == "FailsOn"][0]["attrs"][
+    components = [s for s in spans if s["name"] == "linecaster.component" and s["trace"] == pages[0]["trace"]]
+    assert {b["attrs"]["linecaster.component"] for b in components} >= {"FailsOn", "PageJsonlWriter"}
+    assert [b for b in components if b["attrs"]["linecaster.component"] == "FailsOn"][0]["attrs"][
         "linecaster.error.type"] == "RuntimeError"
     assert len(by_name(spans, "linecaster.task")) == 1                  # task spans always
     # no page record carries a trace id: none was sampled
@@ -161,8 +161,8 @@ def test_sampled_pages_carry_their_trace_id(tmp_path: Path):
 def test_interleaved_pages_have_the_right_parents(tmp_path: Path):
     src = images(tmp_path / "images", 4)
     out = tmp_path / "out"
-    block = Interleaves()
-    docs = run_plan(build([ImageFolderReader(src), block, PageJsonlWriter(str(out / "pages"))], run_folder=str(out),
+    component = Interleaves()
+    docs = run_plan(build([ImageFolderReader(src), component, PageJsonlWriter(str(out / "pages"))], run_folder=str(out),
                           trace_sample=1))
     assert [d.id for d in docs] == ["p003", "p002", "p001", "p000"]
     spans = spans_of(out)
@@ -171,20 +171,20 @@ def test_interleaved_pages_have_the_right_parents(tmp_path: Path):
     assert len(roots) == 4
     for req in by_name(spans, "linecaster.request"):
         parent = ids[(req["trace"], req["parent"])]
-        assert parent["name"] == "linecaster.block" and parent["attrs"]["linecaster.block"] == "Interleaves"
+        assert parent["name"] == "linecaster.component" and parent["attrs"]["linecaster.component"] == "Interleaves"
         assert parent["attrs"][PAGE_ID] == roots[req["trace"]]["attrs"][PAGE_ID]
         assert ids[(parent["trace"], parent["parent"])] is roots[req["trace"]]
         assert req["attrs"]["linecaster.tokens.completion"] == 5 and req["attrs"]["linecaster.finish_reason"] == "stop"
         # the carrier got this request span's context
         page = roots[req["trace"]]["attrs"][PAGE_ID]
-        assert block.carriers[page].split("-")[1:3] == [req["trace"], req["span"]]
+        assert component.carriers[page].split("-")[1:3] == [req["trace"], req["span"]]
     for prep in by_name(spans, "linecaster.request.prepare"):
-        assert ids[(prep["trace"], prep["parent"])]["attrs"]["linecaster.block"] == "Interleaves"
-    # every block span of a page hangs off that page's root
-    for b in by_name(spans, "linecaster.block"):
+        assert ids[(prep["trace"], prep["parent"])]["attrs"]["linecaster.component"] == "Interleaves"
+    # every component span of a page hangs off that page's root
+    for b in by_name(spans, "linecaster.component"):
         assert b["parent"] == roots[b["trace"]]["span"]
     assert all(r["start"] <= b["start"] and b["end"] <= r["end"] + 1e-6
-               for b in by_name(spans, "linecaster.block") for r in [roots[b["trace"]]])
+               for b in by_name(spans, "linecaster.component") for r in [roots[b["trace"]]])
 
 
 def _free_port() -> int:
@@ -223,7 +223,7 @@ def test_the_trace_context_reaches_linecaster_serve_and_its_spans_join(tmp_path:
     assert model["attrs"]["linecaster.lines"] == 2 and model["attrs"]["linecaster.model"] == "lines"
     assert len(by_name(spans, "linecaster.server.start")) == 1
     report = summarize(spans)
-    served = report["blocks"]["lines (served http://127.0.0.1:%d/v1 (lines))" % port]["served"]
+    served = report["components"]["lines (served http://127.0.0.1:%d/v1 (lines))" % port]["served"]
     assert set(served) == {"prepare", "request", "queue", "decode", "model"}
 
 
@@ -300,10 +300,10 @@ def test_no_otlp_without_the_variables(tmp_path: Path, monkeypatch):
 def test_vllm_traces_to_otlp_when_configured(monkeypatch):
     from linecaster.adapters import chat_model
 
-    block = ChatModelServer(chat_model("lightonocr-2-1b"))
-    assert "--otlp-traces-endpoint" not in block.launch_command()
+    component = ChatModelServer(chat_model("lightonocr-2-1b"))
+    assert "--otlp-traces-endpoint" not in component.launch_command()
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318/")
-    cmd = block.launch_command()
+    cmd = component.launch_command()
     assert cmd[cmd.index("--otlp-traces-endpoint") + 1] == "http://collector:4318/v1/traces"
     assert "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf" in cmd
 
@@ -394,14 +394,14 @@ def test_the_traces_command(tmp_path: Path, capsys):
     main(["traces", str(out), "--slowest", "3"])
     text = capsys.readouterr().out
     assert "fails on" in text and "lines (in-process)" in text and "slowest units" in text
-    assert "gaps (time a block had no page" in text and "task 0:" in text and "warm-up" in text
+    assert "gaps (time a component had no page" in text and "task 0:" in text and "warm-up" in text
     main(["traces", str(out), "--json", "--by", "task"])
     report = json.loads(capsys.readouterr().out)
-    assert report["units"] == {"traced": 8, "failed": 1} and list(report["blocks"]) == ["task 0"]
-    assert report["blocks"]["task 0"]["seconds"]["n"] == 8 * 4      # the blocks and the rejects writer
+    assert report["units"] == {"traced": 8, "failed": 1} and list(report["components"]) == ["task 0"]
+    assert report["components"]["task 0"]["seconds"]["n"] == 8 * 4      # the components and the rejects writer
     assert len(report["slowest"]) == 8 and report["per_task"]["task 0"]["sample"] == 1
     r = summarize(read_spans(str(out)), slowest=2)
-    assert r["blocks"]["fails on"]["errors"] == 1 and len(r["slowest"]) == 2
+    assert r["components"]["fails on"]["errors"] == 1 and len(r["slowest"]) == 2
     assert render(r).splitlines()[0].endswith("(1 failed)")
     with pytest.raises(SystemExit):
         main(["traces", str(tmp_path / "nothing")])
@@ -427,7 +427,7 @@ def test_the_buffer_holds_only_the_pages_in_flight():
     for i in range(50):
         root = tracer.start_span("linecaster.page", context=Context(), attributes={PAGE_ID: f"p{i}"})
         for _ in range(3):
-            tracer.start_span("linecaster.block", context=trace.set_span_in_context(root)).end()
+            tracer.start_span("linecaster.component", context=trace.set_span_in_context(root)).end()
         open_pages.append(root)
         if len(open_pages) > 4:                       # five pages in flight at most
             done = open_pages.pop(0)
@@ -439,7 +439,7 @@ def test_the_buffer_holds_only_the_pages_in_flight():
         root.end()
     assert buffer.held() == 0
     names = [s.name for s in exported.get_finished_spans()]
-    assert names == ["linecaster.block"] * 3 + ["linecaster.page"] and buffer.exported_failed == 1
+    assert names == ["linecaster.component"] * 3 + ["linecaster.page"] and buffer.exported_failed == 1
     provider.shutdown()
 
 
@@ -474,23 +474,23 @@ def test_trace_ids_follow_the_run_and_the_page(tmp_path):
 
 
 def test_a_dropped_page_is_not_held_in_memory(tmp_path):
-    """A page a per-unit block drops never comes out of it: when the next page goes in, the dropped one's trace ends
+    """A page a per-unit component drops never comes out of it: when the next page goes in, the dropped one's trace ends
     (unfinished) and nothing of it stays with the observer; documents are never held."""
     t = Tracing(str(tmp_path), sample=1.0, run="r")
     t.on_task_start(0, 1)
-    block = _Noop()
+    component = _Noop()
     dropped = new_page_document("b_0001", png(40), uri="b_0001.png", item_id="b")
-    t.on_enter(block, dropped)                      # the block drops it: no on_exit
+    t.on_enter(component, dropped)                      # the component drops it: no on_exit
     kept = new_page_document("b_0002", png(40), uri="b_0002.png", item_id="b")
-    t.on_enter(block, kept)
+    t.on_enter(component, kept)
     assert [u.id for u in t._units.values()] == ["b_0002"]
     assert not any(getattr(v, "doc", None) for v in t._units.values())   # no document is held
-    t.on_exit(block, kept)
+    t.on_exit(component, kept)
     t.on_leave(kept)
     t.on_task_end()
 
 
-class _Noop(PageBlock):
+class _Noop(PageComponent):
     name = "noop"
 
     def process_page(self, doc, page):

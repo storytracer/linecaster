@@ -305,9 +305,9 @@ def _args(*argv):
 
 
 def _pipeline(a, files: str):
-    from linecaster.blocks.lines.detector import LineDetector
-    from linecaster.blocks.recognition.recognizers import LineRecognizer
-    from linecaster.blocks.writers.files import PageFileWriter
+    from linecaster.components.lines.line_detector import LineDetector
+    from linecaster.components.recognition.line_recognizer import LineRecognizer
+    from linecaster.components.writers.files import PageFileWriter
 
     backend = InProcess("test_provenance:StampModel", size=3)
     backend.preset, backend.preset_sha256 = "stamp", SHA
@@ -335,10 +335,10 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert (rec["on"], rec["executor"], rec["tasks"]) == ("local", "LocalPipelineExecutor", 1)
     (stage,) = rec["pipeline"]
     assert (stage["name"], stage["tasks"]) == ("pages", 1)
-    assert [b["block"] for b in stage["blocks"]] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
+    assert [b["component"] for b in stage["components"]] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
                                                      "RejectWriter", "PageFileWriter", "PageJsonlWriter"]
-    recognizer = stage["blocks"][2]
-    assert recognizer["class"] == "linecaster.blocks.recognition.recognizers:LineRecognizer"
+    recognizer = stage["components"][2]
+    assert recognizer["class"] == "linecaster.components.recognition.line_recognizer:LineRecognizer"
     assert recognizer["params"]["backend"] == {"backend": "in-process", "engine": "test_provenance:StampModel",
                                                "options": {"size": 3}, "preset": "stamp", "preset_sha256": SHA}
     assert recognizer["contract"]["role"] == "model" and recognizer["contract"]["reads"] == ["image", "ocr_new:lines"]
@@ -402,9 +402,9 @@ def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
     printed = capsys.readouterr().out
     plan, end = json.JSONDecoder().raw_decode(printed)
     assert plan["record"]["schema"] == "linecaster.run-record/1"
-    assert plan["record"]["pipeline"][0]["blocks"][2]["params"]["backend"]["preset"] == "stamp"
+    assert plan["record"]["pipeline"][0]["components"][2]["params"]["backend"]["preset"] == "stamp"
     assert plan["record"]["pipeline_sha256"].startswith("sha256:")
-    assert [b["block"] for b in plan["plan"]["stages"][0]["blocks"]][:3] == ["ImageFolderReader", "LineDetector",
+    assert [b["component"] for b in plan["plan"]["stages"][0]["components"]][:3] == ["ImageFolderReader", "LineDetector",
                                                                             "LineRecognizer"]
     assert plan["plan"]["problems"] == []
     assert printed[end:].strip().startswith("flowchart TD")
@@ -425,11 +425,11 @@ def test_record_on_any_fsspec_folder():
 
 
 def test_served_and_in_process_are_the_same_pipeline():
-    """The hash covers what a block does: the engine, its options and preset, wherever it runs."""
-    from linecaster.blocks.readers.images import ImageFolderReader
-    from linecaster.blocks.recognition.recognizers import LineRecognizer
-    from linecaster.blocks.servers.serve import ModelServer
-    from linecaster.blocks.writers.records import PageJsonlWriter
+    """The hash covers what a component does: the engine, its options and preset, wherever it runs."""
+    from linecaster.components.readers.images import ImageFolderReader
+    from linecaster.components.recognition.line_recognizer import LineRecognizer
+    from linecaster.components.servers.serve import ModelServer
+    from linecaster.components.writers.records import PageJsonlWriter
     from linecaster.runtime.builder import build
 
     m = {"name": "recognition", "spec": "pkg:Rec", "kwargs": {"weights": {"model": "m"}}, "preset": "rec",
@@ -444,7 +444,7 @@ def test_served_and_in_process_are_the_same_pipeline():
     assert provenance.functional_pipeline(in_process) == provenance.functional_pipeline(served)
     assert provenance.pipeline_sha256(in_process) == provenance.pipeline_sha256(served)
     f = provenance.functional_pipeline(in_process)
-    assert [b["block"] for b in f] == ["ImageFolderReader", "LineRecognizer", "RejectWriter", "PageJsonlWriter"]
+    assert [b["component"] for b in f] == ["ImageFolderReader", "LineRecognizer", "RejectWriter", "PageJsonlWriter"]
     assert f[1]["params"]["backend"] == {"engine": "pkg:Rec", "options": {"weights": {"model": "m"}},
                                          "preset": "rec", "preset_sha256": SHA}
     assert "data_folder" not in f[0]["params"] and "output_folder" not in f[3].get("params", {})
@@ -453,23 +453,23 @@ def test_served_and_in_process_are_the_same_pipeline():
     assert provenance.pipeline_sha256(other) != provenance.pipeline_sha256(in_process)
 
 
-def test_chat_blocks_record_the_preset_model_and_revision():
+def test_chat_components_record_the_preset_model_and_revision():
     from linecaster.adapters import chat_model
     from linecaster.backends import Chat
-    from linecaster.blocks.recognition import PageRecognizer
+    from linecaster.components.recognition import PageRecognizer
 
     spec = chat_model("lightonocr-2-1b")
-    block = PageRecognizer(Chat(spec, "http://127.0.0.1:8000/v1", served_name="m"))
+    component = PageRecognizer(Chat(spec, "http://127.0.0.1:8000/v1", served_name="m"))
     adapter = {"adapter": f"{type(spec).__module__}:{type(spec).__qualname__}", "preset": spec.preset,
                "preset_sha256": spec.preset_sha256, "model": spec.model, "revision": spec.revision,
                "repetition_detection": {"min_pattern_size": 8, "max_pattern_size": 100, "min_count": 16}}          # on by default: in the hash
-    assert block.to_dict()["params"]["backend"] == {
+    assert component.to_dict()["params"]["backend"] == {
         "backend": "chat", **adapter, "served_name": "m", "endpoint": "http://127.0.0.1:8000/v1", "max_window": 32,
         "initial_window": 4, "read_timeout": 600.0}
     # the hash covers the adapter and the preset, not the server: another endpoint or served name is the same pipeline
-    assert provenance.functional_block(block)["params"]["backend"] == adapter
+    assert provenance.functional_component(component)["params"]["backend"] == adapter
     other = PageRecognizer(Chat(chat_model("lightonocr-2-1b"), "http://elsewhere:9000/v1", served_name="n"))
-    assert provenance.functional_block(other) == provenance.functional_block(block)
+    assert provenance.functional_component(other) == provenance.functional_component(component)
 
 
 def test_engines_carry_presets(monkeypatch):
@@ -507,13 +507,13 @@ def test_a_script_outside_a_checkout_is_recorded_by_its_name(tmp_path: Path):
     assert script_entry(__file__, "recipes/squiddle.py")["path"].endswith("tests/runtime/test_provenance.py")
 
 
-def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_path: Path):
+def test_each_page_is_decoded_once_for_all_the_components_that_need_its_image(tmp_path: Path):
     """A line detector and a line recognizer both take the page's pixels: the file is decoded once (``decodes``), the
-    second block gets the same read-only array."""
-    from linecaster.blocks.base import page as base_page
-    from linecaster.blocks.lines.detector import LineDetector
-    from linecaster.blocks.readers.images import ImageFolderReader
-    from linecaster.blocks.recognition.recognizers import LineRecognizer
+    second component gets the same read-only array."""
+    from linecaster.core import page as base_page
+    from linecaster.components.lines.line_detector import LineDetector
+    from linecaster.components.readers.images import ImageFolderReader
+    from linecaster.components.recognition.line_recognizer import LineRecognizer
 
     folder = Path(_images(tmp_path / "images"))
     for name, shade in (("p2.png", "gray"), ("p3.png", "black")):        # three files (pages are kept by content)
@@ -536,7 +536,7 @@ def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_pa
     before = base_page.decodes()
     lines, recognizer = LineDetector(InProcess("test_provenance:OneLineModel")), LineRecognizer(InProcess(f"{__name__}:Seeing"))
     docs = list(recognizer.run(lines.run(ImageFolderReader(str(folder)).run())))
-    assert len(docs) == 3 and base_page.decodes() - before == 3                 # one decode per page, not per block
+    assert len(docs) == 3 and base_page.decodes() - before == 3                 # one decode per page, not per component
     assert lines.stats["image_decoded"].total == 3 and recognizer.stats["image_shared"].total == 3
     assert all(not a.flags.writeable for a in seen) and seen[0].shape == (30, 40, 3)
     for doc in docs:                     # each step names the decoder of the pixels it read (no GPU decodes a PNG)
@@ -545,17 +545,17 @@ def test_each_page_is_decoded_once_for_all_the_blocks_that_need_its_image(tmp_pa
     assert lines.stats["cpu_decoded"].total == 3 and recognizer.stats["cpu_decoded"].total == 0       # shared
 
 
-def test_the_builder_sets_every_model_blocks_image_decode():
-    from linecaster.blocks.lines.detector import LineDetector
-    from linecaster.blocks.readers.images import ImageFolderReader
-    from linecaster.blocks.recognition.recognizers import LineRecognizer
+def test_the_builder_sets_every_model_components_image_decode():
+    from linecaster.components.lines.line_detector import LineDetector
+    from linecaster.components.readers.images import ImageFolderReader
+    from linecaster.components.recognition.line_recognizer import LineRecognizer
     from linecaster.runtime.builder import build
 
-    blocks = [ImageFolderReader("images"), LineDetector(InProcess("test_provenance:OneLineModel")),
+    components = [ImageFolderReader("images"), LineDetector(InProcess("test_provenance:OneLineModel")),
               LineRecognizer(InProcess("test_provenance:StampModel"))]
-    assert [b.image_decode for b in blocks[1:]] == ["auto", "auto"]
-    build(blocks, image_decode="cpu")
-    assert [b.image_decode for b in blocks[1:]] == ["cpu", "cpu"]
+    assert [b.image_decode for b in components[1:]] == ["auto", "auto"]
+    build(components, image_decode="cpu")
+    assert [b.image_decode for b in components[1:]] == ["cpu", "cpu"]
 
 
 def test_the_run_record_names_every_catalog_entry_it_used():

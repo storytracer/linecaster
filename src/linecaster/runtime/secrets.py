@@ -1,4 +1,4 @@
-"""Secrets as references: ``EnvVar("NAME")`` names an environment variable whose value a block reads when it needs
+"""Secrets as references: ``EnvVar("NAME")`` names an environment variable whose value a component reads when it needs
 it, in the task (``resolve()``), so the value is never part of a pipeline: not in its pickle (datatrove pickles the
 pipeline for every executor), not in ``to_dict()`` (``{"env": "NAME"}``), not in the run record.
 

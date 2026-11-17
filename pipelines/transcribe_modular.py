@@ -15,7 +15,7 @@
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
 # ///
-"""The modular pipeline (``transcribe_modular.v1``): its blocks, options and slots are the pipeline shape
+"""The modular pipeline (``transcribe_modular.v1``): its components, options and slots are the pipeline shape
 ``linecaster.pipelines.transcribe_modular``; this script gives it its environment. ``--help`` lists the options."""
 from linecaster.pipelines import transcribe_modular as shape
 from linecaster.runtime import run

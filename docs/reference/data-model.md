@@ -521,7 +521,7 @@ with the datatrove document (`doc.metadata["document"]`) to the writers and is n
 
 **Nothing is overwritten**: an engine call appends one annotator and adds annotations; it changes none that was there
 (setting a line's `region` or `reading` from `None` aside). The conformance checks (`linecaster.testing.check_engine`,
-`check_block`) check it.
+`check_component`) check it.
 
 ## Geometry
 
@@ -529,7 +529,7 @@ Every `box` is `[x, y, width, height]` in pixels of the page image; polygons and
 points exactly as the annotator gave them. Algorithms derive boxes from the polygon (`geometry.bbox_of`). `AnnotationSet.scaled(sx,
 sy)` moves every coordinate to another image size and records the factors in `source.scale`.
 
-## Item records (`linecaster.blocks.base.item`)
+## Item records (`linecaster.core.item`)
 
 An item travels as one datatrove `Document`: `id` is the item id, `metadata["item"]` the item record, `{"item_id":
 ..., "pages": [...]}`, its page records (as JSON-compatible dicts) in order (sequence, then page id), without the

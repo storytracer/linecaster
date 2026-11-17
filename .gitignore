@@ -14,7 +14,7 @@ wheels/
 site/
 
 # the generated docs (`linecaster docs`, run before the site is built)
-docs/blocks/
+docs/components/
 docs/catalog/
 docs/index.md
 docs/changelog.md

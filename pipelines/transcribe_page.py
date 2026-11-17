@@ -23,7 +23,7 @@
 # linecaster-services = { path = "../engines/services", editable = true }
 # linecaster-surya = { path = "../engines/surya", editable = true }
 # ///
-"""The page-engine pipeline (``transcribe_page.v1``): its blocks, options and slots are the pipeline shape
+"""The page-engine pipeline (``transcribe_page.v1``): its components, options and slots are the pipeline shape
 ``linecaster.pipelines.transcribe_page``; this script gives it its environment. ``--help`` lists the options."""
 from linecaster.pipelines import transcribe_page as shape
 from linecaster.runtime import run

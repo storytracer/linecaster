@@ -1,6 +1,6 @@
 """Ctrl-C (SIGINT to the process group, as a terminal sends it): a run says what stopped and what runs again, prints no
 traceback and ends by the signal itself (``returncode == -2``), so a shell loop around it stops; its unfinished tasks
-run on the next launch. Real subprocesses, a small pipeline whose block sleeps per page."""
+run on the next launch. Real subprocesses, a small pipeline whose component sleeps per page."""
 from __future__ import annotations
 
 import os
@@ -19,11 +19,11 @@ SCRIPT = textwrap.dedent('''
     """A pipeline of tiny pages, each held a while."""
     import time
 
-    from linecaster.blocks.base.page import PageBlock
+    from linecaster.core.page import PageComponent
     from linecaster.runtime import run
 
 
-    class Slow(PageBlock):
+    class Slow(PageComponent):
         """Holds each page a while."""
 
         name = "slow"

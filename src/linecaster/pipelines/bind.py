@@ -17,10 +17,11 @@ OUT2/documents/<strategy>/<item>.<ext>; with --jsonl also OUT2/texts/<strategy>.
 normalized unless a text names a strategy. ``linecaster.runtime.run`` has the options every pipeline shares (IMAGES
 is the page records folder here).
 """
-from linecaster.blocks.binding import Binder
-from linecaster.blocks.composition import Composer, Recomposer
-from linecaster.blocks.readers.records import PageRecordReader
-from linecaster.blocks.writers.items import DEFAULT_TEXTS, ItemDocumentWriter, ItemTextWriter, parse_texts
+from linecaster.components.items import Binder
+from linecaster.components.document import Composer
+from linecaster.components.paragraphs import Recomposer
+from linecaster.components.readers.records import PageRecordReader
+from linecaster.components.writers.items import DEFAULT_TEXTS, ItemDocumentWriter, ItemTextWriter, parse_texts
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 

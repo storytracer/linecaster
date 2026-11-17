@@ -38,7 +38,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **Everything that produces text from images, and that reads, prepares and scores ground truth, lives here**;
   evaluations and project pipelines (derivatives) build on linecaster, never the other way round. One direction of
   dependency keeps linecaster usable by all of them.
-- **No project chains in linecaster.** It ships blocks, backends, the data model, the run layout, the job helpers
+- **No project chains in linecaster.** It ships components, backends, the data model, the run layout, the job helpers
   and pipeline-building helpers; example pipelines only as pipeline scripts (`pipelines/`), recipes as catalog
   entries, and in `tests/`. A recipe's name is neutral (`squiddle`); a derivative may be named after it, and its
   pipeline lives in its own repository.
@@ -53,8 +53,8 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 
 ## Terms and conventions
 
-- **Use the glossary's terms and no others; add a term there before using it.** A *block* is a datatrove
-  `PipelineStep`, a *pipeline* a list of blocks, and *executor*, *job*, *task*, *shard*, *worker* mean what they
+- **Use the glossary's terms and no others; add a term there before using it.** A *component* is a datatrove
+  `PipelineStep`, a *pipeline* a list of components, and *executor*, *job*, *task*, *shard*, *worker* mean what they
   mean in datatrove; never call a linecaster concept a "module". One word with one meaning is what keeps the code,
   the docs and the derivatives readable together.
 - **Follow the conventions** (names, American spelling, YAML and Markdown, contracts, docstrings, tracing,
@@ -69,7 +69,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   lack.
 - **The data model, the formats, the text transforms, the image helpers, the built-in engines and the scorer**
   (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines`,
-  `linecaster.scoring`) **import neither datatrove nor saturate, nor linecaster's blocks or runtime**
+  `linecaster.scoring`) **import neither datatrove nor saturate, nor linecaster's components or runtime**
   (`tests/test_import_rule.py`). Derivatives and evaluations use them without the pipeline machinery.
 - **A light core**: no kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as an extra, and no
   LiteLLM anywhere. The one exception to few core dependencies is OpenTelemetry (`opentelemetry-api`, `-sdk`,
@@ -197,7 +197,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 ## Docs
 
 - **Generated docs are written by `linecaster docs` at build time, never by hand and never committed**: the
-  catalog's and the blocks' pages, `docs/index.md`, `docs/changelog.md` and `docs/llms*.txt` (git ignores them; CI
+  catalog's and the components' pages, `docs/index.md`, `docs/changelog.md` and `docs/llms*.txt` (git ignores them; CI
   and the docs workflow run it before building the site). Run `linecaster docs` before `zensical serve` to preview.
   Committed files outside `docs/` link to generated pages on the site (`latest`), never by relative path. The
   reference then cannot drift from the code, and no commit carries a regenerated page.

@@ -672,10 +672,10 @@ def reader_for(kind: str, tmp_path, base: str, http: dict, policy: str | None):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from linecaster.blocks.readers.images import ImageParquetReader
-    from linecaster.blocks.readers.manifests import ManifestReader
-    from linecaster.blocks.readers.records import PageRecordReader
-    from linecaster.blocks.readers.resources import ResourceReader
+    from linecaster.components.readers.images import ImageParquetReader
+    from linecaster.components.readers.manifests import ManifestReader
+    from linecaster.components.readers.records import PageRecordReader
+    from linecaster.components.readers.resources import ResourceReader
 
     data = tmp_path / "data"
     data.mkdir(exist_ok=True)
@@ -715,7 +715,7 @@ def test_a_policys_proxies_rate_limits_and_block_on_reach_the_manifest_reader(si
     request per 10 s per proxy and ``block_on: [429, html]``: the manifest's first answer is an HTML page, so the
     proxy that carried it is left out (marked ``html``) and the manifest comes through the other; its two images go
     out through that one, 10 s apart, and the OCR files likewise. Nothing goes out directly."""
-    from linecaster.blocks.readers.manifests import ManifestReader
+    from linecaster.components.readers.manifests import ManifestReader
 
     clocks = Clocks()
     base = f"http://{HOST}"
@@ -782,7 +782,7 @@ def test_the_http_policy_option_is_taken_by_every_input_that_fetches(tmp_path, o
 def test_a_stop_stops_a_manifests_run_whatever_it_fetches(site, tmp_path, what):
     """``stop_on: [403]`` and a 403 for the manifest, an image or an OCR file: the run stops (``StopRequests``, a
     ``ServerError``), it is not one more failed manifest or page."""
-    from linecaster.blocks.readers.manifests import ManifestReader
+    from linecaster.components.readers.manifests import ManifestReader
     from linecaster.errors import ServerError
 
     clocks = Clocks()
@@ -949,7 +949,7 @@ def test_a_proxys_block_and_break_hold_at_once_and_write_the_broker_off_the_even
 def test_the_manifest_readers_window_follows_the_page_fetcher(site, tmp_path):
     """Manifests from one host, images from another with other settings: the window (``Fetchers.last``) is the
     images' fetcher, not the manifests'."""
-    from linecaster.blocks.readers.manifests import ManifestReader
+    from linecaster.components.readers.manifests import ManifestReader
 
     clocks = Clocks()
     images = site({}, clocks, address="127.0.0.2")

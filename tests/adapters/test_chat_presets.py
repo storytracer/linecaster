@@ -8,8 +8,8 @@ import pytest
 
 from linecaster.adapters import ADAPTERS, ENGINE, ChatAdapter, adapter, chat_model, chat_presets, preset_ref
 from linecaster.backends import Chat
-from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.recognition.page_recognizer import PageRecognizer, RegionRecognizer
+from linecaster.components.servers.serve import ChatModelServer
 from linecaster.catalog.registry import catalog
 from linecaster.errors import CatalogError
 

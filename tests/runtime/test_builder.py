@@ -10,18 +10,21 @@ from datatrove.pipeline.base import PipelineStep
 from PIL import Image
 
 from linecaster.backends import InProcess, Served
-from linecaster.blocks.base.composite import Composite
-from linecaster.blocks.base.contract import Contract, Part
-from linecaster.blocks.base.page import PageBlock, new_page_document, page_of
-from linecaster.blocks.binding import Binder, Splitter
-from linecaster.blocks.composites import ModularTranscriber
-from linecaster.blocks.composition import Composer, Recomposer, Typographer
-from linecaster.blocks.layout import LayoutDetector
-from linecaster.blocks.lines import LineAssigner, LineDetector
-from linecaster.blocks.readers import ImageFolderReader, PageRecordReader
-from linecaster.blocks.recognition import LineRecognizer, TableRecognizer
-from linecaster.blocks.servers import ModelServer
-from linecaster.blocks.writers import ItemDocumentWriter, ItemTextWriter, PageFileWriter, PageJsonlWriter
+from linecaster.core.composite import Composite
+from linecaster.core.contract import Contract, Part
+from linecaster.core.page import PageComponent, new_page_document, page_of
+from linecaster.components.items import Binder, Splitter
+from linecaster.components.composites import ModularTranscriber
+from linecaster.components.document import Composer
+from linecaster.components.hierarchy import Typographer
+from linecaster.components.paragraphs import Recomposer
+from linecaster.components.layout import LayoutDetector
+from linecaster.components.lines import LineAssigner, LineDetector
+from linecaster.components.readers import ImageFolderReader, PageRecordReader
+from linecaster.components.recognition import LineRecognizer
+from linecaster.components.tables import TableRecognizer
+from linecaster.components.servers import ModelServer
+from linecaster.components.writers import ItemDocumentWriter, ItemTextWriter, PageFileWriter, PageJsonlWriter
 from linecaster.catalog import yamlio
 from linecaster.data import Line
 from linecaster.errors import PipelineConfigError
@@ -77,8 +80,8 @@ def _doc(page_id: str = "p1", w: int = 40, metadata: dict | None = None):
     return new_page_document(page_id, buf.getvalue(), uri=f"{page_id}.png", metadata=metadata)
 
 
-def _problems(blocks, **kw) -> list[str]:
-    return build(blocks, **kw).problems
+def _problems(components, **kw) -> list[str]:
+    return build(components, **kw).problems
 
 
 def _records(folder: Path) -> dict[str, dict]:
@@ -106,14 +109,14 @@ def test_a_valid_pipeline_has_no_problems():
                PageFileWriter("f", formats=("hocr", "md", "json")), PageJsonlWriter("o/pages")])
     assert p.problems == []
     p.check()
-    assert [type(b).__name__ for b in p.stages[0].blocks] == [
+    assert [type(b).__name__ for b in p.stages[0].components] == [
         "ImageFolderReader", "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer",
         "Typographer", "Composer", "PageFileWriter", "PageJsonlWriter"]
 
 
 def test_a_recognizer_without_lines():
     problems = _problems([ImageFolderReader("x"), _text(), PageJsonlWriter("o")])
-    assert problems == ["LineRecognizer (recognition (in-process)) reads ocr_new:lines, which no block before it in "
+    assert problems == ["LineRecognizer (recognition (in-process)) reads ocr_new:lines, which no component before it in "
                         "the pipeline adds"]
     with pytest.raises(PipelineConfigError) as e:
         build([ImageFolderReader("x"), _text(), PageJsonlWriter("o")]).check()
@@ -123,22 +126,22 @@ def test_a_recognizer_without_lines():
 def test_a_part_added_twice():
     problems = _problems([ImageFolderReader("x"), LayoutDetector("single-region"), _lines(), _lines(), _text()])
     assert problems == ["LineDetector (lines (in-process)) adds ocr_new:lines, which LineDetector adds already (a "
-                        "block that rewrites a part declares it in replaces)"]
-    # a block that declares the part in replaces may rewrite it
+                        "component that rewrites a part declares it in replaces)"]
+    # a component that declares the part in replaces may rewrite it
     assert _problems([ImageFolderReader("x"), LayoutDetector("single-region"), _lines(), LineAssigner(), _text()]) == []
 
 
 def test_parts_belong_to_their_transcription():
     problems = _problems([ImageFolderReader("x"), _lines(), LineRecognizer(InProcess(TEXT, template=TEMPLATE),
                                                                           transcription="other")])
-    assert problems == ["LineRecognizer (recognition (in-process)) reads other:lines, which no block before it in "
+    assert problems == ["LineRecognizer (recognition (in-process)) reads other:lines, which no component before it in "
                         "the pipeline adds"]
 
 
-def test_a_removed_part_is_gone_for_later_blocks(tmp_path: Path):
-    """``ImageConverter`` without ``keep_bytes`` passes the page on without image bytes: a later block that reads the
+def test_a_removed_part_is_gone_for_later_components(tmp_path: Path):
+    """``ImageConverter`` without ``keep_bytes`` passes the page on without image bytes: a later component that reads the
     image is a problem, even after a reader that provides anything; ``keep_bytes`` or an ``ImageFetcher`` fixes it."""
-    from linecaster.blocks.conversion import ImageConverter, ImageFetcher
+    from linecaster.components.images import ImageConverter, ImageFetcher
 
     convert = ImageConverter(str(tmp_path / "webp"), "working-image")
     problems = _problems([ImageFolderReader("x"), convert, _lines(), PageJsonlWriter("o")])
@@ -150,32 +153,32 @@ def test_a_removed_part_is_gone_for_later_blocks(tmp_path: Path):
     assert _problems([ImageFolderReader("x"), kept, _lines(), PageJsonlWriter("o")]) == []
 
 
-def test_a_page_block_after_an_item_stream():
+def test_a_page_component_after_an_item_stream():
     problems = _problems([ImageFolderReader("x"), _lines(), _text(), Binder(), Composer("linked-composition")])
     assert "Composer (composer) works on pages, but the stream carries items here" in problems
     # and an item writer before any binder
     assert _problems([ImageFolderReader("x"), _lines(), _text(), ItemTextWriter("t")]) == [
         "ItemTextWriter (📚 item texts) works on items, but the stream carries pages here",
-        "ItemTextWriter (📚 item texts) reads document, which no block before it in the pipeline adds"]
+        "ItemTextWriter (📚 item texts) reads document, which no component before it in the pipeline adds"]
 
 
-def test_server_blocks_go_last():
+def test_server_components_go_last():
     problems = _problems([ImageFolderReader("x"), ModelServer([{"name": "lines"}]), _lines(), PageJsonlWriter("o")])
     assert problems == [
-        "LineDetector (lines (in-process)) comes after the server block ModelServer (🖥️ model server): server blocks "
+        "LineDetector (lines (in-process)) comes after the server component ModelServer (🖥️ model server): server components "
         "go last",
-        "PageJsonlWriter (🐿 page records (jsonl)) comes after the server block ModelServer (🖥️ model server): server "
-        "blocks go last"]
+        "PageJsonlWriter (🐿 page records (jsonl)) comes after the server component ModelServer (🖥️ model server): server "
+        "components go last"]
 
 
-def test_a_served_block_finds_its_model_at_its_server():
+def test_a_served_component_finds_its_model_at_its_server():
     served = LineDetector(Served("http://127.0.0.1:8100/v1", model="lines"))
     ok = [ImageFolderReader("x"), served, PageJsonlWriter("o"), ModelServer([{"name": "lines"}], port=8100)]
     assert _problems(ok) == []
     wrong = [ImageFolderReader("x"), served, PageJsonlWriter("o"), ModelServer([{"name": "layout"}], port=8100)]
     assert _problems(wrong) == ["LineDetector (lines (served http://127.0.0.1:8100/v1 (lines))) asks the model server "
                                 "on port 8100 in the pipeline for 'lines', which it does not host (layout)"]
-    # an explicit endpoint (no server block of this stage on its port) is the caller's
+    # an explicit endpoint (no server component of this stage on its port) is the caller's
     elsewhere = [ImageFolderReader("x"), LineDetector(Served("http://gpu-box:8100/v1", model="lines")),
                  PageJsonlWriter("o")]
     assert _problems(elsewhere) == []
@@ -184,7 +187,7 @@ def test_a_served_block_finds_its_model_at_its_server():
 def test_a_pipeline_starts_with_a_reader():
     assert _problems([_lines(), PageJsonlWriter("o")]) == [
         "the pipeline starts with LineDetector (lines (in-process)), not a reader",
-        "LineDetector (lines (in-process)) reads image, which no block before it in the pipeline adds"]
+        "LineDetector (lines (in-process)) reads image, which no component before it in the pipeline adds"]
 
 
 def test_every_problem_is_listed():
@@ -192,22 +195,22 @@ def test_every_problem_is_listed():
                           ItemTextWriter("t")],
                          until="Nothing")
     assert len(problems) == 8
-    assert problems[0].startswith("--until Nothing: no block of that name")
-    assert sum("server blocks go last" in x for x in problems) == 2 and sum(" reads " in x for x in problems) == 4
+    assert problems[0].startswith("--until Nothing: no component of that name")
+    assert sum("server components go last" in x for x in problems) == 2 and sum(" reads " in x for x in problems) == 4
 
 
 def test_page_records_whose_parts_are_unknown_are_not_checked():
     assert _problems([PageRecordReader("p"), _text(), PageJsonlWriter("o")]) == []
     assert _problems([PageRecordReader("p", provides=["ocr_new:regions"]), _text()]) == [
-        "LineRecognizer (recognition (in-process)) reads ocr_new:lines, which no block before it in the pipeline adds"]
+        "LineRecognizer (recognition (in-process)) reads ocr_new:lines, which no component before it in the pipeline adds"]
     assert _problems([PageRecordReader("p", provides=["ocr_new:lines"]), _text()]) == []
     assert _problems([PageRecordReader("p", fetch_images=False, provides=["ocr_new:lines"]), _text()]) == [
-        "LineRecognizer (recognition (in-process)) reads image, which no block before it in the pipeline adds"]
+        "LineRecognizer (recognition (in-process)) reads image, which no component before it in the pipeline adds"]
 
 
 # ------------------------------------------------------------------------------------------------ branches
 
-class Mark(PageBlock):
+class Mark(PageComponent):
     """Sets ``metadata[key] = value`` (a per-unit transform)."""
 
     parts_added = ("hierarchy",)
@@ -289,25 +292,25 @@ def test_conditions_pickle():
 
 def test_modular_transcriber_expands_and_keeps_its_group():
     t = ModularTranscriber(_lines(), _text(), "single-region", formulas_separately=True)
-    assert [type(b).__name__ for b in t.blocks] == ["LayoutDetector", "LineDetector", "LineAssigner",
+    assert [type(b).__name__ for b in t.components] == ["LayoutDetector", "LineDetector", "LineAssigner",
                                                     "LineRecognizer"]
-    assert t.blocks[2].formulas_separately is True
+    assert t.components[2].formulas_separately is True
     c = t.contract()
     assert c.role == "composite" and c.unit == "page" and c.unit_out is None
     assert c.reads == {Part("image")}
     assert {str(p) for p in c.adds} == {"ocr_new:regions", "ocr_new:reading_order", "ocr_new:lines",
                                         "ocr_new:line_regions", "ocr_new:text", "ocr_new:line_confidences"}
     p = build([ImageFolderReader("x"), t, PageJsonlWriter("o")])
-    blocks = p.describe()["stages"][0]["blocks"]
-    assert [b.get("composite") for b in blocks] == [None, *["modular transcriber"] * 4, None]
+    components = p.describe()["stages"][0]["components"]
+    assert [b.get("composite") for b in components] == [None, *["modular transcriber"] * 4, None]
     mermaid = p.mermaid()
     assert 'subgraph c1_modular_transcriber["modular transcriber"]' in mermaid
     assert '-->|"ocr_new:lines"|' in mermaid
-    # backends are wrapped into their blocks
+    # backends are wrapped into their components
     t = ModularTranscriber(InProcess(LINES), InProcess(TEXT, template=TEMPLATE),
                            layout=InProcess("x:Layout"), transcription="mine")
-    assert [type(b).__name__ for b in t.blocks] == ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer"]
-    assert {b.transcription for b in t.blocks} == {"mine"}
+    assert [type(b).__name__ for b in t.components] == ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer"]
+    assert {b.transcription for b in t.components} == {"mine"}
 
 
 def test_nested_composites_and_given_contracts():
@@ -315,7 +318,7 @@ def test_nested_composites_and_given_contracts():
     outer = Composite("outer", [LayoutDetector("single-region"), inner, _text()])
     p = build([ImageFolderReader("x"), outer])
     assert p.problems == []
-    assert [b.get("composite") for b in p.describe()["stages"][0]["blocks"]] == [
+    assert [b.get("composite") for b in p.describe()["stages"][0]["components"]] == [
         None, "outer", "outer/inner", "outer/inner", "outer"]
     assert "subgraph c1_outer_inner" in p.mermaid()
     given = Contract(unit="page", role="composite", reads=frozenset({Part("image")}))
@@ -324,7 +327,7 @@ def test_nested_composites_and_given_contracts():
         Composite("empty", [])
 
 
-def test_modular_transcriber_runs_as_its_blocks():
+def test_modular_transcriber_runs_as_its_components():
     out = run_pages([ModularTranscriber(_lines(), _text(), "single-region")], [_doc("p1", 40)])
     t = page_of(out[0]).transcriptions["ocr_new"]
     assert [(ln.id, t.region_of(ln), ln.reading.text) for ln in t.lines] == [("page_l0", "page", "page 40x30 line 0"),
@@ -364,9 +367,9 @@ def test_two_tasks_cut_at_the_binder(items, tmp_path: Path):
     p = run.build_plan(a, _transcribe(a, str(tmp_path / "texts2")))
     assert [(s.name, s.tasks) for s in p.stages] == [("pages", 2), ("items", 2)]
     first, second = p.stages
-    assert type(first.blocks[-1]).__name__ == "PageJsonlWriter" and first.blocks[-1].item_shards == 2
-    assert type(second.blocks[0]).__name__ == "PageRecordReader" and second.blocks[0].item_shards
-    assert {str(x) for x in second.blocks[0].provides} >= {"ocr_new:lines", "ocr_new:text", "metadata"}
+    assert type(first.components[-1]).__name__ == "PageJsonlWriter" and first.components[-1].item_shards == 2
+    assert type(second.components[0]).__name__ == "PageRecordReader" and second.components[0].item_shards
+    assert {str(x) for x in second.components[0].provides} >= {"ocr_new:lines", "ocr_new:text", "metadata"}
     assert "subgraph stage2" in p.mermaid() and "page records (item shards)" in p.mermaid()
     run.run(a, _transcribe(a, str(tmp_path / "texts2")), __file__, argv=[])
     one = _args(items, str(tmp_path / "out1"), "--item-from-parent")
@@ -387,25 +390,25 @@ def test_two_tasks_cut_at_the_binder(items, tmp_path: Path):
 
 
 def test_one_task_or_whole_items_need_no_cut(tmp_path: Path):
-    blocks = [PageRecordReader("p", item_shards=True), Binder(), *item_texts("t")]
-    assert [s.name for s in build(blocks, tasks=4, run_folder=str(tmp_path)).stages] == ["pages and items"]
-    blocks = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("t")]
-    p = build(blocks, tasks=4)
+    components = [PageRecordReader("p", item_shards=True), Binder(), *item_texts("t")]
+    assert [s.name for s in build(components, tasks=4, run_folder=str(tmp_path)).stages] == ["pages and items"]
+    components = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("t")]
+    p = build(components, tasks=4)
     assert p.problems == ["Binder (📚 binder) binds items from pages that 4 tasks read: the cut into stages "
                           "needs a run folder"]
 
 
 def test_servers_go_with_the_model_stage(tmp_path: Path):
-    blocks = [ImageFolderReader("x"), LineDetector(Served("http://127.0.0.1:8100/v1", model="lines")), _text(),
+    components = [ImageFolderReader("x"), LineDetector(Served("http://127.0.0.1:8100/v1", model="lines")), _text(),
               PageJsonlWriter(str(tmp_path / "pages")), Binder(), *item_texts("t"),
               ModelServer([{"name": "lines"}])]
-    p = build(blocks, tasks=3, run_folder=str(tmp_path))
+    p = build(components, tasks=3, run_folder=str(tmp_path))
     assert p.problems == []
-    assert [type(b).__name__ for b in p.stages[0].blocks] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
+    assert [type(b).__name__ for b in p.stages[0].components] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
                                                              "RejectWriter", "PageJsonlWriter", "ModelServer"]
-    assert p.stages[0].blocks[3].output_folder == f"{tmp_path}/rejects"    # the pages that failed, before the writer
-    assert p.stages[0].blocks[4].item_shards == 3                 # the run's page writer, now in item shards
-    assert [type(b).__name__ for b in p.stages[1].blocks] == ["PageRecordReader", "Binder", "Splitter",
+    assert p.stages[0].components[3].output_folder == f"{tmp_path}/rejects"    # the pages that failed, before the writer
+    assert p.stages[0].components[4].item_shards == 3                 # the run's page writer, now in item shards
+    assert [type(b).__name__ for b in p.stages[1].components] == ["PageRecordReader", "Binder", "Splitter",
                                                              "PageJsonlWriter"]
 
 
@@ -422,14 +425,14 @@ def test_until_after_and_taps(items, tmp_path: Path):
     run.run(full, _modular(full), __file__, argv=[])
     first = _args(items, str(tmp_path / "first"), "--item-from-parent", "--until", "LineAssigner")
     p = run.build_plan(first, _modular(first))
-    assert [type(b).__name__ for b in p.blocks] == ["ImageFolderReader", "LayoutDetector", "LineDetector",
+    assert [type(b).__name__ for b in p.components] == ["ImageFolderReader", "LayoutDetector", "LineDetector",
                                                     "LineAssigner", "RejectWriter", "PageJsonlWriter"]
     run.run(first, _modular(first), __file__, argv=[])
     second = _args(str(tmp_path / "second"), "--pages", str(tmp_path / "first" / "pages"), "--after", "LineAssigner")
     p = run.build_plan(second, _modular(second))
-    assert [type(b).__name__ for b in p.blocks] == ["PageRecordReader", "LineRecognizer", "Typographer", "Composer",
+    assert [type(b).__name__ for b in p.components] == ["PageRecordReader", "LineRecognizer", "Typographer", "Composer",
                                                     "RejectWriter", "PageJsonlWriter"]
-    assert {str(x) for x in p.blocks[0].provides} >= {"ocr_new:lines", "ocr_new:regions", "ocr_new:line_regions"}
+    assert {str(x) for x in p.components[0].provides} >= {"ocr_new:lines", "ocr_new:regions", "ocr_new:line_regions"}
     run.run(second, _modular(second), __file__, argv=[])
     halfway = _records(tmp_path / "first" / "pages")
     assert all(not ln.get("reading") for r in halfway.values() for ln in r["page"]["transcriptions"]["ocr_new"]["lines"])
@@ -442,28 +445,28 @@ def test_until_after_and_taps(items, tmp_path: Path):
 
 
 def test_partial_run_problems(tmp_path: Path):
-    blocks = [ImageFolderReader("x"), _lines(), _text(), PageJsonlWriter("o")]
-    assert _problems(blocks, after="LineDetector") == [
+    components = [ImageFolderReader("x"), _lines(), _text(), PageJsonlWriter("o")]
+    assert _problems(components, after="LineDetector") == [
         "--after LineDetector: the run must start from page records (--pages DIR)"]
     assert _problems([ImageFolderReader("x"), _lines(), _lines()], until="LineDetector")[0] == (
-        "--until LineDetector: 2 blocks have that name (LineDetector (lines (in-process)), LineDetector (lines "
-        "(in-process))); use the block's datatrove name")
-    assert _problems(blocks, until="LineDetector") == ["--until LineDetector: needs a run folder for the page records"]
-    assert _problems(blocks, taps={"PageJsonlWriter": "t"}) == []
-    assert _problems(blocks + [Binder()], taps={"Binder": "t"}) == [
-        "--tap-after Binder: page records can only be tapped after a page block"]
-    # by datatrove name, and by composite (its last block)
+        "--until LineDetector: 2 components have that name (LineDetector (lines (in-process)), LineDetector (lines "
+        "(in-process))); use the component's datatrove name")
+    assert _problems(components, until="LineDetector") == ["--until LineDetector: needs a run folder for the page records"]
+    assert _problems(components, taps={"PageJsonlWriter": "t"}) == []
+    assert _problems(components + [Binder()], taps={"Binder": "t"}) == [
+        "--tap-after Binder: page records can only be tapped after a page component"]
+    # by datatrove name, and by composite (its last component)
     p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text(), "single-region"), PageJsonlWriter("o")],
               until="modular transcriber", run_folder=str(tmp_path))
-    assert p.problems == [] and [type(b).__name__ for b in p.blocks[-3:]] == ["LineRecognizer", "RejectWriter",
+    assert p.problems == [] and [type(b).__name__ for b in p.components[-3:]] == ["LineRecognizer", "RejectWriter",
                                                                               "PageJsonlWriter"]
-    assert build(blocks, until="lines (in-process)", run_folder=str(tmp_path)).problems == []
+    assert build(components, until="lines (in-process)", run_folder=str(tmp_path)).problems == []
 
 
 def test_the_recipe_is_stamped_before_the_first_writer():
     p = build([ImageFolderReader("x"), _lines(), PageFileWriter("f", formats=("hocr",)), PageJsonlWriter("o")],
               recipe=("r", "sha256:" + "0" * 64))
-    assert [type(b).__name__ for b in p.blocks] == ["ImageFolderReader", "LineDetector", "RecipeStamper",
+    assert [type(b).__name__ for b in p.components] == ["ImageFolderReader", "LineDetector", "RecipeStamper",
                                                     "PageFileWriter", "PageJsonlWriter"]
 
 
@@ -476,17 +479,17 @@ class Log(Observer):
     def on_task_start(self, rank, world_size):
         self.events.append(("start", rank, world_size))
 
-    def on_enter(self, block, doc):
-        self.events.append(("enter", type(block).__name__, doc.id))
+    def on_enter(self, component, doc):
+        self.events.append(("enter", type(component).__name__, doc.id))
 
-    def on_exit(self, block, doc, error=None):
-        self.events.append(("exit", type(block).__name__, doc.id, error))
+    def on_exit(self, component, doc, error=None):
+        self.events.append(("exit", type(component).__name__, doc.id, error))
 
     def on_task_end(self, error=None):
         self.events.append(("end",))
 
 
-class Fails(PageBlock):
+class Fails(PageComponent):
     def process_page(self, doc, page):
         doc.metadata.setdefault("errors", []).append({"step": "x", "error": "boom"})
         return page
@@ -501,7 +504,7 @@ def test_boundaries_call_the_observers(tmp_path: Path):
                           ("exit", "Fails", "p1", {"step": "x", "error": "boom"}), ("end",)]
     # no observers, no boundaries
     p = build([ImageFolderReader("x"), Mark("M")])
-    assert p.stages[0].pipeline == p.stages[0].blocks and p.stages[0].observers is None
+    assert p.stages[0].pipeline == p.stages[0].components and p.stages[0].observers is None
 
 
 def test_run_pages_checks_first():
@@ -513,18 +516,18 @@ def test_run_pages_checks_first():
 
 
 def test_contracts_with_tables_and_validation():
-    from linecaster.blocks.validation import PageValidator
+    from linecaster.components.validation import PageValidator
 
     p = build([ImageFolderReader("x"), PageValidator(required=("transcriptions.ocr_new",)), _lines()])
-    assert p.problems == ["PageValidator (✅ page validator) reads ocr_new:*, which no block before it in the "
+    assert p.problems == ["PageValidator (✅ page validator) reads ocr_new:*, which no component before it in the "
                           "pipeline adds"]
     assert build([ImageFolderReader("x"), _lines(), PageValidator(required=("transcriptions.ocr_new",))]).problems == []
     # "image" is the page record's image entry (metadata), still there after the bytes are removed
-    from linecaster.blocks.conversion import ImageConverter
+    from linecaster.components.images import ImageConverter
     assert build([ImageFolderReader("x"), ImageConverter("out", "working-image"),
                   PageValidator(required=("image",))]).problems == []
     assert build([ImageFolderReader("x"), TableRecognizer(InProcess("x:T"))]).problems == [
-        "TableRecognizer (tables (in-process)) reads ocr_new:regions, which no block before it in the pipeline adds"]
+        "TableRecognizer (tables (in-process)) reads ocr_new:regions, which no component before it in the pipeline adds"]
 
 
 # ------------------------------------------------------------------------------------------------ the command line
@@ -568,15 +571,15 @@ def test_linecaster_page_finds_the_script():
 
 
 def test_the_cut_keeps_the_pipelines_item_shards_and_its_file_system():
-    blocks = [ImageFolderReader("x"), _lines(), _text(), PageJsonlWriter("memory://lc/out/pages", item_shards=5),
+    components = [ImageFolderReader("x"), _lines(), _text(), PageJsonlWriter("memory://lc/out/pages", item_shards=5),
               Binder(), *item_texts("memory://lc/texts")]
-    first, second = build(blocks, tasks=3, run_folder="memory://lc/out").stages
+    first, second = build(components, tasks=3, run_folder="memory://lc/out").stages
     assert (first.tasks, second.tasks) == (3, 5)
-    assert second.blocks[0].data_folder is first.blocks[-1].output_folder
-    blocks = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("memory://lc/texts")]
-    first, second = build(blocks, tasks=3, run_folder="memory://lc/out2").stages
-    assert "memory" in first.blocks[-1].output_folder.fs.protocol and first.blocks[-1].item_shards == 3
-    assert "memory" in second.blocks[0].data_folder.fs.protocol
+    assert second.components[0].data_folder is first.components[-1].output_folder
+    components = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("memory://lc/texts")]
+    first, second = build(components, tasks=3, run_folder="memory://lc/out2").stages
+    assert "memory" in first.components[-1].output_folder.fs.protocol and first.components[-1].item_shards == 3
+    assert "memory" in second.components[0].data_folder.fs.protocol
 
 
 @pytest.mark.parametrize("on", ["local", "ray", "hf-jobs"])
@@ -585,9 +588,9 @@ def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
     out = f"memory://lc/stages-{on}"
     jobs = ["--namespace", "ns", "--commit", "abc"] if on == "hf-jobs" else []
     a = _args("images", out, "--tasks", "2", "--on", on, *jobs)
-    blocks = [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), Binder(),
+    components = [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), Binder(),
               *item_texts("memory://lc/texts"), ModelServer([])]
-    p = run.build_plan(a, blocks)
+    p = run.build_plan(a, components)
     last = run._executors(a, p, out, None, ["linecaster"])
     first = last.depends
     assert first is not None and first.depends is None
@@ -610,11 +613,11 @@ def test_hf_jobs_need_a_namespace_and_take_none_from_the_account():
 
 def test_every_page_record_carries_its_time_in_the_run(tmp_path: Path):
     """``PageTiming``: a page's record has ``measurements.seconds`` (from its reader to its first writer, so the time of
-    the blocks between; waiting included) and ``datetime`` (when the reader handed it over); a tap before the writer
+    the components between; waiting included) and ``datetime`` (when the reader handed it over); a tap before the writer
     has none yet, and a stage that writes no page gets no timing."""
     import time
 
-    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.components.writers.records import PageJsonlWriter
     from linecaster.runtime.observers import PageTiming
 
     class Slow(Mark):

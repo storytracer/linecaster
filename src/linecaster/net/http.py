@@ -485,7 +485,7 @@ class MaxRetriesExceeded(Exception):
 def _judged_by_body(status: int, expect: str | None) -> bool:
     """Whether a response is judged by its body before the breaker notes it (``HTTPFetcher._attempts``): a successful
     one where a format was expected. Unexpected HTML then counts neither as an answer nor as a server error (a reader
-    that fails the resource for it notes that as one, ``linecaster.blocks.readers.resources``)."""
+    that fails the resource for it notes that as one, ``linecaster.components.readers.resources``)."""
     return 200 <= status < 300 and bool(expect) and expect != "html"
 
 

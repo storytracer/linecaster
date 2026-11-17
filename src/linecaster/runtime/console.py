@@ -4,7 +4,7 @@ summary at the end, with human-readable units. On a terminal the progress line i
 everything else scrolls below it (a scroll region, ``Pinned``), so log lines, worker processes and libraries
 writing to the terminal never break it.
 
-datatrove's own console output (its pipeline listing and stats block per task, the merged stats at the end) goes
+datatrove's own console output (its pipeline listing and stats component per task, the merged stats at the end) goes
 only to the task logs (``OUT/logs/logs/task_<rank>.log``) and the stats files (``OUT/logs/stats/``), which keep it
 whole; ``linecaster.runtime.local.LocalExecutor`` routes it. Off a terminal (a file, a pipe) the progress line is a
 log line every ``EVERY_SECONDS`` instead.
@@ -69,8 +69,8 @@ def per_minute(pages: float, seconds: float) -> str:
     return f"{pages / seconds * 60:,.0f}/min" if seconds > 0 else "-/min"
 
 
-def block_label(step) -> str:
-    """A block's name for people: its datatrove ``name`` without the leading emoji, else its class name."""
+def component_label(step) -> str:
+    """A component's name for people: its datatrove ``name`` without the leading emoji, else its class name."""
     name = getattr(step, "name", None) or type(step).__name__
     return re.sub(r"^[^\w(]+", "", str(name)).strip() or type(step).__name__
 
@@ -244,7 +244,7 @@ class Console:
 
     def _sync(self) -> None:
         """The worker processes' counts (several workers), into this console. Reads the manager without holding
-        ``_lock`` (a manager that does not answer must not block the log lines that need the lock)."""
+        ``_lock`` (a manager that does not answer must not component the log lines that need the lock)."""
         if self.shared is None:
             return
         try:
@@ -403,8 +403,8 @@ class Progress(Observer):
             c.start_task(rank)
 
     def on_leave(self, doc) -> None:
-        from linecaster.blocks.base.page import failed
-        from linecaster.blocks.readers.existing import is_reused
+        from linecaster.core.page import failed
+        from linecaster.components.readers.existing import is_reused
 
         reused = is_reused(doc)
         nbytes, bad = _nbytes(doc), failed(doc)

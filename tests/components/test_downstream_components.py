@@ -1,0 +1,203 @@
+"""Components moved in from the derivatives: filters with rejects, media, text variants, item texts,
+Transcription.scaled, jobs helpers, PageRecordReader with Parquet rows."""
+from __future__ import annotations
+
+import io
+import json
+import struct
+import zlib
+from pathlib import Path
+
+import pytest
+from datatrove.data import Document, Media, MediaType
+from PIL import Image
+
+from linecaster.core.page import page_of, set_page
+from linecaster.components.images.image_converter import ImageFetcher, ImageConverter
+from linecaster.components.readers.records import PageRecordReader
+from linecaster.components.validation.page_validator import PageValidator
+from linecaster.components.writers.records import PageParquetWriter
+from linecaster.components.writers.rejects import RejectWriter
+from linecaster.data import Annotator, Source, Transcription, Word
+from linecaster.data.page import PAGE_KEY, Page, PageImage
+from linecaster.errors import PipelineConfigError
+from linecaster.catalog.registry import catalog
+
+from conftest import item_text, page_with
+
+
+def _doc(page: Page, media: bytes | None = None) -> Document:
+    d = Document(text="", id=page.page_id, metadata={},
+                 media=[Media(id="m", type=MediaType.IMAGE, url="", media_bytes=media)] if media else [])
+    set_page(d, page)
+    return d
+
+
+# ------------------------------------------------------------------ Transcription.scaled
+
+def test_scaled_scales_everything_and_copies():
+    t = Transcription(source=Source(image_width=100, image_height=50))
+    a = t.add_annotator(Annotator(step="layout", name="test"))
+    t.add_region(a, "r", [10, 20, 20, 20], [[10, 20], [30, 20], [30, 40]], label="text", role="text")
+    t.add_line(a, "l", [10, 20, 20, 10], [[10, 20], [30, 30]], region="r", baseline=[[10, 28], [30, 28]])
+    t.read(a, "l", "a b", words=[Word(id="w", text="a", box=[10, 20, 5, 10]), Word(id="v", text="b")])
+    s = t.scaled(2.0, 3.0)
+    assert s.regions[0].polygon == [[20, 60], [60, 60], [60, 120]] and s.regions[0].box == [20, 60, 40, 60]
+    ln = s.lines[0]
+    assert ln.box == [20, 60, 40, 30] and ln.polygon == [[20, 60], [60, 90]] and ln.baseline == [[20, 84], [60, 84]]
+    assert ln.reading.words[0].box == [20, 60, 10, 30] and ln.reading.words[1].box is None
+    assert (s.source.image_width, s.source.image_height) == (200, 150) and s.source.scale == [2.0, 3.0]
+    assert t.lines[0].box == [10, 20, 20, 10]                        # the original is untouched
+    assert s.scaled(0.5).source.scale == [1.0, 1.5]
+    bare = Transcription()
+    bare.add_line(bare.add_annotator(Annotator(kind="file", step="transcription", name="text")), "x", text="t")
+    assert bare.scaled(2).lines[0].box is None
+
+
+# ------------------------------------------------------------------ filters
+
+def test_rejects_and_validate_pages(tmp_path: Path):
+    good = Page(page_id="i_1", item_id="i", image=PageImage(uri="x"))
+    no_image = Page(page_id="i_2", item_id="i")
+    broken = Document(text="", id="i_3", metadata={PAGE_KEY: {"page_id": 3}})
+    docs = [_doc(good), _doc(no_image), broken]
+    # the validator only records why; the rejects writer (the one that knows the task) writes the file
+    out = list(RejectWriter(str(tmp_path), prefix="validate_").run(
+        PageValidator(required=("image",)).run(iter(docs)), rank=2))
+    assert [d.id for d in out] == ["i_1", "i_2", "i_3"] and not out[0].metadata.get("errors")
+    assert [e["type"] for d in out[1:] for e in d.metadata["errors"]] == ["missing", "invalid"]
+    rows = [json.loads(x) for x in (tmp_path / "validate_00002.jsonl").read_text().splitlines()]
+    assert [(r["key"], r["field"], r["component"]) for r in rows] == [("i_2", "image", "PageValidator"),
+                                                                  ("i_3", "page_id", "PageValidator")]
+    assert all({"key", "field", "error", "raw_value", "type"} <= set(r) for r in rows)
+    assert list(RejectWriter(str(tmp_path)).run(iter([_doc(good)]), rank=3))
+    assert not (tmp_path / "00003.jsonl").exists()                 # no rejects, no file
+
+
+# ------------------------------------------------------------------ media
+
+def _png_claiming_size(w: int, h: int) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, "PNG")
+    data = bytearray(buf.getvalue())
+    data[16:24] = struct.pack(">II", w, h)
+    data[29:33] = struct.pack(">I", zlib.crc32(bytes(data[12:29])) & 0xFFFFFFFF)
+    return bytes(data)
+
+
+def test_working_images_and_attach(tmp_path: Path):
+    Image.new("RGB", (60, 40), (10, 200, 30)).save(tmp_path / "a.tif", compression="tiff_lzw")
+    (tmp_path / "big.png").write_bytes(_png_claiming_size(20000, 10))
+    before = (tmp_path / "a.tif").read_bytes()
+    pages = [Page(page_id="b_1", item_id="b", image=PageImage(uri=str(tmp_path / "a.tif"))),
+             Page(page_id="b_2", item_id="b", image=PageImage(uri=str(tmp_path / "big.png"))),
+             Page(page_id="b_3", item_id="b")]
+    converted = list(ImageConverter(str(tmp_path / "webp"), "working-image").run(iter(map(_doc, pages))))
+    list(RejectWriter(str(tmp_path / "rejects")).run(iter(converted)))
+    assert [d.id for d in converted] == ["b_1", "b_2", "b_3"]          # the rejected pages carry why
+    out = [d for d in converted if not d.metadata.get("errors")]
+    assert [d.id for d in out] == ["b_1"] and out[0].media == []
+    assert page_of(converted[1]).image.uri.endswith("big.png")         # a rejected page keeps its image
+    img = page_of(out[0]).image
+    assert img.format == "webp" and (img.width, img.height) == (60, 40) and img.uri.endswith("webp/b/b_1.webp")
+    assert img.extra["original"]["format"] == "tiff" and img.pixels_sha256
+    assert (tmp_path / "a.tif").read_bytes() == before                # the delivery is only read
+    rejects = [json.loads(x) for x in (tmp_path / "rejects" / "00000.jsonl").read_text().splitlines()]
+    assert [(r["key"], r["field"]) for r in rejects] == [("b_2", "image"), ("b_3", "image")]
+    assert "16383" in rejects[0]["error"]
+    attached = list(ImageFetcher().run(iter(out)))
+    assert Image.open(io.BytesIO(attached[0].media[0].media_bytes)).getpixel((3, 3)) == (10, 200, 30)
+
+
+# ------------------------------------------------------------------ text
+
+def test_latin_historic_never_nfkc():
+    normalize = catalog().strategy("latin-historic", use="output").text
+    assert normalize("Weſen ﬁnden ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ ꝛecht Ꝛ") == "Wesen finden fl ff ffi ffl st st recht R"
+    assert normalize("Muͤller Koͤnig Gaͤrten Uͤber eͤ") == "Müller König Gärten Über eͤ"
+    assert normalize("Æsop œuvre søster år Straße ½ x² ¹") == "Æsop œuvre søster år Straße ½ x² ¹"
+    assert normalize("é") == "é"
+
+
+def _page(regions, start=0) -> Transcription:
+    rs, ls, n = [], [], 0
+    for i, (rid, label, lines) in enumerate(regions):
+        rs.append({"id": rid, "label": label, "polygon": [[0, 0], [1, 0], [1, 1]], "bbox": [0, 0, 1, 1],
+                   "reading_order": i})
+        for k, s in enumerate(lines):
+            ls.append({"id": f"{rid}{k}", "region_id": rid, "reading_order": n, "row": k, "text": s})
+            n += 1
+    return page_with(rs, ls)
+
+
+def test_item_texts():
+    def pages():
+        p1 = _page([("h", "page_header", ["12 KAPITEL"]), ("t", "title", ["Vom Weſen"]),
+                    ("s", "section_header", ["Erſter Theil"]), ("a", "text", ["Die Unter-", "ſuchung der"]),
+                    ("f", "page_footer", ["12"])])
+        p2 = _page([("h", "page_header", ["KAPITEL 13"]), ("a", "text", ["Kaͤfer zeigt.", "# Neuer Satz"]),
+                    ("l", "list_item", ["erſtens"]), ("p", "picture", [])])
+        return [p1, p2]
+
+    assert item_text(pages(), "literal:txt", furniture=True) == (
+        "12 KAPITEL\n\nVom Weſen\n\nErſter Theil\n\nDie Unter-\nſuchung der\n\n12\n\nKAPITEL 13\n\n"
+        "Kaͤfer zeigt.\n# Neuer Satz\n\nerſtens")
+    # text only: a paragraph runs on over the page break only after a division mark (no margins to read)
+    normalized = "latin-historic+unicode-marks+flow"
+    assert item_text(pages(), f"{normalized}:txt") == (
+        "Vom Wesen\n\nErster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz\n\nerstens")
+    assert item_text(pages(), f"{normalized}:md") == (
+        "# Vom Wesen\n\n## Erster Theil\n\nDie Untersuchung der\n\nKäfer zeigt. # Neuer Satz\n\n- erstens"
+        "\n\n<!-- image -->")
+    assert "Kaͤfer zeigt.\n\\# Neuer Satz" in item_text(pages(), "literal:md")    # a row read as a heading: escaped
+    over = [_page([("a", "text", ["Die Unter-"])]), _page([("a", "text", ["ſuchung."])])]
+    assert item_text(over, f"{normalized}:txt") == "Die Untersuchung."
+    two = [_page([("a", "text", ["Ende."])]), _page([("a", "text", ["neu"])])]
+    assert item_text(two, f"{normalized}:txt") == "Ende.\n\nneu"
+    assert item_text([_page([("a", "text", ["# kein Titel"])])], "literal:md") == "\\# kein Titel"
+
+
+# ------------------------------------------------------------------ readers
+
+def test_page_row_reader_reads_parquet_rows_with_errors(tmp_path: Path):
+    p = Page(page_id="x_1", item_id="x", image=PageImage(uri=str(tmp_path / "missing.png")))
+    d = _doc(p)
+    d.metadata["errors"] = [{"step": "layout", "error": "boom"}]
+    w = PageParquetWriter(str(tmp_path / "rows"))
+    for _ in w.run(iter([d])):
+        pass
+    docs = list(PageRecordReader(str(tmp_path / "rows"), glob_pattern="*.parquet", fetch_images=False).run())
+    assert docs[0].id == "x_1" and docs[0].text == "" and docs[0].metadata["errors"][0]["error"] == "boom"
+    assert page_of(docs[0]).item_id == "x"
+
+
+# ------------------------------------------------------------------ jobs
+
+def _torch(requirement: str) -> bool:
+    return requirement.split(" ", 1)[0].split("[", 1)[0] in ("torch", "torchvision")
+
+
+def test_jobs_dependencies():
+    from linecaster.runtime import jobs
+
+    deps = jobs.dependencies("abc123", jobs.ROOT / "pipelines/transcribe_modular.py").requirements
+    # the script's extras but Ray, which a Job leaves out: nvImageCodec decodes the pages on the Job's GPU
+    assert deps[0] == "linecaster[nvimgcodec] @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"
+    assert "opencv-contrib-python @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz#subdirectory=stubs/opencv-contrib-python" in deps
+    assert not any("kraken" in d or _torch(d) for d in deps)       # the modular pipeline has no kraken, no torch
+    assert jobs.dependencies("abc123", engines=False).requirements == [
+        "linecaster @ https://github.com/storytracer/linecaster/archive/abc123.tar.gz"]
+    with pytest.raises(PipelineConfigError, match="give the pipeline.s script"):   # engines expected, no script
+        jobs.dependencies("abc123")
+
+
+def test_parquet_reader_without_parquet_files_is_an_error(tmp_path):
+    """An image folder has no Parquet files: the reader says so instead of reading nothing."""
+    from linecaster.components.readers.images import ImageParquetReader
+
+    (tmp_path / "book").mkdir()
+    (tmp_path / "book" / "book_0001.webp").write_bytes(b"not parquet")
+    from linecaster.errors import PipelineConfigError
+
+    with pytest.raises(PipelineConfigError, match="No Parquet files found"):
+        list(ImageParquetReader(str(tmp_path)).run())

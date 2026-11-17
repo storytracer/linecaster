@@ -57,7 +57,7 @@ role, a note, an edit, what is removed and why). The importer records the conven
 an evaluation's own any more.
 
 **What a ground truth supports** is recorded in its benchmark (below): which roles it marks, whether it has boxes,
-a reading order of blocks, notes, continuations across pages. A metric that needs what it lacks is not computed.
+a reading order of components, notes, continuations across pages. A metric that needs what it lacks is not computed.
 
 ## Rendering both sides
 
@@ -157,7 +157,7 @@ reading_order]`, the default with the page metrics).
 the texts render it: illegible spans as U+FFFD), a table (by `table_kind`: data tables are tables, the rest text,
 unless the benchmark's `elements.tables` is `all`), a formula (a formula region, or a line that is a display
 formula), a description where the policy scores it (`page-layers-described`). An output without regions (a model's
-Markdown) is cut into its lines, with the blocks that span lines
+Markdown) is cut into its lines, with the components that span lines
 recognized: an HTML table, a pipe table, a `$$…$$` or `\[…\]` formula, a `#` heading. Each element records its role,
 kind, layer, and the writing system and classifications that hold for it.
 
@@ -295,11 +295,11 @@ on: an empty prediction), `export.yaml` (what was exported and with what) and a 
 command; OmniDocBench runs in an environment of its own (Python before 3.12).
 
 **The formats** (`linecaster.formats.omnidocbench`): the ground truth's regions in reading order become its
-elements, their roles its categories (paragraphs `text_block`, headings `title`, running heads and feet `header`
+elements, their roles its categories (paragraphs `text_component`, headings `title`, running heads and feet `header`
 and `footer`, page numbers `page_number`, footnotes `page_footnote`, captions `figure_caption`, tables `table` with
 their HTML, formula regions `equation_isolated`); a line a formula fills (an equation number may follow) is its own
 `equation_isolated`, an inline formula stays in its text as `$…$`. No boxes are written: OmniDocBench scores by
-text and order. A run's page is Markdown: blocks in reading order, a heading `#` at its level, tables as HTML,
+text and order. A run's page is Markdown: components in reading order, a heading `#` at its level, tables as HTML,
 formula regions `$$…$$`; a transcription without regions (a VLM's completion) as the model wrote it. Pages carry
 the attributes `tables` (data tables) and `formulas` (`yes`/`no`, the [slices](#aggregation)), by which OmniDocBench
 groups its page results.
@@ -316,7 +316,7 @@ combining marks (Devanagari vowel signs, Arabic vowel marks, Hebrew points, Thai
 not compared, and nothing is put in NFC; predicted text that matches no ground-truth element and predicted tables that
 match no ground-truth table are not counted; captions and footnotes are matched but not scored; its "overall" needs
 its formula metric CDM (TeX Live) and pages with tables and formulas. Its reading-order distance is not 0 for a page
-against itself where its matching splits or merges blocks. Its results are another view than linecaster's own
+against itself where its matching splits or merges components. Its results are another view than linecaster's own
 scoring, not one of its lanes; for scripts with combining marks linecaster's scoring is the measure.
 
 ## Checking a ground truth (`linecaster truth check`)

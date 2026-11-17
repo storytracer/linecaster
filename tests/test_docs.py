@@ -15,16 +15,16 @@ README = code.REPO / "README.md"
 
 def test_the_generator_writes_every_page_and_removes_stale_ones(tmp_path, capsys):
     out = tmp_path / "docs"
-    (out / "blocks" / "readers").mkdir(parents=True)
-    (out / "blocks" / "readers" / "stale.md").write_text("from an earlier run")
+    (out / "components" / "readers").mkdir(parents=True)
+    (out / "components" / "readers" / "stale.md").write_text("from an earlier run")
     cli.main(["docs", "--out", str(out), "--readme", str(README)])
-    assert not (out / "blocks" / "readers" / "stale.md").exists()
-    for page in ("index.md", "changelog.md", "llms.txt", "llms-full.txt", "blocks/README.md", "catalog/README.md",
-                 "blocks/readers/ImageFolderReader.md"):
+    assert not (out / "components" / "readers" / "stale.md").exists()
+    for page in ("index.md", "changelog.md", "llms.txt", "llms-full.txt", "components/README.md", "catalog/README.md",
+                 "components/readers/ImageFolderReader.md"):
         assert (out / page).is_file(), page
-    assert f"({SITE}/blocks/)" in (out / "llms.txt").read_text()
-    failed = [p.relative_to(out).as_posix() for p in (out / "blocks").rglob("*.md") if "not built" in p.read_text()]
-    assert failed == []                                        # every block builds for its page
+    assert f"({SITE}/components/)" in (out / "llms.txt").read_text()
+    failed = [p.relative_to(out).as_posix() for p in (out / "components").rglob("*.md") if "not built" in p.read_text()]
+    assert failed == []                                        # every component builds for its page
     assert "stale.md" in capsys.readouterr().out
     cli.main(["docs", "--out", str(out), "--readme", str(README)])
     assert capsys.readouterr().out == ""                       # nothing changed: nothing written
@@ -38,7 +38,7 @@ def _own_pipeline_snippet() -> str:
 
 def test_the_readme_pipeline_builds_and_checks(tmp_path, monkeypatch):
     """The snippet as written, up to the executor: its ``run()`` builds the plan and checks it instead (no engine
-    loads before a block's warm-up, so none is needed)."""
+    loads before a component's warm-up, so none is needed)."""
     from linecaster.runtime.builder import build
 
     plans = []
@@ -55,4 +55,4 @@ def test_the_readme_pipeline_builds_and_checks(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(datatrove.executor, "LocalPipelineExecutor", Executor)
     exec(compile(_own_pipeline_snippet(), "README.md", "exec"), {})
-    assert len(plans) == 1 and [type(b).__name__ for b in plans[0].stages[0].blocks][-1] == "PageFileWriter"
+    assert len(plans) == 1 and [type(b).__name__ for b in plans[0].stages[0].components][-1] == "PageFileWriter"

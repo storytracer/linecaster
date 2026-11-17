@@ -11,7 +11,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.chandra_ocr2 import scale_to_fit
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 OCR_LAYOUT_PROMPT = chat_model("chandra-ocr-2").prompt   # the preset's, verbatim
 

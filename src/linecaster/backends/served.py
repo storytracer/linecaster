@@ -74,12 +74,12 @@ def check_protocol(endpoint: str, headers: dict[str, str] | None = None) -> str 
 
 @dataclass
 class Served:
-    """Runs a model block's engine behind ``linecaster serve`` (or any server speaking its routes), reached through
+    """Runs a model component's engine behind ``linecaster serve`` (or any server speaking its routes), reached through
     saturate.
 
-    The block streams its pages to ``POST <endpoint>/linecaster/{step}``: a window of requests in flight, adapted
+    The component streams its pages to ``POST <endpoint>/linecaster/{step}``: a window of requests in flight, adapted
     to the server's queue gauges and 429s, results passed on as they finish. Secrets are read in the task, when the
-    block's client opens (``warm_up()`` reads them first, so a missing one fails the task before its first page);
+    component's client opens (``warm_up()`` reads them first, so a missing one fails the task before its first page);
     a key given as text is refused (``PipelineConfigError``). Requests and responses carry ``linecaster.page/4``
     transcriptions: ``warm_up()`` asks a server that already answers for its protocol (``/health``) and refuses one
     that speaks another (``ServerError``).
@@ -91,7 +91,7 @@ class Served:
         initial_window: the requests in flight at the start; saturate adapts the window between it and
             ``max_window``.
         read_timeout: seconds per request before it fails (the page's error).
-        preset: the catalog preset (``id``) the server hosts under ``model``, when known: the block's
+        preset: the catalog preset (``id``) the server hosts under ``model``, when known: the component's
             contract takes its parts from it.
         engine: the engine (``module:Class``) the server hosts under ``model``, when known: the contract's parts
             from its capabilities when there is no preset.
@@ -101,7 +101,7 @@ class Served:
 
     Example:
         from linecaster.backends import Served
-        from linecaster.blocks.recognition import LineRecognizer
+        from linecaster.components.recognition import LineRecognizer
 
         LineRecognizer(Served("http://127.0.0.1:8100/v1", model="recognition"))
     """
@@ -112,7 +112,7 @@ class Served:
     initial_window: int = 4
     read_timeout: float = 600.0
     #: the catalog preset (id) and the engine (module:Class) the server hosts under ``model``, when known:
-    #: the block's contract takes its parts from them
+    #: the component's contract takes its parts from them
     preset: str | None = None
     engine: str | None = None
     api_key: EnvVar | None = None
@@ -129,7 +129,7 @@ class Served:
     def warm_up(self) -> None:
         """The secrets are read (a missing one fails the task before its first page), and a server that answers
         already is asked for its protocol (``check_protocol``); nothing else to load: the client opens with the
-        block's run."""
+        component's run."""
         headers = self.request_headers()
         if not getattr(self, "_protocol_checked", False):
             self._protocol_checked = check_protocol(self.endpoint, headers) is not None
@@ -142,7 +142,7 @@ class Served:
         for k in ("preset", "engine", "api_key", "headers"):
             if getattr(self, k) is not None:
                 out[k] = getattr(self, k)
-        from linecaster.blocks.base.block import plain
+        from linecaster.core.component import plain
 
         return plain(out)
 

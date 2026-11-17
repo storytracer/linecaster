@@ -1,4 +1,4 @@
-"""`linecaster serve` with served blocks, end to end in one process: a step that reads only some regions sends
+"""`linecaster serve` with served components, end to end in one process: a step that reads only some regions sends
 no image for a page without them, a malformed answer is that page's error, and saturate's readiness check
 passes once the models are loaded; a client refuses a server that speaks another transcription format."""
 import asyncio
@@ -9,8 +9,8 @@ import threading
 from PIL import Image
 
 from linecaster.backends import Served
-from linecaster.blocks.base.page import new_page_document, page_of, set_page
-from linecaster.blocks.recognition.recognizers import TableRecognizer
+from linecaster.core.page import new_page_document, page_of, set_page
+from linecaster.components.tables.table_recognizer import TableRecognizer
 from linecaster.data import Annotator, Transcription
 from linecaster.data.page import Page
 from linecaster.testing import FakeTableEngine
@@ -100,8 +100,8 @@ def test_served_step_sends_images_only_where_needed_and_fails_one_page():
         loop.call_soon_threadsafe(loop.stop)
 
 
-def test_a_served_block_passes_a_failed_page_on_at_once():
-    """A page an earlier block failed on leaves a served block before the next page is read, not when the stream
+def test_a_served_component_passes_a_failed_page_on_at_once():
+    """A page an earlier component failed on leaves a served component before the next page is read, not when the stream
     ends."""
     from saturate.engine import wait_for_health
 
@@ -110,7 +110,7 @@ def test_a_served_block_passes_a_failed_page_on_at_once():
     endpoint = f"http://127.0.0.1:{port}/v1"
     out_first = threading.Event()
     failed = page("failed", "table")
-    failed.metadata["errors"] = [{"block": "X", "type": "RuntimeError", "error": "earlier"}]
+    failed.metadata["errors"] = [{"component": "X", "type": "RuntimeError", "error": "earlier"}]
 
     def pages():
         yield failed
@@ -132,8 +132,8 @@ def test_a_served_block_passes_a_failed_page_on_at_once():
         loop.call_soon_threadsafe(loop.stop)
 
 
-def test_the_server_decodes_as_the_block_asks_and_the_step_names_its_decoder(monkeypatch):
-    """A served block sends its ``image_decode`` with the image; the server decodes the page that way and records the
+def test_the_server_decodes_as_the_component_asks_and_the_step_names_its_decoder(monkeypatch):
+    """A served component sends its ``image_decode`` with the image; the server decodes the page that way and records the
     decoder on the step (measurement ``decoder``); a page sent without an image has none."""
     from saturate.engine import wait_for_health
 

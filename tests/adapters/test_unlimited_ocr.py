@@ -11,8 +11,8 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers import serve as serve_mod
-from linecaster.blocks.servers.serve import ChatModelServer, check_default_branch
+from linecaster.components.servers import serve as serve_mod
+from linecaster.components.servers.serve import ChatModelServer, check_default_branch
 from linecaster.errors import CatalogError, PipelineConfigError, ServerError
 
 NGRAM_PROCESSOR = chat_model("unlimited-ocr-2").custom_logit_processor
@@ -198,7 +198,7 @@ def test_server_python_takes_the_first_python_that_imports_sglang(monkeypatch, t
     import os
     import stat
 
-    from linecaster.blocks.servers.serve import ChatModelServer
+    from linecaster.components.servers.serve import ChatModelServer
 
     bad, good = tmp_path / "venv" / "bin", tmp_path / "opt" / "bin"
     for d, code in ((bad, 1), (good, 0)):

@@ -129,7 +129,7 @@ def sample_document(page_id: str = "item1_0001", width: int = 800, height: int =
         name: the name of that transcription.
         fmt: the image format of the media (``PNG``, ``WEBP``, ...).
     """
-    from linecaster.blocks.base.page import new_page_document, page_of, set_page
+    from linecaster.core.page import new_page_document, page_of, set_page
 
     data = sample_png(width, height, lines, fmt)
     doc = new_page_document(page_id, data, uri=f"/scans/{page_id}.{fmt.lower()}", item_id=item_id,

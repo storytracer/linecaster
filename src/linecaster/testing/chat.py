@@ -43,7 +43,7 @@ def fake_chat_server(answer: Callable[[dict], str | dict] | None = None,
     ``answer`` gets each request's body and returns the content of the completion (a string, wrapped by
     ``completion``) or the whole response body (a dict). With ``models``, ``GET /v1/models`` lists them (as vLLM
     does, e.g. ``{"id": "m", "max_model_len": 18000}``). Other routes answer 404 (saturate's gauge probe then runs
-    blind). The server binds ``127.0.0.1`` on a free port and stops when the block ends.
+    blind). The server binds ``127.0.0.1`` on a free port and stops when the component ends.
 
     Args:
         answer: the function that answers; ``None``: every request is answered ``"text"``.
@@ -51,7 +51,7 @@ def fake_chat_server(answer: Callable[[dict], str | dict] | None = None,
 
     Example:
         from linecaster.backends import Chat
-        from linecaster.blocks.recognition import PageRecognizer
+        from linecaster.components.recognition import PageRecognizer
 
         with fake_chat_server(lambda body: "a page") as server:
             pages = list(PageRecognizer(Chat("lightonocr-2-1b", server.url)).run(iter(docs)))

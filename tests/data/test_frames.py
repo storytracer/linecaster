@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from linecaster.blocks.lines.assigner import order_rows
+from linecaster.components.lines.line_assigner import order_rows
 from linecaster.data import Annotator, Transcription
 from linecaster.data.geometry import BBox
 from linecaster.data.geometry.frames import framed, from_frame, to_frame

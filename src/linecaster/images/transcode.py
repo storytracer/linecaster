@@ -1,7 +1,7 @@
 """Image conversion: any image Pillow reads to JPEG, JPEG 2000, PNG or WebP, decoded and encoded on a GPU where the
 machine has one and it supports the format (``linecaster.images.accel``), else on the CPU with Pillow.
 
-Two steps, so a pipeline can run them in stages of their own (``linecaster.blocks.conversion.images``):
+Two steps, so a pipeline can run them in stages of their own (``linecaster.components.images.image_converter``):
 
 * ``decode``: the image's header (Pillow, no pixels), the size limit (``convert.check_size``), its EXIF orientation
   (reported, not applied), then the pixels: on the GPU for JPEG, JPEG 2000 and TIFF in 8-bit ``L`` or ``RGB``

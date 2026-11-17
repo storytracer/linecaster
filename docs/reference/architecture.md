@@ -24,12 +24,12 @@ built on top of it.
 |---|---|
 | `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, annotation sets (`AnnotationSet`, `Transcription`) with their annotators (`Annotator`), raw outputs (`RawOutput`) and annotations, `Text`, rendering policies (`RenderingPolicy`), the measurements vocabulary |
 | `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; HTML in (`HtmlConverter`, by HTML's semantics and a source's conventions); plain text in; DoclingDocuments in (the `docling` extra); the IIIF annotation page |
-| `linecaster.document` | a page's or an item's document (`Document`, its blocks and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
+| `linecaster.document` | a page's or an item's document (`Document`, its components and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
 | `linecaster.markup` | conventions: their format (`linecaster.conventions`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
 | `linecaster.text` | the text transforms: typography, recomposition, the normalizations' rules on characters, offsets through a change of text, a page's literal text |
 | `linecaster.images` | the working image, plots |
 | `linecaster.engines` | the built-in engines: the rule-based steps and the single-region layout |
-| `linecaster.blocks` | the blocks by family ([blocks](../blocks/README.md)) |
+| `linecaster.components` | the components by family ([components](../components/README.md)) |
 | `linecaster.backends` | `InProcess`, `Served`, `Chat` |
 | `linecaster.adapters` | one adapter per VLM family, `ADAPTERS` |
 | `linecaster.serve` | `linecaster serve` |
@@ -40,32 +40,32 @@ built on top of it.
 | `linecaster.catalog` | the catalog: its entries (normalizations and strategies among them), schemas, index, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
-| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_block`, the pytest markers |
+| `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_component`, the pytest markers |
 
-The first five load neither datatrove nor saturate, nor linecaster's blocks or runtime (`tests/test_import_rule.py`),
+The first five load neither datatrove nor saturate, nor linecaster's components or runtime (`tests/test_import_rule.py`),
 so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
 required dependencies, datatrove with its `io` and `s3` extras (`s3://` paths work everywhere), and so is httpx
 (`http(s)://` through `linecaster.net`); engines, Ray and PDFium are not (engine packages and extras).
 
-## Blocks and backends
+## Components and backends
 
-A block is a datatrove `PipelineStep` with a contract; a pipeline is a list of blocks run by a datatrove executor.
-Each family is a subpackage of `linecaster.blocks` ([blocks](../blocks/README.md) has a page per block).
+A component is a datatrove `PipelineStep` with a contract; a pipeline is a list of components run by a datatrove executor.
+Each family is a subpackage of `linecaster.components` ([components](../components/README.md) has a page per component).
 
-**Model blocks** (`ModelBlock`: `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`,
+**Model components** (`ModelComponent`: `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`,
 `FormulaRecognizer`, `PageRecognizer`, `RegionRecognizer`) each have a backend:
 
 - `InProcess("pkg:Class", **kwargs)` (or a preset ref) loads the engine in the worker, in `warm_up()` before the
   first page; a loaded engine is never pickled. In-process is always available and is the parity reference.
 - `Served(endpoint, model=name)` and `Chat(preset, endpoint)` (a VLM) stream pages through saturate
   (`AdaptiveClient` and `through()`): a window of pages in flight, adapted to the server's queue gauges and 429s;
-  results passed on as they finish; secrets as `EnvVar`. The streaming exists once, in `ModelBlock`.
+  results passed on as they finish; secrets as `EnvVar`. The streaming exists once, in `ModelComponent`.
 
 A page that failed a step carries `doc.metadata["errors"]`, passes later model steps at once and goes to
 `rejects/`; more failures than the error budget fail the task ([pipelines](pipelines.md#failures)). Library code
 raises `linecaster.errors`, never `SystemExit`.
 
-**Rule blocks** (`RuleBlock`: `Typographer`, `Recomposer`, `Composer`; and `ImageConverter`)
+**Rule components** (`RuleComponent`: `Typographer`, `Recomposer`, `Composer`; and `ImageConverter`)
 run a built-in engine of a rule-based step in the pipeline's process, picked by a preset.
 
 ## One page per request
@@ -91,7 +91,7 @@ number of tasks or the backend.
   pipeline behind its own HTTP API (Falcon-OCR, OXR). A VLM is a catalog preset
   (engine `chat.v1`; its data: revision, prompt, sampling, serve block) plus an adapter in
   `linecaster.adapters.ADAPTERS` (its code: the request, the parsing; `chat_model(<preset>)`).
-- **Servers inside a task** (one GPU per HF Job): the server blocks `ModelServer` (`linecaster serve`) and
+- **Servers inside a task** (one GPU per HF Job): the server components `ModelServer` (`linecaster serve`) and
   `ChatModelServer` (vLLM or SGLang) start the server through saturate's `Engine` and go last in the pipeline,
   after the writer: datatrove chains generators, and only the last one lives until every page is written. Each
   task starts its own servers. `ModelServer(script=...)` starts a pipeline script's `serve` with
@@ -134,8 +134,8 @@ pages are not in git, so CI writes them and a broken reference in them fails the
 with `latest` (the site's default) moved to it; nothing else is published. The engines' environments are too large for it
 (torch): their tests (`engines/<engine>/tests/`) and the PEP 723 test
 scripts (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`, `tests/test_line_recognizers.py`) run locally. Every built-in engine and every public
-block passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_block`:
-the contract against what the block does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
+component passes the conformance checks of `linecaster.testing` (`check_engine`: the engine protocol; `check_component`:
+the contract against what the component does to sample pages, `to_dict()`, pickling, `warm_up()`, failed pages).
 
 An engine package's tests run in an environment that has the engine: `uv run tests/test_engines_catalog.py
 engines/<engine>/tests`. `tests/test_engines_catalog.py` holds kraken, PaddleX and Tesseract for the catalog's
@@ -166,7 +166,7 @@ zensical serve`.
 
 There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
 `<script>.py.lock` next to it, `uv run <script>`) that runs one pipeline shape with slots, one script per shape,
-never one per machine. The shape is library code, `linecaster.pipelines.<name>` (its options, engines, blocks,
+never one per machine. The shape is library code, `linecaster.pipelines.<name>` (its options, engines, components,
 pipeline id and slots), so a derivative's script can run it in its own environment with its own defaults
 ([pipelines](pipelines.md#pipeline-shapes)):
 
@@ -249,7 +249,7 @@ copies). Checks like `PageValidator` record on the page why it failed.
 
 **Readers** follow datatrove's conventions (`BaseDiskReader`: `data_folder`, `paths_file`, `glob_pattern`,
 `limit`/`skip` per task; files distributed over tasks in turn, Parquet tables by rows in equal shards,
-`linecaster.blocks.readers.tables`, so a table needs no splitting): `ImageFolderReader` (image files),
+`linecaster.components.readers.tables`, so a table needs no splitting): `ImageFolderReader` (image files),
 `ImageParquetReader` (an image column: bytes, an HF image struct or a path), `ManifestReader` (IIIF or METS, parsed
 by `linecaster.formats.manifests`, its files fetched through `linecaster.net.http`; a manifest,
 or a row of a Parquet item table, is an entry, so an item stays in one task; a IIIF Collection entry is its

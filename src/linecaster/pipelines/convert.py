@@ -29,7 +29,7 @@ logged once per kind of failure and counted (``gpu_decode_errors``). Ctrl-C stop
 runs again on the next launch, and the process ends by the signal. Under ``uv run`` a shell loop still goes on
 (uv turns the signal into exit code 130, astral-sh/uv#11886): ``trap 'exit 130' INT`` before the loop stops it.
 """
-from linecaster.blocks.conversion.images import ImageConverter
+from linecaster.components.images.image_converter import ImageConverter
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 

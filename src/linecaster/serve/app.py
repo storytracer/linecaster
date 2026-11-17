@@ -1,4 +1,4 @@
-"""``linecaster serve``: host engines over HTTP for blocks that reach them through saturate.
+"""``linecaster serve``: host engines over HTTP for components that reach them through saturate.
 
 Stateless: every request carries the page image, the transcription so far and the parameters; the
 server keeps nothing between requests. Routes:
@@ -24,7 +24,7 @@ joins its model's queue, on the server's GPU where it has one; the step records 
 ``decoder``). The server keeps the decoded pages by their content (``--decoded-gb``, default 4 GB), so the steps of
 one page (layout, lines, recognition: one request each, each with the image) decode it once.
 
-Tracing: a request that carries a W3C ``traceparent`` (in the body, as linecaster's served blocks send it, or in
+Tracing: a request that carries a W3C ``traceparent`` (in the body, as linecaster's served components send it, or in
 the headers) continues that trace with ``linecaster.serve.decode`` (the image decoded, the transcription read),
 ``linecaster.serve.queue`` (waiting for the model's worker) and ``linecaster.serve.model`` (the model call); an
 unsampled trace (flags 00) or a request without one records nothing. The spans go to the file the task names
@@ -58,7 +58,7 @@ from linecaster.tracing import context_of
 PROTOCOL = SCHEMA
 
 #: decoded page images a server keeps, in GB (``--decoded-gb``): between a page's layout and its lines request the
-#: requests of many other pages come in (each block keeps a window of them in flight), and a 12-megapixel page is 36 MB
+#: requests of many other pages come in (each component keeps a window of them in flight), and a 12-megapixel page is 36 MB
 DECODED_GB = 4.0
 
 

@@ -1,8 +1,8 @@
 """Multi-GPU Jobs: each task of a Job gets its own server port; remote endpoints stay untouched."""
 from linecaster.backends import Served
-from linecaster.blocks.layout.detector import LayoutDetector
-from linecaster.blocks.recognition.recognizers import LineRecognizer
-from linecaster.blocks.servers.serve import ModelServer
+from linecaster.components.layout.layout_detector import LayoutDetector
+from linecaster.components.recognition.line_recognizer import LineRecognizer
+from linecaster.components.servers.serve import ModelServer
 from linecaster.runtime.jobs import point_to_gpu
 
 
@@ -19,7 +19,7 @@ def test_point_to_gpu_moves_servers_and_loopback_clients():
 
 def test_point_to_gpu_keeps_two_servers_apart():
     from linecaster.adapters import chat_model
-    from linecaster.blocks.servers.serve import ChatModelServer
+    from linecaster.components.servers.serve import ChatModelServer
 
     spec = chat_model("lightonai/LightOnOCR-2-1B")
     pipeline = [LayoutDetector(Served("http://127.0.0.1:8100/v1", model="layout")),

@@ -1,14 +1,14 @@
 """linecaster's logging: loguru (datatrove's), with ``{placeholder}`` templates and the values as named arguments,
 so each record carries them (``record["extra"]``) and logs can be filtered by them::
 
-    logger.warning("page {page_id} failed in {block}: {error}", page_id=doc.id, block=name, error=str(e))
+    logger.warning("page {page_id} failed in {component}: {error}", page_id=doc.id, component=name, error=str(e))
 
 On HF Jobs (``LINECASTER_LOG_JSON=1``, which the pipeline scripts set for their Jobs) the records are JSON lines
 (loguru's ``serialize=True``): on the Job's stderr and in the task's log file, where datatrove writes its own.
 ``linecaster serve`` started in such a task inherits the variable and logs the same way.
 
 Log records carry ``trace_id`` and ``span_id`` (in ``extra``, hex) while a task is traced (``install_trace_ids``, by
-``linecaster.tracing.Tracing``): the page the record names (``page_id``), else the span of the per-unit block
+``linecaster.tracing.Tracing``): the page the record names (``page_id``), else the span of the per-unit component
 running in the thread, else the task's span; in ``linecaster serve`` the span of the request the thread works on."""
 from __future__ import annotations
 

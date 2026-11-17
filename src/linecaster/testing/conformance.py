@@ -1,5 +1,5 @@
-"""Conformance checks for engines (``check_engine``) and blocks (``check_block``): what every engine and every
-block must do, whoever wrote it. Each check collects every problem it finds and raises one ``AssertionError``
+"""Conformance checks for engines (``check_engine``) and components (``check_component``): what every engine and every
+component must do, whoever wrote it. Each check collects every problem it finds and raises one ``AssertionError``
 listing them, so a test is one call."""
 from __future__ import annotations
 
@@ -318,7 +318,7 @@ def _rendered(out) -> str:
 
 
 def _step_input(step: str, unit: str | None):
-    """The transcription an engine or block of ``step`` and ``unit`` gets by default: what the steps before it
+    """The transcription an engine or component of ``step`` and ``unit`` gets by default: what the steps before it
     made of a sample page (``sample_layout``)."""
     from linecaster.data import Annotator, Source, Transcription
     from linecaster.testing.samples import box
@@ -367,7 +367,7 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     whose rule annotators of step ``import`` name the engine and only measurements of the vocabulary;
     a composition (a rendering) returns what it renders and changes nothing in the transcription it reads; every
     other call gives each transcription exactly one more ``Annotator``, of kind ``rule`` for a rule-based step
-    (``model`` or ``rule`` for a model step: one without a model is a rule), naming the engine's step, the engine id (or no engine: the block fills it in) and only measurements of the vocabulary
+    (``model`` or ``rule`` for a model step: one without a model is a rule), naming the engine's step, the engine id (or no engine: the component fills it in) and only measurements of the vocabulary
     (``linecaster.data.MEASUREMENTS``); every annotation the call added names it, and nothing that was there changed
     (``overwritten``: annotations only appended, a field that was ``None`` set at most). The second call returns the
     same as the first, apart from the measurements that vary from run to run (``seconds``, ``datetime``). An engine with
@@ -564,14 +564,14 @@ def docling_sample(t) -> dict:
     return d.export_to_dict()
 
 
-# ------------------------------------------------------------------------------------------------- blocks
+# ------------------------------------------------------------------------------------------------- components
 
 def _media(doc, kind):
     return next((m.media_bytes for m in doc.media if m.type == kind and m.media_bytes is not None), None)
 
 
 def page_changes(before, after) -> list[tuple[str, frozenset]]:
-    """Returns what differs between a page's datatrove document before and after a block, each difference with the
+    """Returns what differs between a page's datatrove document before and after a component, each difference with the
     parts (``Part``) that may account for it, or ``("removed", part)`` for a part that is gone.
 
     Page-level: ``image`` (the image media's bytes), ``transcription_file`` (a document media's bytes),
@@ -584,7 +584,7 @@ def page_changes(before, after) -> list[tuple[str, frozenset]]:
     """
     from datatrove.data import MediaType
 
-    from linecaster.blocks.base.contract import Part
+    from linecaster.core.contract import Part
     from linecaster.data.page import PAGE_KEY
 
     out: list[tuple[str, frozenset]] = []
@@ -608,7 +608,7 @@ def page_changes(before, after) -> list[tuple[str, frozenset]]:
 
 
 def _overwritten_on_page(before, after, contract) -> list[str]:
-    """What a block changed of the transcriptions a page carried (``overwrites``, per transcription) that its
+    """What a component changed of the transcriptions a page carried (``overwrites``, per transcription) that its
     contract does not replace: a change to the annotations of a part it replaces is the replacement (``*``: every
     part); a transcription it made anew (``made_anew``, as a page engine's) only where it replaces a part of it."""
     from linecaster.data.page import PAGE_KEY
@@ -638,88 +638,88 @@ def _part_covers(declared, changed) -> bool:
     return changed.name == "*" and changed.transcription is not None and declared.transcription == changed.transcription
 
 
-def _sample_docs(unit: str, block=None) -> list:
+def _sample_docs(unit: str, component=None) -> list:
     """Two sample pages of one item with a recognized layout, or (unit ``item``) their item record; for a layout or
-    line model block, the pages as its step finds them (no layout; a layout without lines: ``_step_input``)."""
+    line model component, the pages as its step finds them (no layout; a layout without lines: ``_step_input``)."""
     docs = sample_documents(2)
-    step = getattr(block, "step", None)
-    if unit == "page" and step in ("layout", "lines") and hasattr(block, "backend"):
-        from linecaster.blocks.base.page import page_of, set_page
+    step = getattr(component, "step", None)
+    if unit == "page" and step in ("layout", "lines") and hasattr(component, "backend"):
+        from linecaster.core.page import page_of, set_page
 
         for d in docs:
             page = page_of(d)
-            page.transcriptions[getattr(block, "transcription", None) or "ocr_new"] = _step_input(step, "page")
+            page.transcriptions[getattr(component, "transcription", None) or "ocr_new"] = _step_input(step, "page")
             set_page(d, page)
     if unit != "item":
         return docs
-    from linecaster.blocks.binding import Binder
+    from linecaster.components.items import Binder
 
     return list(Binder().run(iter(docs)))
 
 
-def check_block(block, docs=None, *, run: bool = True) -> list:
-    """Checks that a block follows the block conventions, and returns what it passed on for ``docs``.
+def check_component(component, docs=None, *, run: bool = True) -> list:
+    """Checks that a component follows the component conventions, and returns what it passed on for ``docs``.
 
     The checks: ``contract()`` returns a ``Contract``; ``to_dict()`` is JSON-serializable and stable (the same
     twice, and the same for a copy pickled with dill before ``warm_up()``, as datatrove's executors pickle
-    pipelines); ``warm_up()`` is idempotent (a second call keeps the loaded engine). With ``run``: the block runs on
+    pipelines); ``warm_up()`` is idempotent (a second call keeps the loaded engine). With ``run``: the component runs on
     ``docs`` in this process (``run_pages``), and on each page only parts its contract adds or replaces changed and
     only parts it removes are gone (``page_changes``), and nothing a transcription held was changed (``overwritten``)
     but the annotations of the parts its contract replaces (a transcription made anew only where the contract
-    replaces a part of it), not for a block that changes the unit (a binder or a splitter); a model block passes a page that carries an earlier error through unchanged; a page block that reads
+    replaces a part of it), not for a component that changes the unit (a binder or a splitter); a model component passes a page that carries an earlier error through unchanged; a page component that reads
     the image records a page without image bytes as that page's error and passes it on.
 
     Args:
-        block: the block, built as a pipeline would build it.
+        component: the component, built as a pipeline would build it.
         docs: the datatrove documents it runs on; ``None``: two sample pages of one item with a recognized layout
-            (``sample_documents``; a layout or line model block gets them as its step finds them), as an item record
-            for an item-unit block; a reader reads its own input after them.
-        run: run the block; ``False`` (a server block) checks only what needs no run.
+            (``sample_documents``; a layout or line model component gets them as its step finds them), as an item record
+            for an item-unit component; a reader reads its own input after them.
+        run: run the component; ``False`` (a server component) checks only what needs no run.
 
     Example:
         from linecaster.backends import InProcess
-        from linecaster.blocks.lines import LineDetector
-        from linecaster.testing import check_block, register_fakes
+        from linecaster.components.lines import LineDetector
+        from linecaster.testing import check_component, register_fakes
 
         register_fakes()
-        out = check_block(LineDetector(InProcess("linecaster.testing:FakeLineEngine")))
+        out = check_component(LineDetector(InProcess("linecaster.testing:FakeLineEngine")))
     """
     import dill
     from datatrove.data import Document
 
-    from linecaster.blocks.base.contract import Contract, Part
-    from linecaster.blocks.base.page import ERRORS_KEY, PageBlock
+    from linecaster.core.contract import Contract, Part
+    from linecaster.core.page import ERRORS_KEY, PageComponent
     from linecaster.runtime.builder import run_pages
 
     problems: list[str] = []
-    label = f"{type(block).__name__}"
-    contract = block.contract() if callable(getattr(block, "contract", None)) else None
+    label = f"{type(component).__name__}"
+    contract = component.contract() if callable(getattr(component, "contract", None)) else None
     if not isinstance(contract, Contract):
         raise AssertionError(f"{label}: contract() returns {type(contract).__name__}, not a Contract")
     try:
-        first = json.dumps(block.to_dict(), sort_keys=True)
+        first = json.dumps(component.to_dict(), sort_keys=True)
     except (TypeError, ValueError) as e:
         raise AssertionError(f"{label}: to_dict() is not JSON-serializable: {e}") from e
-    if json.dumps(block.to_dict(), sort_keys=True) != first:
+    if json.dumps(component.to_dict(), sort_keys=True) != first:
         problems.append("to_dict() differs from one call to the next")
     try:
-        clone = dill.loads(dill.dumps(block))
+        clone = dill.loads(dill.dumps(component))
         if json.dumps(clone.to_dict(), sort_keys=True) != first:
-            problems.append("to_dict() of the block pickled with dill differs from the block's")
+            problems.append("to_dict() of the component pickled with dill differs from the component's")
     except Exception as e:  # noqa: BLE001 - reported
         problems.append(f"does not pickle with dill before warm_up(): {type(e).__name__}: {e}")
     out: list = []
     if run:
-        block.warm_up()
-        backend = getattr(block, "backend", None)
+        component.warm_up()
+        backend = getattr(component, "backend", None)
         loaded = getattr(backend, "_model", None)
-        block.warm_up()
+        component.warm_up()
         if loaded is not None and getattr(backend, "_model", None) is not loaded:
             problems.append("a second warm_up() loaded the engine again")
-        docs = list(docs) if docs is not None else (_sample_docs(contract.unit, block) if contract.role != "reader"
+        docs = list(docs) if docs is not None else (_sample_docs(contract.unit, component) if contract.role != "reader"
                                              else [])
         before = {d.id: copy.deepcopy(d) for d in docs}
-        out = run_pages([block], docs)
+        out = run_pages([component], docs)
         declared = contract.adds | contract.replaces
         removed = contract.removes
         if not contract.unit_out:
@@ -738,22 +738,22 @@ def check_block(block, docs=None, *, run: bool = True) -> list:
         if contract.role == "model" and contract.unit == "page" and docs:
             failed = copy.deepcopy(docs[0])
             failed.id = f"{failed.id}-failed"
-            failed.metadata[ERRORS_KEY] = [{"block": "Earlier", "type": "error", "error": "failed before"}]
+            failed.metadata[ERRORS_KEY] = [{"component": "Earlier", "type": "error", "error": "failed before"}]
             kept = copy.deepcopy(failed)
-            passed = list(block.run(iter([failed]), 0, 1))
+            passed = list(component.run(iter([failed]), 0, 1))
             if len(passed) != 1 or passed[0].metadata != kept.metadata:
                 problems.append("a page that carries an earlier error did not pass through unchanged")
-        if (isinstance(block, PageBlock) and Part("image") in contract.reads and contract.unit == "page"
+        if (isinstance(component, PageComponent) and Part("image") in contract.reads and contract.unit == "page"
                 and contract.role in ("model", "transform", "validator") and docs):
             bare = copy.deepcopy(docs[0])
             bare.id, bare.media = f"{bare.id}-no-image", []
             bare.metadata.pop(ERRORS_KEY, None)
-            passed = list(block.run(iter([bare]), 0, 1))
+            passed = list(component.run(iter([bare]), 0, 1))
             if len(passed) != 1 or not passed[0].metadata.get(ERRORS_KEY):
                 problems.append("a page without image bytes was not passed on with its error")
-            elif passed[0].metadata[ERRORS_KEY][-1].get("block") != type(block).__name__:
+            elif passed[0].metadata[ERRORS_KEY][-1].get("component") != type(component).__name__:
                 problems.append(f"the error of a page without image bytes names "
-                                f"{passed[0].metadata[ERRORS_KEY][-1].get('block')!r}, not {label!r}")
+                                f"{passed[0].metadata[ERRORS_KEY][-1].get('component')!r}, not {label!r}")
     if problems:
         raise AssertionError(f"{label}:\n" + "\n".join(f"- {p}" for p in dict.fromkeys(problems)))
     return out

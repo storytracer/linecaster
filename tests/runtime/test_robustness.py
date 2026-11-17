@@ -11,12 +11,12 @@ import pytest
 from PIL import Image
 
 from linecaster.backends import InProcess
-from linecaster.blocks.base.page import new_page_document, page_of
-from linecaster.blocks.layout import LayoutDetector
-from linecaster.blocks.lines import LineAssigner, LineDetector
-from linecaster.blocks.readers import ImageFolderReader
-from linecaster.blocks.recognition import LineRecognizer
-from linecaster.blocks.writers import PageJsonlWriter
+from linecaster.core.page import new_page_document, page_of
+from linecaster.components.layout import LayoutDetector
+from linecaster.components.lines import LineAssigner, LineDetector
+from linecaster.components.readers import ImageFolderReader
+from linecaster.components.recognition import LineRecognizer
+from linecaster.components.writers import PageJsonlWriter
 from linecaster.data import Annotator
 from linecaster.errors import PageError
 from linecaster.runtime.builder import build, run_pages, run_plan
@@ -91,26 +91,26 @@ class WarmUps(Observer):
     def __init__(self):
         self.seen = []
 
-    def on_warm_up(self, block, seconds):
-        self.seen.append((type(block).__name__, seconds))
+    def on_warm_up(self, component, seconds):
+        self.seen.append((type(component).__name__, seconds))
 
 
 # ------------------------------------------------------------------------------------------------ warm-up
 
 def test_warm_up_loads_before_the_first_page_and_is_its_own_stat():
-    blocks = _modular()
+    components = _modular()
     log = WarmUps()
-    out = run_pages(blocks, [_doc("p1"), _doc("p2", 50)], observers=[log])
-    # blocks warm up as the stream reaches them: the last one first; each engine loads once
+    out = run_pages(components, [_doc("p1"), _doc("p2", 50)], observers=[log])
+    # components warm up as the stream reaches them: the last one first; each engine loads once
     assert [e for e in EVENTS if e[0] == "load"] == [("load", "recognition"), ("load", "lines")]
     assert [name for name, _ in log.seen] == ["LineRecognizer", "LineDetector", "LayoutDetector"]
-    lines = blocks[1]
+    lines = components[1]
     assert lines.stats["warm_up_seconds"].total >= SlowLines.LOAD_SECONDS
     # a page's measured seconds never include the loading
     for doc in out:
         assert page_of(doc).transcriptions["ocr_new"].annotators[0].measurements["seconds"] < SlowLines.LOAD_SECONDS
-    # blocks without anything to load have no warm-up stat
-    assert "warm_up_seconds" not in blocks[2].stats.stats
+    # components without anything to load have no warm-up stat
+    assert "warm_up_seconds" not in components[2].stats.stats
 
 
 def test_warm_up_is_idempotent_and_its_failure_fails_the_task():
@@ -140,55 +140,55 @@ class FailingLines(SlowLines):
 def test_a_failing_page_carries_its_error_and_the_others_are_unaffected():
     out = run_pages(_modular(fail_widths=(50,)), [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])
     assert [d.id for d in out] == ["p1", "p2", "p3"]
-    assert out[1].metadata["errors"] == [{"block": "LineRecognizer", "step": "recognition", "preset": None,
+    assert out[1].metadata["errors"] == [{"component": "LineRecognizer", "step": "recognition", "preset": None,
                                           "type": "RuntimeError", "error": "cannot read a page 50 wide"}]
     for d in (out[0], out[2]):
         assert not d.metadata.get("errors")
         assert [ln.reading.text for ln in page_of(d).transcriptions["ocr_new"].lines] == ["line 0", "line 1"]
 
 
-def test_later_model_blocks_pass_a_failed_page_by():
-    blocks = [LayoutDetector("single-region"), LineDetector(InProcess("test_robustness:FailingLines")), LineAssigner(),
+def test_later_model_components_pass_a_failed_page_by():
+    components = [LayoutDetector("single-region"), LineDetector(InProcess("test_robustness:FailingLines")), LineAssigner(),
               LineRecognizer(InProcess("test_robustness:Text"))]
-    out = run_pages(blocks, [_doc("p1"), _doc("p2", 50)])
+    out = run_pages(components, [_doc("p1"), _doc("p2", 50)])
     assert out[1].metadata["errors"][0]["error"] == "no lines found"
     assert [e for e in EVENTS if e[0] == "read"] == [("read", 40)]       # the recognizer never saw p2
-    assert blocks[3].stats["skipped_after_error"].total == 1 and blocks[1].stats["errors"].total == 1
+    assert components[3].stats["skipped_after_error"].total == 1 and components[1].stats["errors"].total == 1
 
 
 def test_failed_pages_leave_at_once():
-    """A page an earlier block failed on comes out of a model block before the next page goes in."""
+    """A page an earlier component failed on comes out of a model component before the next page goes in."""
     out_first = threading.Event()
     failed = _doc("failed")
-    failed.metadata["errors"] = [{"block": "X", "type": "RuntimeError", "error": "earlier"}]
+    failed.metadata["errors"] = [{"component": "X", "type": "RuntimeError", "error": "earlier"}]
 
     def pages():
         yield failed
         assert out_first.wait(5), "the failed page was held back"
         yield _doc("p2")
 
-    block = LineRecognizer(InProcess("test_robustness:Text"))
+    component = LineRecognizer(InProcess("test_robustness:Text"))
     seen = []
-    for d in block.run(pages()):
+    for d in component.run(pages()):
         seen.append(d.id)
         out_first.set()
     assert seen == ["failed", "p2"]
 
 
 def test_the_error_budget_fails_the_task(monkeypatch):
-    from linecaster.blocks.base import page as base_page
+    from linecaster.core import page as base_page
 
     # judged from the ERROR_GRACE-th page on: when the 3rd page comes, 1 error is more than 1 % of 3 pages
     monkeypatch.setattr(base_page, "ERROR_GRACE", 3)
     with pytest.raises(PageError, match="1 of 3 pages failed") as e:
         run_pages(_modular(fail_widths=(50, 60)), [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])
-    assert e.value.block == "LineRecognizer" and isinstance(e.value.__cause__, RuntimeError)
+    assert e.value.component == "LineRecognizer" and isinstance(e.value.__cause__, RuntimeError)
     # a budget given to the builder
-    blocks = _modular(fail_widths=(50, 60))
-    plan = build([ImageFolderReader("x"), *blocks], max_page_errors=0.5)
-    assert blocks[3].max_page_errors == 0.5 and plan.problems == []
-    blocks[3].max_page_errors = None                    # no limit
-    assert len(run_pages(blocks, [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])) == 3
+    components = _modular(fail_widths=(50, 60))
+    plan = build([ImageFolderReader("x"), *components], max_page_errors=0.5)
+    assert components[3].max_page_errors == 0.5 and plan.problems == []
+    components[3].max_page_errors = None                    # no limit
+    assert len(run_pages(components, [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])) == 3
     # fewer pages than ERROR_GRACE: too few to judge
     monkeypatch.setattr(base_page, "ERROR_GRACE", 100)
     assert len(run_pages(_modular(fail_widths=(50, 60)), [_doc("p1"), _doc("p2", 50), _doc("p3", 60)])) == 3
@@ -209,11 +209,11 @@ def test_failed_pages_are_written_to_rejects_and_kept_in_the_page_records(tmp_pa
     out = tmp_path / "out"
     plan = build([ImageFolderReader(str(tmp_path), glob_pattern="*.png"), *_modular(fail_widths=(50,)),
                   PageJsonlWriter(str(out / "pages"))], run_folder=str(out))
-    assert [type(b).__name__ for b in plan.blocks][-2:] == ["RejectWriter", "PageJsonlWriter"]
+    assert [type(b).__name__ for b in plan.components][-2:] == ["RejectWriter", "PageJsonlWriter"]
     run_plan(plan)
     rejects = [json.loads(x) for x in (out / "rejects" / "00000.jsonl").read_text().splitlines()]
     assert rejects == [{"key": "p2", "field": "recognition", "error": "cannot read a page 50 wide", "raw_value": None,
-                        "block": "LineRecognizer", "step": "recognition", "preset": None, "type": "RuntimeError"}]
+                        "component": "LineRecognizer", "step": "recognition", "preset": None, "type": "RuntimeError"}]
     records = _rows(out / "pages")
     assert sorted(records) == ["p1", "p2", "p3"] and records["p2"]["errors"][0]["type"] == "RuntimeError"
 
@@ -234,10 +234,10 @@ def test_an_env_var_is_never_pickled_with_its_value(monkeypatch):
     monkeypatch.setenv("LC_TEST_TOKEN", "t0ken-value")
     backend = Served("https://api.example.org/v1", model="m", api_key=EnvVar("LC_TEST_KEY"),
                      headers={"X-Team": "ocr", "X-Token": EnvVar("LC_TEST_TOKEN")})
-    block = LineRecognizer(backend)
-    for blob in (pickle.dumps(block), dill.dumps(block), dill.dumps([block])):
+    component = LineRecognizer(backend)
+    for blob in (pickle.dumps(component), dill.dumps(component), dill.dumps([component])):
         assert b"s3cret-value" not in blob and b"t0ken-value" not in blob and b"LC_TEST_KEY" in blob
-    again = pickle.loads(pickle.dumps(block))
+    again = pickle.loads(pickle.dumps(component))
     assert again.backend.api_key == EnvVar("LC_TEST_KEY")
     assert again.backend.request_headers() == {"X-Team": "ocr", "X-Token": "t0ken-value",
                                                "Authorization": "Bearer s3cret-value"}
@@ -253,14 +253,14 @@ def test_an_env_var_is_never_pickled_with_its_value(monkeypatch):
 
     monkeypatch.setattr(saturate, "AdaptiveClient", Client)
     with pytest.raises(RuntimeError, match="no server here"):
-        list(block.run(iter([_doc()])))
+        list(component.run(iter([_doc()])))
     assert seen["endpoint"] == "https://api.example.org/v1"
     assert seen["headers"]["Authorization"] == "Bearer s3cret-value" and seen["headers"]["X-Team"] == "ocr"
 
     # a missing variable fails the warm-up; a key given as text is refused
     monkeypatch.delenv("LC_TEST_KEY")
     with pytest.raises(PipelineConfigError, match="LC_TEST_KEY is not set"):
-        block.warm_up()
+        component.warm_up()
     with pytest.raises(PipelineConfigError, match="EnvVar"):
         Served("https://api.example.org/v1", model="m", api_key="s3cret-value")
 
@@ -277,12 +277,12 @@ def test_task_logs_are_json_lines_on_jobs(tmp_path: Path, monkeypatch):
     folder = get_datafolder(str(tmp_path))
     monkeypatch.setenv(logs.JSON_ENV, "1")
     f = logs.add_task_logger(folder, 3)
-    logger.warning("page {page_id} failed in {block}", page_id="b_0001", block="LineRecognizer")
+    logger.warning("page {page_id} failed in {component}", page_id="b_0001", component="LineRecognizer")
     close_task_logger(f)
     lines = [json.loads(x) for x in (tmp_path / "logs" / "task_00003.log").read_text().splitlines()]
     last = lines[-1]["record"]
     assert last["message"] == "page b_0001 failed in LineRecognizer"
-    assert last["extra"] == {"page_id": "b_0001", "block": "LineRecognizer"}
+    assert last["extra"] == {"page_id": "b_0001", "component": "LineRecognizer"}
     # without the variable: datatrove's own text format
     monkeypatch.delenv(logs.JSON_ENV)
     f = logs.add_task_logger(folder, 4)

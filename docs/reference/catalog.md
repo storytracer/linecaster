@@ -158,9 +158,9 @@ recipe a derivative runs lives in this catalog too (`squiddle`).
 | `tables`, `markdown` | what counts as a table when written out; the Markdown a rendering writes |
 
 A policy entry is a `linecaster.data.policy.RenderingPolicy` with a `schema` and a `description` (`PolicyDoc`); the
-[data model](data-model.md#rendering) says what it decides. The catalog ships `page-layers`, the policy a block
+[data model](data-model.md#rendering) says what it decides. The catalog ships `page-layers`, the policy a component
 renders with unless it is given another (`DEFAULT_POLICY_REF`; in code without the catalog,
-`linecaster.data.DEFAULT_POLICY`), and `page-layers-described`, the same with descriptions in the body. Blocks and pipelines name a policy by `id` (`--policy`);
+`linecaster.data.DEFAULT_POLICY`), and `page-layers-described`, the same with descriptions in the body. Components and pipelines name a policy by `id` (`--policy`);
 `linecaster.catalog.registry.rendering_policy` resolves it. A policy decides layers, never text: what a text is
 written as is its strategy's.
 
@@ -176,7 +176,7 @@ record.
 | `scripts`, `languages` | the ISO 15924 scripts it is meant for (`*` any); BCP 47 tags (a language-specific one is never in a default) |
 | `use` | `output` (a text written), `comparison` (a lane), or both |
 | `subsumes` | normalizations whose effect this one includes (`nfkc`: `nfc`, `long-s`, `ligatures`), for the conventions check of scoring |
-| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions in order, each a `match`, its `flags` (`I`, `M`, `S`), a `replace` (a space by default) and an `engine`: Python's `re`, the default, or `regex`, the regex package, for Unicode properties such as `\p{Ll}`), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`), `latex` (`text`: each LaTeX formula as the characters it prints); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a block joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
+| `rule` | exactly one: on characters `unicode` (`NFC`, `NFKC`), `map` (a table; the longest key first), `patterns` (regular expressions in order, each a `match`, its `flags` (`I`, `M`, `S`), a `replace` (a space by default) and an `engine`: Python's `re`, the default, or `regex`, the regex package, for Unicode properties such as `\p{Ll}`), `case` (`fold`, `lower`), `keep` (only these characters), `whitespace` (`collapse`), `latex` (`text`: each LaTeX formula as the characters it prints); on the document `edits` (the source's corrections, expansions, regularizations applied), `divided_words: source` (a word the source marks as divided written whole), `division_marks: unicode-marks` (squiddleocr's rule, the document's words as its lexicon), `flow` (the rows of a component joined: by a space, or none where Unicode's line breaking joins the words; a row ending in an unresolved division mark joined without a space, the mark kept) |
 
 The catalog ships the normalizations of the strategies below and of the lanes: `nfc`, `nfkc`, `long-s`, `ligatures`,
 `r-rotunda`, `superscript-e`, `quotes`, `dashes`, `invisible`, `whitespace`, `casefold`, `lowercase`, `latex-text`,
@@ -239,11 +239,11 @@ by id and hash. linecaster provides the format and the tooling to produce them:
   pipeline: the rest of it), `source` (`own-run`, `card-claim`, `vendor-benchmark`), `dataset` (`repo@revision`, or
   a description for claims), `metrics`, `date`, `hardware`, `software` (linecaster commit, server version,
   `backend`: `in-process` or `served`), `run`, `notes`. Claims are never measurements.
-- **What a measurement names:** the run record (`OUT/run.yaml`: the recipe and its hash, every block's
+- **What a measurement names:** the run record (`OUT/run.yaml`: the recipe and its hash, every component's
   parameters, `pipeline_sha256`, and `catalog`: every entry the run used, with its settings and hash) and the recipe
   and presets stamped on every annotator of every page.
 - **What it measures:** the page records (every transcription with its annotators' `measurements`: seconds, tokens,
-  device), the traces (`linecaster traces OUT`: time per block and page) and the per-page and per-item files.
+  device), the traces (`linecaster traces OUT`: time per component and page) and the per-page and per-item files.
 - **Ground truth and reference transcriptions:** `ManifestReader(existing_ocr=True)` and the
   `TranscriptionConverter` read a library's own ALTO, PAGE-XML, hOCR or text into a named transcription
   (`ocr_original`, `ground_truth`, ...) of the page record, next to `ocr_new`; the writers turn page records into
@@ -290,10 +290,10 @@ hashes) stay as they were: they identify weights, not behaviour of ours.
 A recipe names a pipeline id, presets and options; what runs is the pipeline its script builds from them.
 `catalog index` builds each recipe's pipeline (its pipeline script with `--recipe id` on placeholder folders,
 in-process, one task) and records its `pipeline_sha256`, the hash a run record of that recipe names; `verify` builds
-it again, so a block, a parameter or a default that changed in code shows in the index.
+it again, so a component, a parameter or a default that changed in code shows in the index.
 
 Building it needs no engine: the **describe mode** (`linecaster.runtime.run.describe`) builds the recipe's pipeline
-shape (`linecaster.pipelines`) in the current process, and blocks and backends import no engine before
+shape (`linecaster.pipelines`) in the current process, and components and backends import no engine before
 `warm_up()`; a preset whose engine is not installed names the engine's class from the repository's engine packages
 (`catalog.code`). So `verify` runs in the core environment, and its hash is the one a run of the pipeline script
 with its engines records.
@@ -311,7 +311,7 @@ Markdown sidecar is required, with the headings `## Source`, `## How the markup 
 | `format` | the format whose importer applies it (`html`, `xml`, `json`, `text`, ...); its folder |
 | `extends` | the parent entry, by id: the entry starts from the parent's resolved rules |
 | `description`, `source` | what it is for and what it was written against (prose, not functional) |
-| `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.markup.decisions`: `remove` with a reason, `invisible`, `unwrap`, `block` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `continues`, `runs_on`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
+| `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.markup.decisions`: `remove` with a reason, `invisible`, `unwrap`, `component` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `continues`, `runs_on`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
 | `disable` | a parent's rule id → why this source does not use it |
 | `transcription` | the normalizations the source's transcription already embodies (normalization ids: `long-s` when it writes ſ as s); a child's list replaces its parent's. Importers copy it into `Source.normalized`; scoring warns where a lane does not apply one ([evaluation](evaluation.md#conventions)) |
 
@@ -384,7 +384,7 @@ packages: `uv run tests/test_page_engines_catalog.py engines/<engine>/tests`, th
 
 A page engine is an engine of the recognition step whose unit is the page (`capabilities.unit: page`): it gets the
 page image and returns the page's transcription, text-only, its raw output verbatim as a raw output (`RawOutput`),
-as a chat preset's completion is kept. `PageRecognizer` runs it like any model block (`InProcess`, or `Served` through
+as a chat preset's completion is kept. `PageRecognizer` runs it like any model component (`InProcess`, or `Served` through
 `linecaster serve`); `pipelines/transcribe_page.py` is its pipeline. Where the engine talks to a **service**, its
 preset's `serve` block names it and `ServiceServer` starts it in the task:
 
@@ -420,13 +420,13 @@ The call per unit (`linecaster.engines.base`): page unit `__call__(t: Transcript
 item unit `__call__(pages: list[Transcription], **options) -> list[Transcription]` (an item's pages in order; a page
 is an item of one page); the image step takes and returns the image's bytes (`__call__(data, **options) -> (bytes,
 info)`). Options given to a call override the engine's for that call. Each call appends an annotator (`Annotator`,
-kind `rule`) with its `engine` id, its options as `settings` and its counts as `measurements`; the block that runs
+kind `rule`) with its `engine` id, its options as `settings` and its counts as `measurements`; the component that runs
 it adds the preset and its hash, `seconds` and `datetime`. Composition is the exception: it renders the set
 as a document (`linecaster.document`) and adds no annotator and no annotation. Its item unit is `item_document(pages, name, ...)`:
 an item's document is no transcription.
 
-Their blocks take a preset (`id`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
-over either, like model blocks but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
+Their components take a preset (`id`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
+over either, like model components but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
 `Typographer(preset)` (`typography`), `Recomposer(preset,
 unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets of the
 `squiddle` recipe's rules: `working-image`, `ratios`,

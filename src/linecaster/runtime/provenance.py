@@ -9,11 +9,11 @@
 * ``step_entries(models)``: the steps as plain dicts, the shape the run record and the page files share.
 * ``run_record(...)``: the run record a pipeline writes before it launches (``linecaster.runtime.run.run``): its run
   id (``new_run_id``, which every annotator the run adds names), script, recipe, command line, options, executor, the
-  pipeline (every stage's blocks as ``to_dict()`` with their contracts), its ``pipeline_sha256``
+  pipeline (every stage's components as ``to_dict()`` with their contracts), its ``pipeline_sha256``
   (``functional_pipeline``: the functional parameters only), software and the launching machine's hardware
   (``hardware``, best effort).
 
-Import-light: lxml and the standard library (datatrove only for the blocks it inspects, lazily).
+Import-light: lxml and the standard library (datatrove only for the components it inspects, lazily).
 """
 from __future__ import annotations
 
@@ -183,15 +183,15 @@ def from_mets_agent(agent: etree._Element) -> Annotator:
 # ------------------------------------------------------------------------------------------------ run record
 
 def pipeline_section(plan) -> list[dict[str, Any]]:
-    """The run record's ``pipeline``: per stage its name, tasks and blocks in order, each block as its
+    """The run record's ``pipeline``: per stage its name, tasks and components in order, each component as its
     ``to_dict()`` with its contract (``Plan.describe()``'s stages)."""
     return plan.describe()["stages"] if plan is not None else []
 
 
-def _served_models(blocks: list) -> dict[str, dict]:
-    """Model name -> the model dict of the ``ModelServer`` blocks (name, spec, kwargs, preset, preset_sha256)."""
+def _served_models(components: list) -> dict[str, dict]:
+    """Model name -> the model dict of the ``ModelServer`` components (name, spec, kwargs, preset, preset_sha256)."""
     out = {}
-    for b in blocks:
+    for b in components:
         if type(b).__name__ == "ModelServer":
             for m in getattr(b, "models", []):
                 out[m["name"]] = m
@@ -199,12 +199,12 @@ def _served_models(blocks: list) -> dict[str, dict]:
 
 
 def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any]:
-    """What a model block's backend contributes to the pipeline's hash: the engine, its options and the preset
+    """What a model component's backend contributes to the pipeline's hash: the engine, its options and the preset
     with its hash, wherever the engine runs (in-process, or the server model a served backend names);
     for a server this run does not start, what the backend knows (engine, preset, else the served model's name);
     for a chat backend its adapter, preset and hash, model and revision, the options set over the preset
     (``overrides``: the sampling, the repair pass) and, while it is on, the repetition detection (on by default)."""
-    from linecaster.blocks.base.block import ENGINE_OPERATIONAL, plain
+    from linecaster.core.component import ENGINE_OPERATIONAL, plain
 
     if backend.get("backend") == "in-process":       # where the engine's service is (an endpoint) does not count
         options = {k: v for k, v in (backend.get("options") or {}).items() if k not in ENGINE_OPERATIONAL}
@@ -230,41 +230,41 @@ def _functional_value(value, served: dict[str, dict]):
     return value
 
 
-def functional_block(block, served: dict[str, dict] | None = None) -> dict[str, Any] | None:
-    """What a block contributes to the pipeline's hash: its class and its functional parameters (every parameter
+def functional_component(component, served: dict[str, dict] | None = None) -> dict[str, Any] | None:
+    """What a component contributes to the pipeline's hash: its class and its functional parameters (every parameter
     but its ``operational_params()`` and those of its ``unhashed_defaults`` at their default; backends by their
-    engine, options and preset, ``_functional_backend``), its condition and group. Server blocks contribute nothing (their models count through the blocks they serve)."""
-    from linecaster.blocks.base.contract import contract_of
-    from linecaster.runtime.builder import block_dict
+    engine, options and preset, ``_functional_backend``), its condition and group. Server components contribute nothing (their models count through the components they serve)."""
+    from linecaster.core.contract import contract_of
+    from linecaster.runtime.builder import component_dict
 
-    if contract_of(block).role == "server":
+    if contract_of(component).role == "server":
         return None
-    d = block_dict(block)
-    out: dict[str, Any] = {"block": d["block"], "class": d["class"]}
-    operational = block.operational_params() if hasattr(block, "operational_params") else frozenset()
-    neutral = getattr(block, "unhashed_defaults", None) or {}
+    d = component_dict(component)
+    out: dict[str, Any] = {"component": d["component"], "class": d["class"]}
+    operational = component.operational_params() if hasattr(component, "operational_params") else frozenset()
+    neutral = getattr(component, "unhashed_defaults", None) or {}
     params = {k: _functional_value(v, served or {}) for k, v in (d.get("params") or {}).items()
               if k not in operational and not (k in neutral and v == neutral[k])}
     if params:
         out["params"] = params
-    when = getattr(block, "when", None)
+    when = getattr(component, "when", None)
     if when is not None:
         out["when"] = when.describe()
-        if getattr(block, "group", None) is not None:
-            out["group"] = block.group
+        if getattr(component, "group", None) is not None:
+            out["group"] = component.group
     return out
 
 
 def functional_pipeline(plan) -> list[dict[str, Any]]:
-    """The pipeline as its hash covers it: every stage's blocks in order (``functional_block``)."""
-    blocks = plan.blocks if plan is not None else []
-    served = _served_models(blocks)
-    return [f for b in blocks if (f := functional_block(b, served)) is not None]
+    """The pipeline as its hash covers it: every stage's components in order (``functional_component``)."""
+    components = plan.components if plan is not None else []
+    served = _served_models(components)
+    return [f for b in components if (f := functional_component(b, served)) is not None]
 
 
 def pipeline_sha256(plan) -> str:
     """The hash of the pipeline's functional parameters (``functional_pipeline``), canonical JSON: the same for a
-    resumed run, a run on another executor or backend, or into another folder; different when a block, a preset, an
+    resumed run, a run on another executor or backend, or into another folder; different when a component, a preset, an
     engine option or any other functional parameter changes."""
     from linecaster.catalog.registry import canonical_sha256
 
@@ -277,9 +277,9 @@ def engine_packages(plan) -> list[str]:
     the fallback (``package_versions`` leaves out what is not installed)."""
     from importlib.metadata import packages_distributions
 
-    blocks = plan.blocks if plan is not None else []
-    specs = [m.get("spec") for m in _served_models(blocks).values()]
-    for b in blocks:
+    components = plan.components if plan is not None else []
+    specs = [m.get("spec") for m in _served_models(components).values()]
+    for b in components:
         backend = getattr(b, "backend", None)
         specs.append(getattr(backend, "spec", None) if not getattr(backend, "served", True) else
                      getattr(backend, "engine", None))
@@ -388,13 +388,13 @@ def hardware() -> dict[str, Any]:
     return out
 
 
-#: the block parameters that name a catalog entry, and its kind
+#: the component parameters that name a catalog entry, and its kind
 CATALOG_KEYS = {"preset": "preset", "policy": "policy", "conventions": "conventions", "recipe": "recipe",
                 "strategy": "strategy"}
 
 
 def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Every catalog entry the recorded ``pipeline`` names (a block parameter ``preset``, ``policy``, ``conventions``,
+    """Every catalog entry the recorded ``pipeline`` names (a component parameter ``preset``, ``policy``, ``conventions``,
     ``recipe`` or ``strategy``, or the strategies of a writer's ``texts``, ``<strategy>:<format>``, at any depth) and
     the run's ``recipe``: kind, id, hash and functional content, as the catalog in place has them (a strategy: its
     normalizations, each with its hash; ``literal`` none). A name the catalog does not know (a test's fake) is left
@@ -463,7 +463,7 @@ def run_record(options: dict[str, Any], plan=None, *, script: str | None = None,
     """The run record (schema ``linecaster.run-record/1``, ``linecaster.runtime.record.RunRecord``): the run id
     (``run_id``, default a new one: ``new_run_id``), the time, the pipeline script, the recipe (its id, hash, what the command line changed in it), the command line (``--env``
     values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline of the
-    builder's ``plan`` (per stage its blocks as dicts, in order, with their contracts) and its ``pipeline_sha256``,
+    builder's ``plan`` (per stage its components as dicts, in order, with their contracts) and its ``pipeline_sha256``,
     ``extra`` (the Jobs' image and dependencies), the software (linecaster release and commit, Python, key
     packages, engine packages) and the launching machine's ``hardware``; ``script_name`` names the script outside a
     git checkout (``script_entry``). Validated against ``RunRecord``."""

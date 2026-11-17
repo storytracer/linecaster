@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.qwen35 import unwrap_fence
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 PROMPT = chat_model("qwen3.5-9b").prompt
 MAX_PIXELS = 2048 * 1024          # 2048 visual tokens x 1024 px

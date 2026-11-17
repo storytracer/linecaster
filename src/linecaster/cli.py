@@ -384,7 +384,7 @@ def _truth_publish(a) -> None:
 
     read_image = None
     if a.images is None and not a.no_images:
-        from linecaster.blocks.conversion.images import read_uri
+        from linecaster.components.images.image_converter import read_uri
 
         read_image = read_uri
     got = publish(a.truth, a.out, a.transcription, images=a.images, read_image=read_image,
@@ -480,7 +480,7 @@ def _ground_truth_parsers(sub) -> None:
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="linecaster")
     sub = ap.add_subparsers(dest="command", required=True)
-    s = sub.add_parser("serve", help="host engines over HTTP (for blocks with a Served backend)")
+    s = sub.add_parser("serve", help="host engines over HTTP (for components with a Served backend)")
     s.add_argument("--config", help="JSON file: {\"models\": [{\"name\", \"preset\", \"overrides\"} or "
                                     "{\"name\", \"spec\", \"kwargs\"}, optional \"max_queue\"]}")
     s.add_argument("--preset", action="append", default=[], metavar="NAME=ID[@EDITION]",
@@ -509,11 +509,11 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--file", action="append", default=[], help="pin (GitHub): a file to hash; repeatable")
     c.add_argument("--out", help="schemas: output folder (default: the package's schemas/)")
     d = sub.add_parser("docs", help="write the generated docs (not in git; before building the site): the catalog's "
-                                    "and the blocks' pages, the site's index and changelog, and llms.txt")
+                                    "and the components' pages, the site's index and changelog, and llms.txt")
     d.add_argument("--out", default="docs", help="the docs folder (default docs)")
     d.add_argument("--readme", default="README.md", help="the README the site's index is made from (default "
                                                          "README.md)")
-    p = sub.add_parser("page", help="run a pipeline script's blocks on one page image in this process, without an "
+    p = sub.add_parser("page", help="run a pipeline script's components on one page image in this process, without an "
                                     "executor; the pipeline's options follow (--recipe R, --lines ..., --files DIR)")
     p.add_argument("image", help="the page image")
     p.add_argument("out", help="output folder: the page record in OUT/pages, files where the options say")
@@ -521,11 +521,11 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("sample", add_help=False,
                    help="the sample of an input without a run (--sample N, --sample-per-item K, --sample-items M, "
                         "--sample-seed S, and the pipelines' input options): OUT/sample.parquet, as a run writes it")
-    t = sub.add_parser("traces", help="what a run's traces say: per block the time per page (p50/p90/p99), the split "
+    t = sub.add_parser("traces", help="what a run's traces say: per component the time per page (p50/p90/p99), the split "
                                       "of served requests, gaps, the slowest pages, per task the warm-up")
     t.add_argument("out", help="the run folder (its traces/)")
-    t.add_argument("--by", choices=["block", "preset", "task"], default="block",
-                   help="group the time per page by block, preset or task")
+    t.add_argument("--by", choices=["component", "preset", "task"], default="component",
+                   help="group the time per page by component, preset or task")
     t.add_argument("--slowest", type=int, default=10, metavar="N", help="the N slowest traced pages")
     t.add_argument("--json", action="store_true", help="the report as JSON")
     sc = sub.add_parser("score", help="score a run's page records against a ground truth's, by a benchmark: score "

@@ -1,4 +1,4 @@
-"""datatrove behavior with linecaster blocks, against a running ``linecaster serve`` (squiddle models):
+"""datatrove behavior with linecaster components, against a running ``linecaster serve`` (squiddle models):
 
 1. depends: pipeline A (layout, lines, line assignment) writes page records; pipeline B, launched with
    ``depends=A``, reads A's rows (images fetched again by URI) and adds recognition.
@@ -15,13 +15,13 @@ import sys
 from datatrove.executor import LocalPipelineExecutor
 
 from linecaster.backends import Served
-from linecaster.blocks.layout.detector import LayoutDetector
-from linecaster.blocks.lines.assigner import LineAssigner
-from linecaster.blocks.lines.detector import LineDetector
-from linecaster.blocks.readers.images import ImageFolderReader
-from linecaster.blocks.readers.records import PageRecordReader
-from linecaster.blocks.recognition.recognizers import LineRecognizer
-from linecaster.blocks.writers.records import PageJsonlWriter
+from linecaster.components.layout.layout_detector import LayoutDetector
+from linecaster.components.lines.line_assigner import LineAssigner
+from linecaster.components.lines.line_detector import LineDetector
+from linecaster.components.readers.images import ImageFolderReader
+from linecaster.components.readers.records import PageRecordReader
+from linecaster.components.recognition.line_recognizer import LineRecognizer
+from linecaster.components.writers.records import PageJsonlWriter
 
 
 def executors(images: str, out: pathlib.Path, ep: str):

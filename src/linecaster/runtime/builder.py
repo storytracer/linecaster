@@ -1,24 +1,24 @@
-"""The builder: a pipeline (a list of blocks and composites) turned into stages, checked against the blocks'
+"""The builder: a pipeline (a list of components and composites) turned into stages, checked against the components'
 contracts before anything runs (``docs/reference/pipelines.md``).
 
-    plan = build(blocks, tasks=8, run_folder="OUT")
+    plan = build(components, tasks=8, run_folder="OUT")
     plan.check()                    # PipelineConfigError listing every problem
-    print(plan.mermaid())           # the graph: blocks, the parts between them, composites as subgraphs
+    print(plan.mermaid())           # the graph: components, the parts between them, composites as subgraphs
     for stage in plan.stages:       # one datatrove pipeline each, run one after another
         LocalPipelineExecutor(stage.pipeline, tasks=stage.tasks, ...)
 
-* **Checks** (all problems collected): the stage starts with a reader; every part a block reads is added earlier
-  in its stage (or by the stage's reader) and not removed since (``removes``); a part is added by one block only
-  unless a later block declares it in ``replaces``; units fit (a page block cannot follow an item stream); the parts carry across a binder and a
-  splitter (an item record holds its pages), apart from the image bytes and the item's document; server blocks go
-  last; a served model block whose endpoint is a server block of its stage finds its model there; a ``group`` of
+* **Checks** (all problems collected): the stage starts with a reader; every part a component reads is added earlier
+  in its stage (or by the stage's reader) and not removed since (``removes``); a part is added by one component only
+  unless a later component declares it in ``replaces``; units fit (a page component cannot follow an item stream); the parts carry across a binder and a
+  splitter (an item record holds its pages), apart from the image bytes and the item's document; server components go
+  last; a served model component whose endpoint is a server component of its stage finds its model there; a ``group`` of
   alternatives (``when=``) adds the same parts in every alternative.
-* **Order** is the given one: the builder checks it and never reorders, except that the server blocks at the end
-  go with the stage of the model blocks.
-* **Branches**: a block with a ``when`` condition (``branch(block, when=..., group=...)``) processes the pages the
-  condition accepts; the others pass unchanged. Blocks sharing a ``group`` are alternatives, one after another:
+* **Order** is the given one: the builder checks it and never reorders, except that the server components at the end
+  go with the stage of the model components.
+* **Branches**: a component with a ``when`` condition (``branch(component, when=..., group=...)``) processes the pages the
+  condition accepts; the others pass unchanged. Components sharing a ``group`` are alternatives, one after another:
   a page goes through the first one whose condition accepts it (the last may be ``OTHERWISE``).
-* **Composites** (``linecaster.blocks.base.composite.Composite``) expand into their blocks; the graph keeps the
+* **Composites** (``linecaster.core.composite.Composite``) expand into their components; the graph keeps the
   group.
 * **Stages**: with ``tasks > 1``, the stream's change to items (a binder) cuts the pipeline: the first stage writes
   page records in item shards (``PageJsonlWriter(item_shards=N)`` into ``<run_folder>/pages``), the next reads
@@ -26,12 +26,12 @@ contracts before anything runs (``docs/reference/pipelines.md``).
 * **Rejects**: with a run folder, a ``RejectWriter`` into ``<run_folder>/rejects`` goes before the first writer (or
   binder) unless the pipeline has one: it writes the pages that carry errors.
 * **Converters**: a reader that brings a library's transcription file (``ManifestReader(existing_ocr=True)``) gets a
-  ``TranscriptionImporter`` right after it, into ``ocr_original``, unless a block reads the file already. ``max_page_errors`` sets every page
-  block's error budget.
-* **Partial runs**: ``until`` keeps the blocks up to a block and writes page records; ``after`` starts from page
-  records (the pipeline's ``PageRecordReader``) with the blocks after one; ``taps`` write page records after a
-  block (``Tap`` observers). Blocks are named by their datatrove ``name``, their class name or their composite's
-  name; a name that fits several blocks is a problem.
+  ``TranscriptionImporter`` right after it, into ``ocr_original``, unless a component reads the file already. ``max_page_errors`` sets every page
+  component's error budget.
+* **Partial runs**: ``until`` keeps the components up to a component and writes page records; ``after`` starts from page
+  records (the pipeline's ``PageRecordReader``) with the components after one; ``taps`` write page records after a
+  component (``Tap`` observers). Components are named by their datatrove ``name``, their class name or their composite's
+  name; a name that fits several components is a problem.
 """
 from __future__ import annotations
 
@@ -40,8 +40,8 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
-from linecaster.blocks.base.composite import Composite
-from linecaster.blocks.base.contract import Contract, Part, contract_of
+from linecaster.core.composite import Composite
+from linecaster.core.contract import Contract, Part, contract_of
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime.observers import Boundary, Observer, Observers, Tap
 
@@ -94,30 +94,30 @@ class MetadataEquals:
         return f"metadata.{self.key} == {self.value!r}"
 
 
-def branch(block, when: Condition, group: str | None = None):
-    """``block`` with a condition: it processes the pages ``when`` accepts, the others pass unchanged. Blocks with
-    the same ``group`` are alternatives (one after another in the pipeline). Returns the block."""
+def branch(component, when: Condition, group: str | None = None):
+    """``component`` with a condition: it processes the pages ``when`` accepts, the others pass unchanged. Components with
+    the same ``group`` are alternatives (one after another in the pipeline). Returns the component."""
     if not isinstance(when, Condition):
         raise PipelineConfigError(f"when= needs a Condition (a callable on the page record with describe()), got {when!r}")
-    block.when, block.group = when, group
-    return block
+    component.when, component.group = when, group
+    return component
 
 
 class Branch:
-    """The datatrove step of a block with a condition (see ``branch``). A per-unit block gets the pages it takes
-    one by one; any other block one stream of them, the pages it does not take passed on as soon as the block
+    """The datatrove step of a component with a condition (see ``branch``). A per-unit component gets the pages it takes
+    one by one; any other component one stream of them, the pages it does not take passed on as soon as the component
     yields (a long run of pages it does not take is held until then)."""
 
-    def __init__(self, block, when: Condition, group: str | None = None, label: str = "", last: bool = False):
-        self.block, self.when, self.group, self.label, self.last = block, when, group, label, last
+    def __init__(self, component, when: Condition, group: str | None = None, label: str = "", last: bool = False):
+        self.component, self.when, self.group, self.label, self.last = component, when, group, label, last
 
-    def __getattr__(self, name):          # stats, backend, port, ...: the block's (executors and helpers look)
-        if name == "block":
+    def __getattr__(self, name):          # stats, backend, port, ...: the component's (executors and helpers look)
+        if name == "component":
             raise AttributeError(name)
-        return getattr(self.block, name)
+        return getattr(self.component, name)
 
     def _takes(self, doc) -> bool:
-        from linecaster.blocks.base.page import page_of
+        from linecaster.core.page import page_of
 
         taken = doc.metadata.get(BRANCH_KEY) or {}
         if self.group is not None and self.group in taken:
@@ -137,13 +137,13 @@ class Branch:
         return doc
 
     def __call__(self, data, rank: int = 0, world_size: int = 1):
-        from linecaster.blocks.base.block import warm
+        from linecaster.core.component import warm
 
-        warm(self.block)
-        if getattr(self.block, "shape", None) == "unit" and hasattr(self.block, "process_page"):
+        warm(self.component)
+        if getattr(self.component, "shape", None) == "unit" and hasattr(self.component, "process_page"):
             for doc in data:
                 if self._takes(doc):
-                    for out in self.block.run(iter([doc]), rank, world_size):
+                    for out in self.component.run(iter([doc]), rank, world_size):
                         yield self._done(out)
                 else:
                     yield self._done(doc)
@@ -159,7 +159,7 @@ class Branch:
                 else:
                     passed.append(doc)
 
-        for out in self.block.run(taken(), rank, world_size):
+        for out in self.component.run(taken(), rank, world_size):
             while passed:
                 yield self._done(passed.popleft())
             yield self._done(out)
@@ -167,7 +167,7 @@ class Branch:
             yield self._done(passed.popleft())
 
     def __repr__(self) -> str:
-        return f"{self.block!r} when {self.when.describe()}"
+        return f"{self.component!r} when {self.when.describe()}"
 
 
 # ------------------------------------------------------------------------------------------------ the plan
@@ -175,7 +175,7 @@ class Branch:
 @dataclass
 class Node:
     id: str
-    block: str                         # class name
+    component: str                         # class name
     name: str                          # datatrove name (or class name)
     role: str
     unit: str
@@ -194,7 +194,7 @@ class Edge:
 
 @dataclass
 class Graph:
-    """Nodes are blocks (composites expanded, their group kept), edges the parts a block reads, from the block
+    """Nodes are components (composites expanded, their group kept), edges the parts a component reads, from the component
     that added them."""
 
     nodes: list[Node] = field(default_factory=list)
@@ -225,7 +225,7 @@ class Graph:
                     open_path = (*open_path, c)
                     cid = f"c{s + 1}_" + "_".join("".join(ch if ch.isalnum() else "_" for ch in p) for p in open_path)
                     lines.append(indent + "  " * (len(open_path) - 1) + f'subgraph {cid}["{q(c)}"]')
-                label = n.block if n.name == n.block else f"{n.block}<br/>{n.name}"
+                label = n.component if n.name == n.component else f"{n.component}<br/>{n.name}"
                 if n.when:
                     label += f"<br/>when {n.when}"
                 lines.append(indent + "  " * len(open_path) + f'{n.id}["{q(label)}"]')
@@ -238,7 +238,7 @@ class Graph:
         for e in self.edges:
             lines.append(f'  {e.source} -->|"{q(", ".join(e.parts))}"| {e.target}')
         previous = None
-        for n in self.nodes:             # blocks fed by no part: the order they run in
+        for n in self.nodes:             # components fed by no part: the order they run in
             if previous is not None and n.id not in incoming and previous.stage == n.stage:
                 lines.append(f"  {previous.id} -.-> {n.id}")
             previous = n
@@ -247,12 +247,12 @@ class Graph:
 
 @dataclass
 class Stage:
-    """One datatrove pipeline: ``blocks`` in order, ``pipeline`` the steps an executor runs (branch wrappers and
+    """One datatrove pipeline: ``components`` in order, ``pipeline`` the steps an executor runs (branch wrappers and
     observer boundaries included), ``tasks`` its tasks."""
 
     name: str
     tasks: int
-    blocks: list
+    components: list
     pipeline: list
     observers: Observers | None = None
 
@@ -272,44 +272,44 @@ class Plan:
         return self.graph.mermaid([f"{s.name} ({s.tasks} task{'s' if s.tasks != 1 else ''})" for s in self.stages])
 
     def describe(self) -> dict:
-        """The stages with their blocks (each its ``to_dict()``: class and parameters; its contract, composite,
+        """The stages with their components (each its ``to_dict()``: class and parameters; its contract, composite,
         group, condition), the graph's edges and the problems: for ``--dry-run``; the stages are the run record's
         ``pipeline``."""
-        return {"stages": [{"name": s.name, "tasks": s.tasks, "blocks": d} for s, d in zip(self.stages, self._describe)],
+        return {"stages": [{"name": s.name, "tasks": s.tasks, "components": d} for s, d in zip(self.stages, self._describe)],
                 "edges": [{"from": e.source, "to": e.target, "parts": list(e.parts)} for e in self.graph.edges],
                 "problems": list(self.problems)}
 
     @property
-    def blocks(self) -> list:
-        """Every stage's blocks, in order."""
-        return [b for s in self.stages for b in s.blocks]
+    def components(self) -> list:
+        """Every stage's components, in order."""
+        return [b for s in self.stages for b in s.components]
 
 
 # ------------------------------------------------------------------------------------------------ building
 
 @dataclass
 class _Entry:
-    block: object
+    component: object
     composites: tuple[str, ...] = ()
     contract: Contract | None = None
 
     def __post_init__(self):
         if self.contract is None:
-            self.contract = contract_of(self.block)
+            self.contract = contract_of(self.component)
 
     @property
     def label(self) -> str:
-        name = getattr(self.block, "name", None)
-        cls = type(self.block).__name__
+        name = getattr(self.component, "name", None)
+        cls = type(self.component).__name__
         return cls if not name or name == cls else f"{cls} ({name})"
 
 
-def _expand(blocks: list, problems: list[str]) -> list[_Entry]:
+def _expand(components: list, problems: list[str]) -> list[_Entry]:
     out = []
-    for b in blocks:
+    for b in components:
         if isinstance(b, Composite):
             if getattr(b, "when", None) is not None or getattr(b, "group", None) is not None:
-                problems.append(f"composite {b.name!r} has a condition: give when= to its blocks")
+                problems.append(f"composite {b.name!r} has a condition: give when= to its components")
             out += [_Entry(x, path) for x, path in b.expanded()]
         else:
             out.append(_Entry(b))
@@ -317,25 +317,25 @@ def _expand(blocks: list, problems: list[str]) -> list[_Entry]:
 
 
 def _find(entries: list[_Entry], name: str, what: str, problems: list[str]) -> int | None:
-    """The index of the block named ``name`` (its datatrove name, class name, or composite: its last block)."""
+    """The index of the component named ``name`` (its datatrove name, class name, or composite: its last component)."""
     hits = [i for i, e in enumerate(entries)
-            if getattr(e.block, "name", None) == name or type(e.block).__name__ == name]
+            if getattr(e.component, "name", None) == name or type(e.component).__name__ == name]
     if not hits:
         in_composite = [i for i, e in enumerate(entries) if name in e.composites]
         if in_composite:
             return in_composite[-1]
-        problems.append(f"{what} {name}: no block of that name (names: "
-                        f"{', '.join(sorted({type(e.block).__name__ for e in entries}))})")
+        problems.append(f"{what} {name}: no component of that name (names: "
+                        f"{', '.join(sorted({type(e.component).__name__ for e in entries}))})")
         return None
     if len(hits) > 1:
-        problems.append(f"{what} {name}: {len(hits)} blocks have that name ({', '.join(entries[i].label for i in hits)}); "
-                        f"use the block's datatrove name")
+        problems.append(f"{what} {name}: {len(hits)} components have that name ({', '.join(entries[i].label for i in hits)}); "
+                        f"use the component's datatrove name")
         return None
     return hits[0]
 
 
-def _is(block, cls_name: str) -> bool:
-    return any(c.__name__ == cls_name for c in type(block).__mro__)
+def _is(component, cls_name: str) -> bool:
+    return any(c.__name__ == cls_name for c in type(component).__mro__)
 
 
 def _folder(writer) -> str | None:
@@ -344,7 +344,7 @@ def _folder(writer) -> str | None:
 
 
 def _pages_writer(folder: str, item_shards: int | None = None):
-    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.components.writers.records import PageJsonlWriter
 
     return PageJsonlWriter(folder, output_filename="${rank}.jsonl.gz", item_shards=item_shards)
 
@@ -361,10 +361,10 @@ def _after(entries: list[_Entry], name: str, problems: list[str]) -> list[_Entry
     i = _find(entries, name, "--after", problems)
     if i is None:
         return entries
-    if not entries or not _is(entries[0].block, "PageRecordReader"):
+    if not entries or not _is(entries[0].component, "PageRecordReader"):
         problems.append(f"--after {name}: the run must start from page records (--pages DIR)")
         return entries
-    reader = entries[0].block
+    reader = entries[0].component
     given = reader.provides or frozenset()
     reader.provides = frozenset(given | _parts_through(entries[1:i + 1]))
     return [_Entry(reader), *entries[i + 1:]]
@@ -388,23 +388,23 @@ def _until(entries: list[_Entry], name: str, run_folder: str | None, problems: l
     from datatrove.io import get_datafolder
 
     target = get_datafolder(folder).path
-    if not any(_is(e.block, "PageJsonlWriter") and _folder(e.block) == target for e in kept):
+    if not any(_is(e.component, "PageJsonlWriter") and _folder(e.component) == target for e in kept):
         kept.append(_Entry(_pages_writer(folder)))
     return kept + [e for e in entries[i + 1:] if e.contract.role == "server"]
 
 
 def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
     """The recipe on every step: a ``RecipeStamper`` before the first writer."""
-    from linecaster.blocks.validation.recipe import RecipeStamper
+    from linecaster.components.validation.recipe_stamper import RecipeStamper
 
     i = next((k for k, e in enumerate(entries) if e.contract.role in ("writer", "server")), len(entries))
     entries.insert(i, _Entry(RecipeStamper(*recipe)))
 
 
 def _converters(entries: list[_Entry]) -> None:
-    """A ``TranscriptionImporter`` (the library's OCR into ``ocr_original``) right after a block that brings a
-    transcription file (``ManifestReader(existing_ocr=True)``) when no block after it reads the file."""
-    from linecaster.blocks.conversion.transcriptions import TranscriptionImporter
+    """A ``TranscriptionImporter`` (the library's OCR into ``ocr_original``) right after a component that brings a
+    transcription file (``ManifestReader(existing_ocr=True)``) when no component after it reads the file."""
+    from linecaster.components.importers.transcription_importer import TranscriptionImporter
 
     file = Part("transcription_file")
     for i, e in enumerate(entries):
@@ -416,9 +416,9 @@ def _converters(entries: list[_Entry]) -> None:
 def _rejects(entries: list[_Entry], run_folder: str) -> None:
     """A ``RejectWriter`` into ``<run_folder>/rejects`` before the first writer, binder or server (the stream still
     carries pages there), unless the pipeline has one."""
-    from linecaster.blocks.writers.rejects import RejectWriter
+    from linecaster.components.writers.rejects import RejectWriter
 
-    if any(_is(e.block, "RejectWriter") for e in entries):
+    if any(_is(e.component, "RejectWriter") for e in entries):
         return
     i = next((k for k, e in enumerate(entries) if e.contract.role in ("writer", "server", "binder")
               or e.contract.unit_out == "item"), len(entries))
@@ -432,7 +432,7 @@ def _cut(entries: list[_Entry], tasks: int, run_folder: str | None, problems: li
         end -= 1
     body, servers = entries[:end], entries[end:]
     k = next((i for i, e in enumerate(body) if e.contract.unit == "page" and e.contract.unit_out == "item"), None)
-    whole = bool(body) and getattr(body[0].block, "whole_items", False)     # each task reads whole items already
+    whole = bool(body) and getattr(body[0].component, "whole_items", False)     # each task reads whole items already
     if tasks <= 1 or k is None or whole:
         return [("pages" if k is None else "pages and items", entries, tasks)]
     if run_folder is None:
@@ -444,18 +444,18 @@ def _cut(entries: list[_Entry], tasks: int, run_folder: str | None, problems: li
     pre, post = list(body[:k]), body[k:]
     folder = posixpath.join(run_folder.rstrip("/"), "pages")
     target = get_datafolder(folder).path
-    shards = next((i for i, e in enumerate(pre) if _is(e.block, "PageJsonlWriter") and e.block.item_shards), None)
+    shards = next((i for i, e in enumerate(pre) if _is(e.component, "PageJsonlWriter") and e.component.item_shards), None)
     if shards is not None:           # its own item shards: read them where it writes them (its DataFolder)
-        n, folder = pre[shards].block.item_shards, pre[shards].block.output_folder
+        n, folder = pre[shards].component.item_shards, pre[shards].component.output_folder
     else:
         n = tasks
-        same = next((i for i, e in enumerate(pre) if _is(e.block, "PageJsonlWriter") and _folder(e.block) == target),
+        same = next((i for i, e in enumerate(pre) if _is(e.component, "PageJsonlWriter") and _folder(e.component) == target),
                     None)
         if same is not None:
             pre[same] = _Entry(_pages_writer(folder, n))
         else:
             pre.append(_Entry(_pages_writer(folder, n)))
-    from linecaster.blocks.readers.records import PageRecordReader
+    from linecaster.components.readers.records import PageRecordReader
 
     reader = PageRecordReader(folder, fetch_images=False, item_shards=True, provides=())
     models_after = any(e.contract.role == "model" for e in post)
@@ -482,9 +482,9 @@ LEFT_BEHIND = {"binder": frozenset({Part("image")}), "splitter": frozenset({Part
 
 
 def _across(c: Contract, available: dict[Part, str]) -> dict[Part, str]:
-    """The parts after a block that changes the stream's unit: a binder's item record holds its pages, and a
+    """The parts after a component that changes the stream's unit: a binder's item record holds its pages, and a
     splitter's pages what the item record held, so the parts carry across (apart from ``LEFT_BEHIND``); after any
-    other such block only what it adds."""
+    other such component only what it adds."""
     if c.role not in LEFT_BEHIND:
         return {p: v for p, v in available.items() if p in c.adds}
     return {p: v for p, v in available.items() if p not in LEFT_BEHIND[c.role]}
@@ -497,11 +497,11 @@ class _Analysis:
         self.graph, self.problems, self.counter = graph, problems, counter
 
     def node(self, e: _Entry, stage: int) -> Node:
-        n = Node(id=f"n{self.counter[0]}", block=type(e.block).__name__,
-                 name=getattr(e.block, "name", None) or type(e.block).__name__, role=e.contract.role,
+        n = Node(id=f"n{self.counter[0]}", component=type(e.component).__name__,
+                 name=getattr(e.component, "name", None) or type(e.component).__name__, role=e.contract.role,
                  unit=e.contract.unit, stage=stage, composites=e.composites,
-                 group=getattr(e.block, "group", None),
-                 when=(w.describe() if (w := getattr(e.block, "when", None)) is not None else None))
+                 group=getattr(e.component, "group", None),
+                 when=(w.describe() if (w := getattr(e.component, "when", None)) is not None else None))
         self.counter[0] += 1
         self.graph.nodes.append(n)
         return n
@@ -509,7 +509,7 @@ class _Analysis:
     def stage(self, entries: list[_Entry], index: int, where: str, given: bool = False) -> tuple[dict, list[Node]]:
         problems = self.problems
         available: dict[Part, str] = {}
-        gone: dict[Part, str] = {}                  # removed parts -> the block that removed them
+        gone: dict[Part, str] = {}                  # removed parts -> the component that removed them
         nodes = [self.node(e, index) for e in entries]
         edges: dict[tuple[str, str], set[str]] = {}
         unit = "page"
@@ -521,10 +521,10 @@ class _Analysis:
         groups_done: set[str] = set()
         i = 0
         while i < len(entries):
-            group = getattr(entries[i].block, "group", None)
+            group = getattr(entries[i].component, "group", None)
             j = i + 1
             if group is not None:
-                while j < len(entries) and getattr(entries[j].block, "group", None) == group:
+                while j < len(entries) and getattr(entries[j].component, "group", None) == group:
                     j += 1
                 if group in groups_done:
                     problems.append(f"{where}: the alternatives of group {group!r} are not next to each other")
@@ -537,10 +537,10 @@ class _Analysis:
                 if k > 0 and c.unit != "any" and c.unit != unit:
                     problems.append(f"{e.label} works on {c.unit}s, but the stream carries {unit}s here")
                 if server_seen is not None and c.role != "server":
-                    problems.append(f"{e.label} comes after the server block {server_seen}: server blocks go last")
+                    problems.append(f"{e.label} comes after the server component {server_seen}: server components go last")
                 if c.role == "server":
                     server_seen = e.label
-                when = getattr(e.block, "when", None)
+                when = getattr(e.component, "when", None)
                 if group is not None and when is None:
                     problems.append(f"{e.label} is an alternative of group {group!r} without a condition (when=)")
                 if when is not None and c.role in ("reader", "server"):
@@ -553,20 +553,20 @@ class _Analysis:
                     if p in gone:
                         problems.append(f"{e.label} reads {p}, which {gone[p]} removes before it")
                     elif src is None:
-                        problems.append(f"{e.label} reads {p}, which no block before it in {where} adds")
+                        problems.append(f"{e.label} reads {p}, which no component before it in {where} adds")
                     elif src != "input":
                         edges.setdefault((src, n.id), set()).add(str(p))
                 for p in sorted(c.adds):
                     if p in base and p not in c.replaces and p.name != "*":
                         owner = next(x for x in self.graph.nodes if x.id == base[p])
-                        problems.append(f"{e.label} adds {p}, which {owner.block} adds already (a block that "
+                        problems.append(f"{e.label} adds {p}, which {owner.component} adds already (a component that "
                                         f"rewrites a part declares it in replaces)")
                     available[p] = n.id
                     gone.pop(p, None)
                 for p in c.replaces:
                     available[p] = n.id
                     gone.pop(p, None)
-                for p in c.removes:              # gone after the block: a later read of it is a problem
+                for p in c.removes:              # gone after the component: a later read of it is a problem
                     available.pop(p, None)
                     gone[p] = e.label
                 added_by.append(c.adds | c.replaces)
@@ -588,36 +588,36 @@ class _Analysis:
     def _served(self, entries: list[_Entry], where: str) -> None:
         ports = {}
         for e in entries:
-            if e.contract.role == "server" and getattr(e.block, "port", None) is not None:
-                ports[e.block.port] = e
+            if e.contract.role == "server" and getattr(e.component, "port", None) is not None:
+                ports[e.component.port] = e
         for e in entries:
-            backend = getattr(e.block, "backend", None)
+            backend = getattr(e.component, "backend", None)
             if not getattr(backend, "served", False):
                 continue
             u = urlsplit(backend.endpoint)
             server = ports.get(u.port) if u.hostname in LOCAL_HOSTS else None
-            if server is None or not _is(server.block, "ModelServer"):
+            if server is None or not _is(server.component, "ModelServer"):
                 continue
-            hosted = [m.get("name") for m in server.block.models]
+            hosted = [m.get("name") for m in server.component.models]
             if backend.model not in hosted:
                 self.problems.append(f"{e.label} asks the model server on port {u.port} in {where} for "
                                      f"{backend.model!r}, which it does not host ({', '.join(hosted) or 'none'})")
 
 
-def block_dict(block) -> dict:
-    """``block.to_dict()``; a plain datatrove step (no ``to_dict``) by its class only."""
-    if callable(getattr(block, "to_dict", None)):
-        return block.to_dict()
-    return {"block": type(block).__name__, "class": f"{type(block).__module__}:{type(block).__qualname__}"}
+def component_dict(component) -> dict:
+    """``component.to_dict()``; a plain datatrove step (no ``to_dict``) by its class only."""
+    if callable(getattr(component, "to_dict", None)):
+        return component.to_dict()
+    return {"component": type(component).__name__, "class": f"{type(component).__module__}:{type(component).__qualname__}"}
 
 
-def _describe_block(e: _Entry, node: Node) -> dict:
-    out: dict = {"id": node.id, "block": node.block}
-    if node.name != node.block:
+def _describe_component(e: _Entry, node: Node) -> dict:
+    out: dict = {"id": node.id, "component": node.component}
+    if node.name != node.component:
         out["name"] = node.name
-    out.update(block_dict(e.block))
+    out.update(component_dict(e.component))
     out["contract"] = e.contract.describe()
-    shape = getattr(e.block, "shape", None)
+    shape = getattr(e.component, "shape", None)
     if shape:
         out["shape"] = shape
     if e.composites:
@@ -626,19 +626,19 @@ def _describe_block(e: _Entry, node: Node) -> dict:
         out["group"] = node.group
     if node.when:
         out["when"] = node.when
-    if _is(e.block, "PageRecordReader") and e.block.provides is None:
+    if _is(e.component, "PageRecordReader") and e.component.provides is None:
         out["provides"] = "unknown: reads after it are not checked"
     return out
 
 
-def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str | None = None,
+def build(components: list, *, tasks: int = 1, until: str | None = None, after: str | None = None,
           taps: dict[str, str] | None = None, run_folder: str | None = None, recipe: tuple[str, str] | None = None,
           observers: list[Observer] | None = None, max_page_errors: float | None = None,
           trace_sample: float | None = None, image_decode: str | None = None, run_id: str | None = None) -> Plan:
-    """Turns a list of blocks into a checked plan of stages, cut where the stream changes from pages to items.
+    """Turns a list of components into a checked plan of stages, cut where the stream changes from pages to items.
 
-    The builder expands composites, checks the contracts (every part a block reads is added before it, units fit,
-    servers go last, ...), inserts the blocks a run needs (a ``TranscriptionImporter`` after a reader that brings
+    The builder expands composites, checks the contracts (every part a component reads is added before it, units fit,
+    servers go last, ...), inserts the components a run needs (a ``TranscriptionImporter`` after a reader that brings
     transcription files, the ``RecipeStamper``, a ``RejectWriter`` into ``<run_folder>/rejects``) and derives the
     graph. Problems are collected in ``Plan.problems``; ``Plan.check()`` raises them as one
     ``PipelineConfigError``. Every stage is traced (``linecaster.tracing.Tracing``) into ``<run_folder>/traces``
@@ -646,29 +646,29 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
     traced (``docs/reference/pipelines.md``, "The builder").
 
     Args:
-        blocks: the blocks and composites, in order; the builder checks the order and does not change it.
+        components: the components and composites, in order; the builder checks the order and does not change it.
         tasks: the number of tasks; over 1, the first binder cuts the pipeline into a page stage writing item shards
             and an item stage reading them, unless the reader gives each task whole items.
-        until: run the blocks up to and including this one (by name, class name or composite name), then write
+        until: run the components up to and including this one (by name, class name or composite name), then write
             page records into ``<run_folder>/pages``; needs a run folder.
-        after: run the blocks after this one, from the pipeline's ``PageRecordReader``, which then declares what the
-            blocks up to it add.
-        taps: block name -> folder: the page records as they leave that block, written to ``<folder>/<rank>.jsonl.gz``.
+        after: run the components after this one, from the pipeline's ``PageRecordReader``, which then declares what the
+            components up to it add.
+        taps: component name -> folder: the page records as they leave that component, written to ``<folder>/<rank>.jsonl.gz``.
         run_folder: the run folder (``OUT``): rejects, traces, partial runs and item shards go there; default none.
         recipe: ``(ref, sha256)`` of the recipe the run follows, stamped on every step before the first
             writer (``RecipeStamper``).
         observers: more observers, on every stage next to the taps and the tracing.
-        max_page_errors: every page block's error budget, a share of a task's pages; default each block's own
+        max_page_errors: every page component's error budget, a share of a task's pages; default each component's own
             (0.01).
         trace_sample: the share of pages traced, chosen by page id; default ``linecaster.tracing.DEFAULT_SAMPLE``.
-        image_decode: how every model block decodes page images (``auto``, ``gpu``, ``cpu``;
-            ``linecaster.images.pixels``); default each block's own (``auto``).
-        run_id: the run's id (``RunRecord.run_id``), given to every block that names it on the annotators the run
+        image_decode: how every model component decodes page images (``auto``, ``gpu``, ``cpu``;
+            ``linecaster.images.pixels``); default each component's own (``auto``).
+        run_id: the run's id (``RunRecord.run_id``), given to every component that names it on the annotators the run
             adds (``run_id``: the page record writers); default none (nothing named).
 
     Example:
-        from linecaster.blocks.readers import ImageFolderReader
-        from linecaster.blocks.writers import PageJsonlWriter
+        from linecaster.components.readers import ImageFolderReader
+        from linecaster.components.writers import PageJsonlWriter
         from linecaster.runtime.builder import build
 
         plan = build([ImageFolderReader("scans/"), PageJsonlWriter("out/pages")], tasks=4, run_folder="out")
@@ -677,7 +677,7 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
         for stage in plan.stages:  # one datatrove pipeline each, run in order
             print(stage.name, stage.tasks, len(stage.pipeline))
     """
-    return _build(blocks, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
+    return _build(components, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
                   observers=observers, max_page_errors=max_page_errors, trace_sample=trace_sample,
                   image_decode=image_decode, run_id=run_id)
 
@@ -697,11 +697,11 @@ def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | No
         return None
 
 
-def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, run_folder=None, recipe=None,
+def _build(components: list, *, tasks: int = 1, until=None, after=None, taps=None, run_folder=None, recipe=None,
            observers=None, given: bool = False, max_page_errors=None, trace_sample=None, image_decode=None,
            run_id=None) -> Plan:
     problems: list[str] = []
-    entries = _expand(list(blocks), problems)
+    entries = _expand(list(components), problems)
     _converters(entries)
     if after:
         entries = _after(entries, after, problems)
@@ -713,12 +713,12 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
         _rejects(entries, run_folder)
     if max_page_errors is not None:
         for e in entries:
-            if hasattr(e.block, "max_page_errors"):
-                e.block.max_page_errors = max_page_errors
+            if hasattr(e.component, "max_page_errors"):
+                e.component.max_page_errors = max_page_errors
     if image_decode is not None:
         for e in entries:
-            if hasattr(e.block, "image_decode"):
-                e.block.image_decode = image_decode
+            if hasattr(e.component, "image_decode"):
+                e.component.image_decode = image_decode
     cut = _cut(entries, tasks, run_folder, problems)
     graph, counter = Graph(), [0]
     analysis = _Analysis(graph, problems, counter)
@@ -727,62 +727,62 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
         where = f"stage {index + 1} ({name})" if len(cut) > 1 else "the pipeline"
         if index > 0:          # the reader of a later stage brings what the earlier one wrote
             reader = stage_entries[0]
-            reader.block.provides = frozenset(p for p in carried if p.name not in ("*", "image"))
-            reader.contract = contract_of(reader.block)
+            reader.component.provides = frozenset(p for p in carried if p.name not in ("*", "image"))
+            reader.contract = contract_of(reader.component)
         available, nodes = analysis.stage(stage_entries, index, where, given=given and index == 0)
         carried = frozenset(available)
         if index > 0 and previous_nodes:
-            writer = next((n for n in reversed(previous_nodes) if n.block == "PageJsonlWriter"), previous_nodes[-1])
+            writer = next((n for n in reversed(previous_nodes) if n.component == "PageJsonlWriter"), previous_nodes[-1])
             graph.edges.append(Edge(writer.id, nodes[0].id, ("page records (item shards)",)))
         previous_nodes = nodes
-        described.append([_describe_block(e, n) for e, n in zip(stage_entries, nodes)])
+        described.append([_describe_component(e, n) for e, n in zip(stage_entries, nodes)])
         stages.append((name, stage_entries, stage_tasks))
     # taps and observers, per stage
     tap_at: dict[int, list[Observer]] = {}
     flat = [(s, e) for s, (_, es, _) in enumerate(stages) for e in es]
-    for block_name, folder in (taps or {}).items():
-        i = _find([e for _, e in flat], block_name, "--tap-after", problems)
+    for component_name, folder in (taps or {}).items():
+        i = _find([e for _, e in flat], component_name, "--tap-after", problems)
         if i is None:
             continue
         s, e = flat[i]
         if e.contract.output_unit not in ("page", "any") or e.contract.role == "server":
-            problems.append(f"--tap-after {block_name}: page records can only be tapped after a page block")
+            problems.append(f"--tap-after {component_name}: page records can only be tapped after a page component")
             continue
-        tap_at.setdefault(s, []).append(Tap(e.block, folder))
+        tap_at.setdefault(s, []).append(Tap(e.component, folder))
     out = []
     for s, (name, stage_entries, stage_tasks) in enumerate(stages):
-        if run_id is not None:            # the blocks that name the run on the annotators it added
+        if run_id is not None:            # the components that name the run on the annotators it added
             for e in stage_entries:
-                if hasattr(type(e.block), "run_id"):
-                    e.block.run_id = run_id
+                if hasattr(type(e.component), "run_id"):
+                    e.component.run_id = run_id
         tracing = _tracing(run_folder, trace_sample, name if len(stages) > 1 else None, problems)
         timing = _timing(stage_entries)
         hub = Observers([*([timing] if timing else []), *tap_at.get(s, []), *(observers or []),
                          *([tracing] if tracing else [])])
-        out.append(Stage(name=name, tasks=stage_tasks, blocks=[e.block for e in stage_entries],
+        out.append(Stage(name=name, tasks=stage_tasks, components=[e.component for e in stage_entries],
                          pipeline=_pipeline(stage_entries, hub if hub else None), observers=hub if hub else None))
     return Plan(stages=out, graph=graph, problems=problems, _describe=described)
 
 
 def _timing(entries: list[_Entry]):
-    """A page stage's ``PageTiming``: from its first block to the first that writes pages, binds or serves (where the
+    """A page stage's ``PageTiming``: from its first component to the first that writes pages, binds or serves (where the
     stream still carries pages, as for ``_rejects``); none for a stage of items or one that writes no page."""
     from linecaster.runtime.observers import PageTiming
 
     if not entries or entries[0].contract.unit not in ("page", "any") or entries[0].contract.output_unit == "item":
         return None
-    stop = next((e.block for e in entries[1:] if e.contract.role in ("writer", "server", "binder")
+    stop = next((e.component for e in entries[1:] if e.contract.role in ("writer", "server", "binder")
                  or e.contract.unit_out == "item"), None)
-    return None if stop is None else PageTiming(entries[0].block, stop)
+    return None if stop is None else PageTiming(entries[0].component, stop)
 
 
 def _pipeline(entries: list[_Entry], hub: Observers | None) -> list:
-    """The datatrove steps of a stage: each block (behind a ``Branch`` when it has a condition), with a
+    """The datatrove steps of a stage: each component (behind a ``Branch`` when it has a condition), with a
     ``Boundary`` after it when the stage has observers."""
     steps = []
-    groups = [getattr(e.block, "group", None) for e in entries]
+    groups = [getattr(e.component, "group", None) for e in entries]
     for i, e in enumerate(entries):
-        b = e.block
+        b = e.component
         when = getattr(b, "when", None)
         if hub is not None and hasattr(b, "warm_up"):
             b._observers = hub
@@ -793,23 +793,23 @@ def _pipeline(entries: list[_Entry], hub: Observers | None) -> list:
         else:
             steps.append(b)
         if hub is not None:
-            nxt = entries[i + 1].block if i + 1 < len(entries) else None
+            nxt = entries[i + 1].component if i + 1 < len(entries) else None
             steps.append(Boundary(hub, b, nxt, last=nxt is None))
     return steps
 
 
-def run_pages(blocks: list, docs=(), *, observers: list[Observer] | None = None) -> list:
-    """Runs blocks on datatrove documents in this process, without an executor, and returns what comes out.
+def run_pages(components: list, docs=(), *, observers: list[Observer] | None = None) -> list:
+    """Runs components on datatrove documents in this process, without an executor, and returns what comes out.
 
     The pipeline is checked first (without a reader, the documents may carry any part) and run as task 0 of 1; a
     leading reader reads its own input after ``docs``. A pipeline script's ``--page IMAGE OUT`` runs this way.
 
     Args:
-        blocks: the blocks and composites, in order.
+        components: the components and composites, in order.
         docs: the documents to run, e.g. ``new_page_document(...)`` for a page image; default none (the reader's).
         observers: observers on the run, as ``build`` takes them.
     """
-    plan = _build(blocks, observers=observers, given=True)
+    plan = _build(components, observers=observers, given=True)
     plan.check()
     return run_plan(plan, docs)
 

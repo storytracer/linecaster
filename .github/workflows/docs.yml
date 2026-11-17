@@ -36,7 +36,7 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      # the generated pages (not in git), with every extra as in CI: the extras' blocks have pages too
+      # the generated pages (not in git), with every extra as in CI: the extras' components have pages too
       - name: Generate the docs
         run: uv run --locked --all-extras linecaster docs
       - name: Publish the release's version

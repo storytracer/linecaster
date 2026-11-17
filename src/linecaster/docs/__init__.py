@@ -2,11 +2,11 @@
 not in git).
 
 * ``docs/catalog/``: the catalog's pages (``linecaster.catalog.docs``);
-* ``docs/blocks/``: the block pages (``linecaster.docs.blocks``);
+* ``docs/components/``: the component pages (``linecaster.docs.components``);
 * ``docs/index.md`` (the README for the site), ``docs/changelog.md``, ``docs/llms.txt`` and ``docs/llms-full.txt``
   (``linecaster.docs.site``).
 
-Generated Markdown pages start with ``HEADER``. The folders ``docs/catalog/<kind>/`` and ``docs/blocks/`` hold
+Generated Markdown pages start with ``HEADER``. The folders ``docs/catalog/<kind>/`` and ``docs/components/`` hold
 generated pages only: a page there that a fresh generation does not make is removed.
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ __all__ = ["GITHUB", "HEADER", "SITE", "Links", "generate", "write"]
 def _folders(out: Path) -> list[Path]:
     from linecaster.catalog.docs import KINDS
 
-    return [*(out / "catalog" / k for k in KINDS), out / "blocks"]
+    return [*(out / "catalog" / k for k in KINDS), out / "components"]
 
 
 def generate(out: str | Path = "docs", readme: str | Path | None = "README.md", repo: Path | None = code.REPO,
@@ -30,16 +30,16 @@ def generate(out: str | Path = "docs", readme: str | Path | None = "README.md", 
     """Generates every file: path -> content.
 
     Args:
-        out: the docs folder (``docs``): the catalog's pages go to ``<out>/catalog``, the block pages to
-            ``<out>/blocks``, the site's pages to ``<out>``.
+        out: the docs folder (``docs``): the catalog's pages go to ``<out>/catalog``, the component pages to
+            ``<out>/components``, the site's pages to ``<out>``.
         readme: the README, from which ``index.md`` and ``llms.txt`` are made; ``None`` (or a missing file):
             neither.
-        repo: the repository checkout: engines', pipelines' and blocks' sources, ``CHANGELOG.md``, GitHub links.
+        repo: the repository checkout: engines', pipelines' and components' sources, ``CHANGELOG.md``, GitHub links.
         catalog: the catalog (default: linecaster's).
     """
     from linecaster.catalog import docs as catalog_docs
     from linecaster.catalog.registry import Catalog
-    from linecaster.docs import blocks, site
+    from linecaster.docs import components, site
 
     out = Path(out)
     c = catalog if catalog is not None else Catalog()
@@ -47,9 +47,9 @@ def generate(out: str | Path = "docs", readme: str | Path | None = "README.md", 
     files: dict[Path, str] = {}
     for rel, text in catalog_docs.pages(c, out / "catalog", links, repo).items():
         files[out / "catalog" / rel] = text
-    built = blocks.build(repo)
-    for rel, text in blocks.pages(out / "blocks", links, c, out / "catalog", repo, built).items():
-        files[out / "blocks" / rel] = text
+    built = components.build(repo)
+    for rel, text in components.pages(out / "components", links, c, out / "catalog", repo, built).items():
+        files[out / "components" / rel] = text
     readme = Path(readme) if readme is not None else None
     if readme is not None and readme.exists():
         text = readme.read_text(encoding="utf-8")

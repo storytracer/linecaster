@@ -1,0 +1,69 @@
+"""``RejectWriter``: the pages that carry errors (``doc.metadata["errors"]``: a component failed on them, or a check
+rejected them), one JSON line per error in ``<folder>/<prefix><rank:05d>.jsonl``, opened on the first reject (a
+task without rejects leaves no file): ``key`` (the page id), ``field``, ``error`` and ``raw_value``, plus the
+entry's ``component``, ``step``, ``preset`` and ``type``, so nothing disappears silently. Every page goes on: the page
+records keep the failed pages with their errors.
+
+The builder puts one before the first writer of a pipeline with a run folder (``<run_folder>/rejects``); only this
+writer knows the task, so the components that reject pages only record why."""
+from __future__ import annotations
+
+import json
+
+from datatrove.io import DataFolderLike, get_datafolder
+from datatrove.pipeline.base import PipelineStep
+
+from linecaster.core.contract import Contracted
+from linecaster.core.page import ERRORS_KEY
+
+#: the keys of an error entry that become a reject's own fields
+OWN = ("field", "error", "raw_value")
+
+
+def reject(key: str, entry: dict) -> dict:
+    """One reject line for the error ``entry`` of page ``key``: its ``field`` (else the step or component that failed),
+    ``error``, ``raw_value``, and the entry's other keys."""
+    field = entry.get("field") or entry.get("step") or entry.get("component")
+    return {"key": key, "field": field, "error": entry.get("error"), "raw_value": entry.get("raw_value"),
+            **{k: v for k, v in entry.items() if k not in OWN}}
+
+
+class RejectWriter(Contracted, PipelineStep):
+    """Writes every page that carries errors to the task's rejects file and passes every page on.
+
+    The file is ``<output_folder>/<prefix><rank:05d>.jsonl``, opened on the first reject (a task without rejects
+    leaves no file), one line per error of ``doc.metadata["errors"]``: ``key`` (the page id), ``field`` (else the
+    step or component that failed), ``error``, ``raw_value``, and the entry's other keys (``component``, ``step``,
+    ``preset``, ``type``). The page records keep the failed pages with their errors. The builder puts one before the
+    first writer of a pipeline with a run folder (``<run_folder>/rejects``) when it has none.
+
+    Args:
+        output_folder: the folder (local path, fsspec URI or ``DataFolder``) the rejects go to.
+        prefix: put before each file name, so two writers that share a folder stay apart.
+    """
+
+    type = "💽 - WRITER"
+    name = "🗑 rejects"
+    role = "writer"
+    unit = "any"                    # it reads only a document's id and errors: pages or resources alike
+    docs_args = {"output_folder": "out/rejects"}
+
+    def __init__(self, output_folder: DataFolderLike, prefix: str = ""):
+        super().__init__()
+        self.output_folder, self.prefix = output_folder, prefix
+
+    def run(self, data, rank: int = 0, world_size: int = 1):
+        folder, name, f = get_datafolder(self.output_folder), f"{self.prefix}{rank:05d}.jsonl", None
+        try:
+            for doc in data:
+                errors = doc.metadata.get(ERRORS_KEY) or ()
+                if errors:
+                    if f is None:
+                        f = folder.open(name, "wt")
+                    for entry in errors:
+                        f.write(json.dumps(reject(doc.id, entry), ensure_ascii=False, default=str) + "\n")
+                    self.stat_update("rejected")
+                yield doc
+        finally:
+            if f is not None:
+                f.close()

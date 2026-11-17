@@ -17,8 +17,8 @@ one task per machine starts it; more tasks share one service with --recognition-
 image is the preset's ``serve.image`` unless --image is given; it needs uv (the vLLM and OXR images have it, the
 Falcon-OCR image does not).
 """
-from linecaster.blocks.recognition.chat import PageRecognizer
-from linecaster.blocks.servers.service import ServiceServer
+from linecaster.components.recognition.page_recognizer import PageRecognizer
+from linecaster.components.servers.service import ServiceServer
 from linecaster.catalog.registry import catalog
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
@@ -57,7 +57,7 @@ def pipeline(a, script: str):
     b, servers = run.engines(a, models(a), script)
     steps = [run.reader(a), PageRecognizer(b["recognition"]), run.pages(a)]
     if p.serve is not None and not a.recognition_endpoint:
-        # last: the service starts before the engine loads (blocks warm up as the stream reaches them, the last first)
+        # last: the service starts before the engine loads (components warm up as the stream reaches them, the last first)
         servers.append(ServiceServer(a.recognition, boot_timeout=a.boot_timeout, server_env=run.server_env(a)))
     return steps + servers, {"image": p.serve.image if p.serve is not None else None, "engines": True}
 

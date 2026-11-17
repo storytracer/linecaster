@@ -1,11 +1,11 @@
-"""Ray Data spike (phase 6): a recipe's per-page blocks as Ray Data ``map_batches`` stages, one actor per block and
+"""Ray Data spike (phase 6): a recipe's per-page components as Ray Data ``map_batches`` stages, one actor per component and
 the pages streaming between them, instead of a datatrove executor.
 
 The recipe's pipeline is built as a normal run builds it: the pipeline shape's ``pipeline()`` with ``--recipe``,
 then the builder (one task, no run folder, so no rejects writer and no tracing). The reader reads the pages in the
-driver; every block between the reader and the writers becomes one ``map_batches`` stage (``batch_size=1``: one page
-per request) run by a single actor that calls ``warm_up()`` once and then the block's ``run`` on each page. Model
-blocks share the GPU (``num_gpus`` = 1 / their number); rule blocks run on CPUs. Between stages a page travels as a
+driver; every component between the reader and the writers becomes one ``map_batches`` stage (``batch_size=1``: one page
+per request) run by a single actor that calls ``warm_up()`` once and then the component's ``run`` on each page. Model
+components share the GPU (``num_gpus`` = 1 / their number); rule components run on CPUs. Between stages a page travels as a
 plain row: ``id``, ``text``, ``metadata`` (JSON), ``media`` (the image's ``Media`` fields as JSON) and ``image``
 (its bytes). The page records go to ``OUT/pages.json`` (page id -> the row ``PageJsonlWriter`` writes), the timings
 to ``OUT/timings.json``, Ray Data's stats to ``OUT/ray-stats.txt``.
@@ -39,27 +39,27 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "pipelines" / "transcribe_modular.py"
 #: the measurements that differ from run to run
 VARYING = ("seconds", "datetime")
-#: CPUs per actor: model blocks (their engines' CPU work: decoding, pre- and post-processing) and rule blocks
+#: CPUs per actor: model components (their engines' CPU work: decoding, pre- and post-processing) and rule components
 MODEL_CPUS, RULE_CPUS = 3, 0.5
 
 
-# ------------------------------------------------------------------------------------------------- the blocks
-def recipe_blocks(images: str, out: str, recipe: str):
-    """The reader and the per-page blocks of ``recipe``'s pipeline, as the builder expands them for a normal run of
+# ------------------------------------------------------------------------------------------------- the components
+def recipe_components(images: str, out: str, recipe: str):
+    """The reader and the per-page components of ``recipe``'s pipeline, as the builder expands them for a normal run of
     one task (composites expanded, the recipe stamper added); the writers are left out."""
     from linecaster.pipelines import transcribe_modular as module
     from linecaster.runtime import builder, run
 
     a = run.parse([images, out, "--recipe", recipe], module.__doc__, module.options, module.PIPELINE, module.SLOTS)
-    blocks = module.pipeline(a, str(SCRIPT))
+    components = module.pipeline(a, str(SCRIPT))
     rec = a.recipe_record
-    plan = builder.build(blocks, tasks=1, run_folder=None, recipe=(rec["ref"], rec["sha256"]))
+    plan = builder.build(components, tasks=1, run_folder=None, recipe=(rec["ref"], rec["sha256"]))
     plan.check()
     if len(plan.stages) != 1:
         raise SystemExit(f"{recipe}: {len(plan.stages)} stages; the spike runs one page stage")
-    reader, *rest = plan.stages[0].blocks
-    page_blocks = [b for b in rest if getattr(b, "role", None) not in ("writer", "server")]
-    return reader, page_blocks, rec
+    reader, *rest = plan.stages[0].components
+    page_components = [b for b in rest if getattr(b, "role", None) not in ("writer", "server")]
+    return reader, page_components, rec
 
 
 # ----------------------------------------------------------------------------------- pages as Ray Data rows
@@ -82,15 +82,15 @@ def to_doc(row: dict):
 
 
 class BlockStage:
-    """One block as a Ray Data actor: warmed up once, then a page per call."""
+    """One component as a Ray Data actor: warmed up once, then a page per call."""
 
-    def __init__(self, block, label: str, log_folder: str):
-        self.block, self.label = block, label
+    def __init__(self, component, label: str, log_folder: str):
+        self.component, self.label = component, label
         start = time.time()
-        block.warm_up()
+        component.warm_up()
         end = time.time()
         Path(log_folder, f"{label}.json").write_text(json.dumps(
-            {"block": label, "pid": os.getpid(), "warm_up_start": start, "warm_up_end": end,
+            {"component": label, "pid": os.getpid(), "warm_up_start": start, "warm_up_end": end,
              "warm_up_seconds": round(end - start, 3), "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
              "omp_num_threads": os.environ.get("OMP_NUM_THREADS")}))
 
@@ -99,7 +99,7 @@ class BlockStage:
 
         out = []
         for row in batch.to_pylist():
-            out.extend(to_row(d) for d in self.block.run(iter([to_doc(row)]), 0, 1))
+            out.extend(to_row(d) for d in self.component.run(iter([to_doc(row)]), 0, 1))
         return pa.Table.from_pylist(out, schema=batch.schema)
 
 
@@ -122,17 +122,17 @@ def listening_elsewhere() -> list[str]:
     return bad
 
 
-def run_ray(rows: list[dict], page_blocks: list, out: Path) -> tuple[dict, dict]:
+def run_ray(rows: list[dict], page_components: list, out: Path) -> tuple[dict, dict]:
     import ray
     import ray.data
 
-    from linecaster.blocks.base.model import ModelBlock
-    from linecaster.blocks.writers.records import page_record
+    from linecaster.core.model import ModelComponent
+    from linecaster.components.writers.records import page_record
 
     t = {}
     log_folder = out / "warm-up"
     log_folder.mkdir(parents=True, exist_ok=True)
-    models = sum(isinstance(b, ModelBlock) for b in page_blocks)
+    models = sum(isinstance(b, ModelComponent) for b in page_components)
     share = int(10000 / max(models, 1)) / 10000          # Ray counts GPU shares in 1/10000
     t0 = time.time()
     ray.init(address="local", include_dashboard=False, num_gpus=1)
@@ -142,15 +142,15 @@ def run_ray(rows: list[dict], page_blocks: list, out: Path) -> tuple[dict, dict]
         ctx = ray.data.DataContext.get_current()
         ctx.enable_progress_bars = False
         ctx.execution_options.preserve_order = False
-        ds = ray.data.from_items(rows, override_num_blocks=len(rows))
+        ds = ray.data.from_items(rows, override_num_components=len(rows))
         stages = []
-        for i, block in enumerate(page_blocks):
-            gpu = isinstance(block, ModelBlock)
-            label = f"{i + 1:02d}-{type(block).__name__}"
+        for i, component in enumerate(page_components):
+            gpu = isinstance(component, ModelComponent)
+            label = f"{i + 1:02d}-{type(component).__name__}"
             stages.append({"stage": label, "num_gpus": share if gpu else 0, "num_cpus": MODEL_CPUS if gpu else RULE_CPUS})
             ds = ds.map_batches(BlockStage, batch_size=1, batch_format="pyarrow",
                                 compute=ray.data.ActorPoolStrategy(size=1), num_cpus=MODEL_CPUS if gpu else RULE_CPUS, **({"num_gpus": share} if gpu else {}),
-                                fn_constructor_kwargs={"block": block, "label": label, "log_folder": str(log_folder)})
+                                fn_constructor_kwargs={"component": component, "label": label, "log_folder": str(log_folder)})
         records, first = {}, None
         t0 = time.time()
         for row in ds.iter_rows():
@@ -170,8 +170,8 @@ def run_ray(rows: list[dict], page_blocks: list, out: Path) -> tuple[dict, dict]
         warm = [json.loads(p.read_text()) for p in sorted(log_folder.glob("*.json"))]
         ready = max((w["warm_up_end"] for w in warm), default=t0)
         t["after_last_warm_up"] = last - ready
-        t["warm_up_seconds"] = {w["block"]: w["warm_up_seconds"] for w in warm}
-        t["actors"] = {w["block"]: {k: w[k] for k in ("cuda_visible_devices", "omp_num_threads")} for w in warm}
+        t["warm_up_seconds"] = {w["component"]: w["warm_up_seconds"] for w in warm}
+        t["actors"] = {w["component"]: {k: w[k] for k in ("cuda_visible_devices", "omp_num_threads")} for w in warm}
         t["stages"] = stages
     finally:
         t0 = time.time()
@@ -271,15 +271,15 @@ def main() -> None:
 
     timings = {"torch": torch.__version__, "imports": time.time() - START}
     t0 = time.time()
-    reader, page_blocks, rec = recipe_blocks(a.images, str(out), a.recipe)
+    reader, page_components, rec = recipe_components(a.images, str(out), a.recipe)
     timings["build"] = time.time() - t0
     t0 = time.time()
     rows = [to_row(d) for d in reader(None, 0, 1)]
     timings["read"] = time.time() - t0
     timings["pages"] = len(rows)
     timings["recipe"] = rec["ref"]
-    timings["blocks"] = [type(b).__name__ for b in page_blocks]
-    records, ray_timings = run_ray(rows, page_blocks, out)
+    timings["components"] = [type(b).__name__ for b in page_components]
+    records, ray_timings = run_ray(rows, page_components, out)
     timings.update(ray_timings)
     (out / "pages.json").write_text(json.dumps(records, ensure_ascii=False))
     timings["total_in_script"] = time.time() - START

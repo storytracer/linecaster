@@ -39,7 +39,7 @@ class Chat:
 
     Example:
         from linecaster.backends import Chat
-        from linecaster.blocks.recognition import PageRecognizer
+        from linecaster.components.recognition import PageRecognizer
 
         PageRecognizer(Chat("lightonocr-2-1b", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
     """
@@ -86,7 +86,7 @@ class Chat:
 
     def warm_up(self) -> None:
         """The secrets are read (a missing one fails the task before its first page); the client opens with the
-        block's run."""
+        component's run."""
         self.request_headers()
 
     def describe(self) -> str:
@@ -95,7 +95,7 @@ class Chat:
     def to_dict(self) -> dict[str, Any]:
         """The backend as the run record names it: the adapter (preset and its hash, model, revision, adapter
         class, served name), the endpoint, the window and timeout, and the secrets by name (``{"env": NAME}``)."""
-        from linecaster.blocks.base.block import plain
+        from linecaster.core.component import plain
 
         out = {"backend": "chat", **self.adapter.to_dict(), "endpoint": self.endpoint, "max_window": self.max_window,
                "initial_window": self.initial_window, "read_timeout": self.read_timeout}

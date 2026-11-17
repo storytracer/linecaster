@@ -1,12 +1,12 @@
 """``linecaster traces OUT``: what a run's traces say (``OUT/traces/**/*.jsonl.gz``, OTLP JSON lines).
 
-* **blocks**: per block (``--by block``; or per preset edition, or per task) the duration of its ``linecaster.block``
-  spans (p50, p90, p99 over the traced pages), for served blocks the split of a request: the whole request as the
+* **components**: per component (``--by component``; or per preset edition, or per task) the duration of its ``linecaster.component``
+  spans (p50, p90, p99 over the traced pages), for served components the split of a request: the whole request as the
   pipeline saw it, and the server's queue, decode and model spans;
-* **gaps**: the time each block had no page in it between its first and its last (it waited for its input), when
+* **gaps**: the time each component had no page in it between its first and its last (it waited for its input), when
   every page was traced (``--trace-sample 1``); from a sample they would only show the pages not traced;
-* **slowest pages**: the ``N`` traced pages that took longest, with their attributes and slowest block;
-* **tasks**: per task its duration, the warm-up of each block, the server starts, the reader's files and the
+* **slowest pages**: the ``N`` traced pages that took longest, with their attributes and slowest component;
+* **tasks**: per task its duration, the warm-up of each component, the server starts, the reader's files and the
   writers' flushes.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ import io
 import json
 from collections import defaultdict
 
-BY = ("block", "preset", "task")
+BY = ("component", "preset", "task")
 
 
 def _value(v: dict):
@@ -111,7 +111,7 @@ def _group(s: dict, by: str) -> str:
         return f"{p}@{a['linecaster.edition']}" if p and a.get("linecaster.edition") else (p or "(no preset)")
     if by == "task":
         return _task_key(s["resource"])
-    return a.get("linecaster.block.name") or a.get("linecaster.block") or "?"
+    return a.get("linecaster.component.name") or a.get("linecaster.component") or "?"
 
 
 def _idle(intervals: list[tuple[float, float]]) -> tuple[float, float]:
@@ -131,7 +131,7 @@ def _idle(intervals: list[tuple[float, float]]) -> tuple[float, float]:
     return max(0.0, whole - busy), whole
 
 
-def summarize(spans: list[dict], by: str = "block", slowest: int = 10) -> dict:
+def summarize(spans: list[dict], by: str = "component", slowest: int = 10) -> dict:
     """The report as data (``--json``)."""
     children = defaultdict(list)
     for s in spans:
@@ -139,11 +139,11 @@ def summarize(spans: list[dict], by: str = "block", slowest: int = 10) -> dict:
             children[(s["trace"], s["parent"])].append(s)
     tasks = [s for s in spans if s["name"] == "linecaster.task"]
     roots = [s for s in spans if s["name"] in ("linecaster.page", "linecaster.item") and not s["parent"]]
-    blocks = [s for s in spans if s["name"] == "linecaster.block"]
+    components = [s for s in spans if s["name"] == "linecaster.component"]
     fully = bool(tasks) and all(t["attrs"].get("linecaster.sample") == 1 for t in tasks)
 
     groups: dict[str, dict] = {}
-    for s in blocks:
+    for s in components:
         g = groups.setdefault(_group(s, by), {"seconds": [], "request": [], "prepare": [], "queue": [],
                                              "decode": [], "model": [], "errors": 0, "intervals": defaultdict(list)})
         g["seconds"].append(s["seconds"])
@@ -158,7 +158,7 @@ def summarize(spans: list[dict], by: str = "block", slowest: int = 10) -> dict:
                     kind = sc["name"].rsplit(".", 1)[-1]
                     if sc["name"].startswith("linecaster.serve.") and kind in ("queue", "decode", "model"):
                         g[kind].append(sc["seconds"])
-    block_rows = {}
+    component_rows = {}
     for name, g in groups.items():
         row = {"seconds": _dist(g["seconds"]), "errors": g["errors"]}
         if g["request"]:
@@ -170,18 +170,18 @@ def summarize(spans: list[dict], by: str = "block", slowest: int = 10) -> dict:
                 idle, whole = idle + i, whole + w
             row["gaps"] = {"idle_seconds": idle, "active_window_seconds": whole,
                            "idle_share": idle / whole if whole else 0.0}
-        block_rows[name] = row
+        component_rows[name] = row
 
     def page_row(r: dict) -> dict:
-        kids = [c for c in children[(r["trace"], r["span"])] if c["name"] == "linecaster.block"]
+        kids = [c for c in children[(r["trace"], r["span"])] if c["name"] == "linecaster.component"]
         worst = max(kids, key=lambda c: c["seconds"], default=None)
         lines = max((c["attrs"].get("linecaster.lines", 0) for c in kids), default=None)
         return {"id": r["attrs"].get("linecaster.page.id") or r["attrs"].get("linecaster.item.id"),
                 "item": r["attrs"].get("linecaster.item.id") if r["attrs"].get("linecaster.page.id") else None,
                 "trace_id": r["trace"], "seconds": r["seconds"], "failed": r["error"],
                 "unfinished": bool(r["attrs"].get("linecaster.unfinished")), "lines": lines,
-                "slowest_block": ({"block": worst["attrs"].get("linecaster.block.name")
-                                   or worst["attrs"].get("linecaster.block"), "seconds": worst["seconds"]}
+                "slowest_component": ({"component": worst["attrs"].get("linecaster.component.name")
+                                   or worst["attrs"].get("linecaster.component"), "seconds": worst["seconds"]}
                                   if worst else None), "task": _task_key(r["resource"])}
 
     task_rows = {}
@@ -192,8 +192,8 @@ def summarize(spans: list[dict], by: str = "block", slowest: int = 10) -> dict:
         task_rows[_task_key(t["resource"])] = {
             "seconds": t["seconds"], "failed": t["error"], "gpu": t["resource"].get("linecaster.gpu"),
             "sample": t["attrs"].get("linecaster.sample"),
-            "warm_up": [{"span": c["name"], "block": c["attrs"].get("linecaster.block.name")
-                         or c["attrs"].get("linecaster.block"), "seconds": c["seconds"]}
+            "warm_up": [{"span": c["name"], "component": c["attrs"].get("linecaster.component.name")
+                         or c["attrs"].get("linecaster.component"), "seconds": c["seconds"]}
                         for c in sorted(kids, key=lambda c: c["start"])
                         if c["name"] in ("linecaster.warm_up", "linecaster.server.start")],
             "reader_files": {"n": len(files), "pages": sum(c["attrs"].get("linecaster.pages", 0) for c in files),
@@ -201,7 +201,7 @@ def summarize(spans: list[dict], by: str = "block", slowest: int = 10) -> dict:
             "writer_flush_seconds": sum(c["seconds"] for c in flushes)}
     return {"spans": len(spans), "tasks": len(tasks),
             "units": {"traced": len(roots), "failed": sum(r["error"] for r in roots)},
-            "by": by, "blocks": block_rows, "gaps_available": fully,
+            "by": by, "components": component_rows, "gaps_available": fully,
             "slowest": [page_row(r) for r in sorted(roots, key=lambda r: -r["seconds"])[:slowest]],
             "per_task": task_rows}
 
@@ -214,10 +214,10 @@ def render(report: dict) -> str:
     """The report as plain text."""
     out = [f"{report['spans']} spans, {report['tasks']} tasks, {report['units']['traced']} traced units "
            f"({report['units']['failed']} failed)", ""]
-    if report["blocks"]:
-        width = max(12, *(len(k) for k in report["blocks"]))
+    if report["components"]:
+        width = max(12, *(len(k) for k in report["components"]))
         out.append(f"{report['by']:<{width}}  {'n':>6}  {'p50 s':>8}  {'p90 s':>8}  {'p99 s':>8}  errors")
-        for name, row in report["blocks"].items():
+        for name, row in report["components"].items():
             d = row["seconds"]
             out.append(f"{name:<{width}}  {d['n']:>6}  {_f(d['p50']):>8}  {_f(d['p90']):>8}  {_f(d['p99']):>8}  "
                        f"{row['errors']}")
@@ -226,8 +226,8 @@ def render(report: dict) -> str:
                            f"{_f(dd['p99']):>8}")
         out.append("")
         if report["gaps_available"]:
-            out.append("gaps (time a block had no page, between its first and its last)")
-            for name, row in report["blocks"].items():
+            out.append("gaps (time a component had no page, between its first and its last)")
+            for name, row in report["components"].items():
                 g = row.get("gaps")
                 if g:
                     out.append(f"  {name:<{width}}  {_f(g['idle_seconds'])} s of {_f(g['active_window_seconds'])} s "
@@ -238,10 +238,10 @@ def render(report: dict) -> str:
     if report["slowest"]:
         out.append("slowest units")
         for p in report["slowest"]:
-            worst = p["slowest_block"]
+            worst = p["slowest_component"]
             flags = (" failed" if p["failed"] else "") + (" unfinished" if p["unfinished"] else "")
             out.append(f"  {p['id']}  {_f(p['seconds'])} s  lines={p['lines'] if p['lines'] is not None else '-'}  "
-                       f"slowest: {worst['block'] + ' ' + _f(worst['seconds']) + ' s' if worst else '-'}  "
+                       f"slowest: {worst['component'] + ' ' + _f(worst['seconds']) + ' s' if worst else '-'}  "
                        f"trace {p['trace_id']}{flags}")
         out.append("")
     for key, t in report["per_task"].items():
@@ -249,7 +249,7 @@ def render(report: dict) -> str:
         out.append(f"{key}: {_f(t['seconds'])} s{' (failed)' if t['failed'] else ''}{gpu}, sample {t['sample']}")
         for w in t["warm_up"]:
             what = "server start" if w["span"] == "linecaster.server.start" else "warm-up"
-            out.append(f"  {what:<12}  {w['block']}: {_f(w['seconds'])} s")
+            out.append(f"  {what:<12}  {w['component']}: {_f(w['seconds'])} s")
         rf = t["reader_files"]
         if rf["n"]:
             out.append(f"  reader        {rf['n']} files, {rf['pages']} pages, {_f(rf['seconds_own'])} s reading")

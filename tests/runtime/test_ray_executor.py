@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from linecaster.backends import Served
-from linecaster.blocks.layout.detector import LayoutDetector
-from linecaster.blocks.servers.serve import ModelServer
+from linecaster.components.layout.layout_detector import LayoutDetector
+from linecaster.components.servers.serve import ModelServer
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime.ray import GIB, RayExecutor, RayGPUExecutor, assigned_gpu, task_resources, tasks_on_node
 

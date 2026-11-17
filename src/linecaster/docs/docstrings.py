@@ -50,11 +50,11 @@ def parse(text: str | None) -> Docstring:
             i += 1
             continue
         name, i = m.group(1), i + 1
-        block: list[str] = []
+        component: list[str] = []
         while i < len(lines) and not SECTION.match(lines[i]) and (not lines[i].strip() or lines[i][:1].isspace()):
-            block.append(lines[i])
+            component.append(lines[i])
             i += 1
-        content = textwrap.dedent("\n".join(block)).strip("\n")
+        content = textwrap.dedent("\n".join(component)).strip("\n")
         if name in ("Args", "Arguments"):
             _args(content, out)
         elif name in ("Example", "Examples"):

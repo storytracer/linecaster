@@ -194,17 +194,17 @@ def script_dependencies(script: Path) -> list[str]:
     """The names of the dependencies a pipeline script's PEP 723 block lists (``[]`` without one)."""
     import re
 
-    block, inside = [], False
+    component, inside = [], False
     for line in script.read_text(encoding="utf-8").splitlines():
         if line.strip() == "# /// script":
             inside = True
         elif inside and line.strip() == "# ///":
             break
         elif inside:
-            block.append(line[2:] if line.startswith("# ") else line.lstrip("#"))
-    if not block:
+            component.append(line[2:] if line.startswith("# ") else line.lstrip("#"))
+    if not component:
         return []
-    deps = tomllib.loads("\n".join(block)).get("dependencies", [])
+    deps = tomllib.loads("\n".join(component)).get("dependencies", [])
     return [re.split(r"[\[<>=!~; @]", d, maxsplit=1)[0].strip().lower() for d in deps]
 
 

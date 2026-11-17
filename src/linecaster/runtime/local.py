@@ -1,8 +1,8 @@
 """``LocalExecutor``: datatrove's ``LocalPipelineExecutor`` with linecaster's console (``linecaster.runtime.console``).
 
-On the terminal a run shows one line naming the pipeline (its blocks, without the builder's boundaries), a live
+On the terminal a run shows one line naming the pipeline (its components, without the builder's boundaries), a live
 progress line, a line per finished task and a summary. datatrove's task logs (``OUT/logs/logs/task_<rank>.log``:
-its task start, pipeline listing and stats block, in its full line format) and stats files stay as they are; its
+its task start, pipeline listing and stats component, in its full line format) and stats files stay as they are; its
 console output is replaced (its task logger swapped for ``task_logger`` while a task runs, as
 ``linecaster.runtime.jobs.JobsExecutor`` swaps it for JSON logs). The completion markers are listed once per launch,
 not looked up task by task.
@@ -26,7 +26,7 @@ import sys
 from datatrove.executor import LocalPipelineExecutor
 from loguru import logger
 
-from linecaster.runtime.console import Console, block_label, console_sink, count
+from linecaster.runtime.console import Console, component_label, console_sink, count
 
 #: datatrove's task log line format, kept for the task log files
 TASK_LOG_FORMAT = ("{time:YYYY-MM-DD HH:mm:ss.SSS} | <level>{level: <8}</level> | {name}:{function}:{line} - "
@@ -107,15 +107,15 @@ def size_before(logging_dir, ranks) -> int:
                 media = (step.get("stats") or {}).get("media_size")
                 if isinstance(media, dict):
                     total += int(media.get("total") or 0)
-                    break                            # the reader's; later blocks do not read images again
+                    break                            # the reader's; later components do not read images again
     return total
 
 
-def blocks(pipeline) -> list[str]:
-    """The pipeline's blocks by name, without the builder's boundaries."""
+def components(pipeline) -> list[str]:
+    """The pipeline's components by name, without the builder's boundaries."""
     from linecaster.runtime.observers import Boundary
 
-    return [block_label(getattr(step, "block", step)) for step in pipeline if not isinstance(step, Boundary)]
+    return [component_label(getattr(step, "component", step)) for step in pipeline if not isinstance(step, Boundary)]
 
 
 def ignore_ctrl_c_in_workers() -> None:
@@ -133,7 +133,7 @@ def ignore_ctrl_c_in_workers() -> None:
 
 class LocalExecutor(LocalPipelineExecutor):
     """``LocalPipelineExecutor`` whose console is linecaster's: ``title`` names the run on it, ``out`` is the run
-    folder the summary points at, and ``reader`` (a block with ``task_pages(rank, world_size)``, optional) gives the
+    folder the summary points at, and ``reader`` (a component with ``task_pages(rank, world_size)``, optional) gives the
     pages of each task, so the progress line has a total and a time left; ``note`` is shown after the pipeline line,
     a line or a list of lines (``linecaster.runtime.run.run_notes``: why it has the workers it has, what a server
     sees)."""
@@ -163,7 +163,7 @@ class LocalExecutor(LocalPipelineExecutor):
         import datatrove.executor.base as base
         from datatrove.utils.stats import PipelineStats
 
-        from linecaster.blocks.base.page import NOT_THE_PAGES
+        from linecaster.core.page import NOT_THE_PAGES
 
         stack_dumps()
         from linecaster.broker import set_worker_index
@@ -249,7 +249,7 @@ class LocalExecutor(LocalPipelineExecutor):
         workers = min(self.workers, max(1, len(todo)))
         unit = getattr(self.reader, "unit_label", "pages")
         what = f"{count(total)} {unit} in " if total is not None else ""
-        line = (f"{self.title} → {self.out}: {' → '.join(blocks(self.pipeline))} · {what}{count(self.local_tasks)} "
+        line = (f"{self.title} → {self.out}: {' → '.join(components(self.pipeline))} · {what}{count(self.local_tasks)} "
                 f"task{'s' if self.local_tasks != 1 else ''}, {workers} worker{'s' if workers != 1 else ''}")
         if self._completed:
             line += f"; {count(len(self._completed))} done before ({count(done_pages)} {unit})" if pages else \

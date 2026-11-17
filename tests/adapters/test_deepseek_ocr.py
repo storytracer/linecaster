@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.deepseek_ocr import strip_grounding
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 LOGITS_PROCESSOR = "vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor"   # the card's
 

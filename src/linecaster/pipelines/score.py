@@ -31,8 +31,8 @@ def models(a) -> list[dict]:
 
 
 def pipeline(a, script: str):
-    from linecaster.blocks.scoring import PageScorer
-    from linecaster.blocks.writers import ScoreWriter
+    from linecaster.components.scoring import PageScorer
+    from linecaster.components.writers import ScoreWriter
     from linecaster.catalog import yamlio
     from linecaster.errors import PipelineConfigError
 
@@ -43,13 +43,13 @@ def pipeline(a, script: str):
     with fsspec.open(a.benchmark, "rt", encoding="utf-8") as fh:
         bench = yamlio.load(fh.read())
     out = a.out.rstrip("/")
-    blocks = [run.reader(a, read_images=False), PageScorer(a.truth, bench, a.transcription),
+    components = [run.reader(a, read_images=False), PageScorer(a.truth, bench, a.transcription),
               ScoreWriter(out)]
 
     def after() -> None:
         report(out, a.pages, a.truth, bench, a.transcription, a.preset, a.context)
 
-    return blocks, {"engines": False, "after": after}
+    return components, {"engines": False, "after": after}
 
 
 def report(out: str, pages: str, truth: str, bench_data: dict, transcription: str = "ocr_new",

@@ -10,7 +10,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from PIL import Image
 
-from linecaster.blocks.base.page import page_of
+from linecaster.core.page import page_of
 from linecaster.data import Annotator, Transcription
 from linecaster.pipelines import import_transcriptions
 from linecaster.runtime import run

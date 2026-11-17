@@ -20,11 +20,11 @@ builds a shape in this process without its engines. The builder may also return
 the pipeline's engine packages or linecaster alone.
 
 Before it launches, ``run`` writes the run record ``OUT/run.yaml`` (``linecaster.runtime.provenance.run_record``:
-the run id, the pipeline script, the recipe, command line, options, executor, the pipeline's blocks with backends and
+the run id, the pipeline script, the recipe, command line, options, executor, the pipeline's components with backends and
 presets, software, hardware); a later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml``
 next to it, with its own run id. The page record writers name the launch's run id on every annotator it added
 (``Annotator.run``).
-Before that the builder (``linecaster.runtime.builder``) turns the blocks the script returns into a plan: it checks
+Before that the builder (``linecaster.runtime.builder``) turns the components the script returns into a plan: it checks
 their contracts (every problem listed, nothing launched), stamps the recipe before the first writer, applies
 ``--until``, ``--after`` and ``--tap-after``, and cuts the pipeline into stages where the stream changes from pages to
 items with ``--tasks`` over 1 (each stage an executor that ``depends=`` on the one before). ``--page IMAGE`` runs one
@@ -72,19 +72,19 @@ def parser(description: str | None) -> argparse.ArgumentParser:
                                               "--parquet, --manifests or --pages")
     ap.add_argument("out", help="output folder (any fsspec path): page records in OUT/pages, logs in OUT/logs")
     input_options(ap)
-    g = ap.add_argument_group("partial runs (blocks by class name, datatrove name or composite)")
-    g.add_argument("--until", metavar="BLOCK", help="run the blocks up to BLOCK, then write the page records "
+    g = ap.add_argument_group("partial runs (components by class name, datatrove name or composite)")
+    g.add_argument("--until", metavar="BLOCK", help="run the components up to BLOCK, then write the page records "
                                                     "(OUT/pages)")
-    g.add_argument("--after", metavar="BLOCK", help="start from page records (--pages DIR) with the blocks after "
+    g.add_argument("--after", metavar="BLOCK", help="start from page records (--pages DIR) with the components after "
                                                     "BLOCK")
     g.add_argument("--tap-after", nargs=2, action="append", default=[], metavar=("BLOCK", "DIR"),
                    help="also write the page records as they leave BLOCK into DIR; repeatable")
     g = ap.add_argument_group("output")
     g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
-                   help="the share of a task's pages a block may fail on (counting at least 100 pages) before the "
+                   help="the share of a task's pages a component may fail on (counting at least 100 pages) before the "
                         "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
     g.add_argument("--image-decode", choices=["auto", "gpu", "cpu"], default=None,
-                   help="how the model blocks decode page images: auto (on an NVIDIA GPU where the machine has one "
+                   help="how the model components decode page images: auto (on an NVIDIA GPU where the machine has one "
                         "and linecaster[nvimgcodec] is installed, else Pillow), gpu (an error where none is), cpu "
                         "(Pillow); default auto. Each step records its decoder")
     g.add_argument("--retry-failed", action="store_true",
@@ -655,17 +655,17 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
     pipeline writes its images, so a resumed run passes the ones already there on without a request. The sample
     options give the reader its ``sample`` (``sample_rule``); with ``--manifests`` the manifests it reads go to
     ``manifest_folder``, by default ``OUT/manifests``. ``reuse_index``: the index of earlier harvests' page images a
-    page-image reader reads copies from (``linecaster.blocks.readers.earlier``). Without ``read_images`` an image folder's pages carry only
-    their images' addresses and page records are read without their images (a block reads them itself).
+    page-image reader reads copies from (``linecaster.components.readers.earlier``). Without ``read_images`` an image folder's pages carry only
+    their images' addresses and page records are read without their images (a component reads them itself).
     ``read_metadata``: a Parquet table's other columns go into the pages' metadata; ``None``: when the images are
     not read."""
-    from linecaster.blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
-    from linecaster.blocks.readers.records import PageRecordReader
+    from linecaster.components.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
+    from linecaster.components.readers.records import PageRecordReader
 
     sample = sample_rule(a)
 
     if getattr(a, "items", None):
-        from linecaster.blocks.readers.resources import ResourceReader
+        from linecaster.components.readers.resources import ResourceReader
 
         folder, glob = a.items, a.glob_pattern or "**/*.parquet"
         if a.items.endswith(".parquet"):
@@ -676,7 +676,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                               http_policy=a.http_policy, reuse_folder=reuse_folder, max_items=a.max_items, glob_pattern=glob,
                               limit=a.limit, skip=a.skip, reuse_from=getattr(a, "reuse_from", None) or None)
     if getattr(a, "manifests", None):
-        from linecaster.blocks.readers.manifests import ManifestReader
+        from linecaster.components.readers.manifests import ManifestReader
 
         src, folder, paths_file, glob = a.manifests, a.manifests, a.paths_file, a.glob_pattern
         parent, _, name = src.rpartition("/")
@@ -718,11 +718,11 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
 
 
 def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:
-    """Backends for the engine ``models`` by name, and the server block that goes last (none in-process or
+    """Backends for the engine ``models`` by name, and the server component that goes last (none in-process or
     with ``--endpoint``). Presets of built-in engines (``layout.single-region.v1``) are in-process either way. With
     ``--endpoint`` the served engines need not be installed here: they run in the server's environment."""
     from linecaster.backends import InProcess, Served
-    from linecaster.blocks.servers.serve import ModelServer
+    from linecaster.components.servers.serve import ModelServer
     from linecaster.catalog.registry import in_process_only
 
     installed = not getattr(a, "describe_only", False)
@@ -782,7 +782,7 @@ def preset_models(models: list[dict], installed: bool = True, served: bool = Fal
 
 
 def pages(a: argparse.Namespace):
-    from linecaster.blocks.writers.records import PageJsonlWriter
+    from linecaster.components.writers.records import PageJsonlWriter
 
     return PageJsonlWriter(f"{a.out.rstrip('/')}/pages", output_filename="${rank}.jsonl.gz",
                            item_shards=getattr(a, "item_shards", None))
@@ -823,7 +823,7 @@ def executor_name(a: argparse.Namespace) -> str:
 def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None = None,
            deps=None, image: str | None = None) -> dict:
     """The run record of this launch (``linecaster.runtime.provenance.run_record``) for the builder's plan ``p``:
-    its stages with their blocks, and ``pipeline_sha256``."""
+    its stages with their components, and ``pipeline_sha256``."""
     from linecaster.runtime.provenance import run_record
 
     extra = {}
@@ -905,8 +905,8 @@ def plan(a: argparse.Namespace, pipeline: list, deps, image: str | None, stages:
     """What ``--dry-run`` prints besides the builder's description: where it runs, the servers, the pickled size."""
     import dill
 
-    from linecaster.blocks.servers.serve import ChatModelServer, ModelServer
-    from linecaster.blocks.servers.service import ServiceServer
+    from linecaster.components.servers.serve import ChatModelServer, ModelServer
+    from linecaster.components.servers.service import ServiceServer
     from linecaster.serve import serve_command
 
     servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ModelServer)
@@ -944,13 +944,13 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, scri
     many = len(p.stages) > 1
     for stage in p.stages:
         logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
-        servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer", "ServiceServer") for b in stage.blocks)
+        servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer", "ServiceServer") for b in stage.components)
         if a.on == "local":
             from linecaster.runtime.local import LocalExecutor
 
             workers = a.workers or stage.tasks
             title = Path(getattr(a, "script_name", None) or script).stem if script else "run"
-            reader = next((b for b in stage.blocks if hasattr(b, "task_pages")), None)
+            reader = next((b for b in stage.components if hasattr(b, "task_pages")), None)
             previous = LocalExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
                                      logging_dir=logs, depends=previous, out=out, reader=reader,
                                      title=f"{title}/{stage.name}" if many else title, note=run_notes(a),
@@ -1016,7 +1016,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     sample = sampled(a, pipeline)
     allocate(a, pipeline)
     p = build_plan(a, pipeline)
-    blocks = p.blocks
+    components = p.components
     deps = None
     if a.on == "hf-jobs":
         from linecaster.runtime.jobs import dependencies
@@ -1024,7 +1024,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         deps = dependencies(a.commit, script, engines)
     if a.dry_run:
         rec = record(a, p, script, argv, deps, image or a.image)
-        print(json.dumps({**plan(a, blocks, deps, image or a.image, p.stages), "plan": p.describe(), "record": rec},
+        print(json.dumps({**plan(a, components, deps, image or a.image, p.stages), "plan": p.describe(), "record": rec},
                          indent=1))
         print()
         print(p.mermaid())
@@ -1229,7 +1229,7 @@ def describe(shape, argv: list[str], c=None, script: str | None = None):
     """The builder's plan of the pipeline shape ``shape`` (a module of ``linecaster.pipelines``, or anything with its
     ``options``, ``models``, ``pipeline``, ``PIPELINE`` and ``SLOTS``) with the command line ``argv``, built in this
     process without its engines (the describe mode: presets name their engines without importing them, nothing is
-    loaded or launched). ``c``: the catalog (default the installed one); ``script``: the pipeline script the blocks
+    loaded or launched). ``c``: the catalog (default the installed one); ``script``: the pipeline script the components
     are told about (servers would start it; default the checkout's script of the same name, if there is one)."""
     pipeline_id = getattr(shape, "PIPELINE", None)
     a = parse(list(argv), shape.__doc__, shape.options, pipeline_id, getattr(shape, "SLOTS", None), c)
@@ -1248,9 +1248,9 @@ def describe(shape, argv: list[str], c=None, script: str | None = None):
 def describe_recipe(ref: str, c=None) -> dict:
     """A recipe's expanded pipeline: its pipeline shape (by the recipe's pipeline id,
     ``linecaster.pipelines``) described with ``--recipe REF`` on placeholder folders (``describe``), in-process, one
-    task: ``{"pipeline": the functional blocks (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
+    task: ``{"pipeline": the functional components (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
     catalog the recipe is in (default the installed one)."""
-    from linecaster.blocks.base import model
+    from linecaster.core import model
     from linecaster.catalog.registry import active, catalog
     from linecaster.pipelines import shape
     from linecaster.runtime import provenance
@@ -1314,7 +1314,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
 
     ``ray ...`` runs Ray's own command line in the script's environment; ``serve ...`` starts ``linecaster serve``
     with the script's models; anything else is a run: the options are parsed (a recipe given with ``--recipe``
-    fills the slots), ``build`` makes the blocks, and the run is checked, recorded (``OUT/run.yaml``) and launched on
+    fills the slots), ``build`` makes the components, and the run is checked, recorded (``OUT/run.yaml``) and launched on
     ``--on local|ray|hf-jobs`` (see the module docstring). A ``LinecasterError`` ends the command with its exit
     code (2: nothing was launched), every problem listed.
 
@@ -1324,7 +1324,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
         options: ``options(ap)`` adds the script's own options to the ``argparse`` parser.
         models: ``models(a)`` returns the engines the parsed options ask for, as dicts for ``linecaster serve``
             (``{"name", "preset"}`` or ``{"name", "spec", "kwargs"}``).
-        build: ``build(a, script)`` returns the blocks, or ``(blocks, {"image": ..., "engines": False})`` (the
+        build: ``build(a, script)`` returns the components, or ``(components, {"image": ..., "engines": False})`` (the
             Jobs' container image; whether a Job installs the script's engine packages or linecaster alone).
         pipeline_id: the script's pipeline id (``PIPELINE``, e.g. ``transcribe_modular.v1``), which recipes name.
         slots: slot -> option name (``SLOTS``): the options a recipe fills with its presets.

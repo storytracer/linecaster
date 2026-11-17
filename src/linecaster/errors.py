@@ -2,9 +2,9 @@
 ``linecaster.runtime.run.main``) turns them into an exit code.
 
 * ``PipelineConfigError``: a pipeline that cannot run as built: its contracts do not fit (every problem listed), an
-  option or a block's parameter is wrong, its input is missing, or its run folder belongs to another pipeline;
+  option or a component's parameter is wrong, its input is missing, or its run folder belongs to another pipeline;
 * ``CatalogError``: a catalog entry that is missing, unreadable or not what was asked for;
-* ``PageError``: one page failed in one block (or a task failed more pages than its error budget allows);
+* ``PageError``: one page failed in one component (or a task failed more pages than its error budget allows);
 * ``ServerError``: a model server did not start or stopped answering.
 """
 from __future__ import annotations
@@ -27,11 +27,11 @@ class CatalogError(LinecasterError):
 
 
 class PageError(LinecasterError):
-    """One page failed in one block (``block``: its datatrove name or class name, if known)."""
+    """One page failed in one component (``component``: its datatrove name or class name, if known)."""
 
-    def __init__(self, page_id: str, block: str | None = None, message: str = ""):
-        self.page_id, self.block = page_id, block
-        where = f" in {block}" if block else ""
+    def __init__(self, page_id: str, component: str | None = None, message: str = ""):
+        self.page_id, self.component = page_id, component
+        where = f" in {component}" if component else ""
         super().__init__(f"page {page_id} failed{where}" + (f": {message}" if message else ""))
 
 

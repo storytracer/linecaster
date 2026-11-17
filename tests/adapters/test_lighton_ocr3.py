@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 from linecaster.data.transcription import Transcription
 
 REVISIONS = {"lightonai/LightOnOCR-3-4B": "b71010f095dc3735de7ee6b9969bff8f8f50b39a",

@@ -37,8 +37,8 @@ class Contract(_Record):
 
 
 class BlockEntry(_Record):
-    id: str = Field(description="the block's node in the plan's graph")
-    block: str = Field(description="its class name")
+    id: str = Field(description="the component's node in the plan's graph")
+    component: str = Field(description="its class name")
     name: str | None = Field(None, description="its datatrove name, where it differs from the class name")
     class_: str = Field(alias="class", description="module:Class")
     params: dict[str, Any] | None = Field(None, description="its constructor's parameters as built (to_dict())")
@@ -53,7 +53,7 @@ class BlockEntry(_Record):
 class Stage(_Record):
     name: str
     tasks: int
-    blocks: list[BlockEntry]
+    components: list[BlockEntry]
 
 
 class Software(_Record):
@@ -132,9 +132,9 @@ class RunRecord(_Record):
     tasks: int | None = None
     workers: int | None = None
     options: dict[str, Any] = Field(default_factory=dict, description="the other parsed options")
-    pipeline: list[Stage] = Field(default_factory=list, description="the stages with their blocks, in order")
+    pipeline: list[Stage] = Field(default_factory=list, description="the stages with their components, in order")
     catalog: list[CatalogEntry] | None = Field(None, description="every catalog entry the pipeline names (its "
-                                               "blocks' presets, policies, conventions, the recipe), with its "
+                                               "components' presets, policies, conventions, the recipe), with its "
                                                "settings and hash")
     pipeline_sha256: str = Field(description="the hash of the pipeline's functional parameters: a resume into the "
                                              "same run folder needs the same one")

@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import ChatModelServer
 
 
 def image(w: int, h: int, fmt: str = "JPEG", mode: str = "RGB") -> bytes:

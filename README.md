@@ -21,7 +21,7 @@ Ray or Slurm cluster or [Hugging Face Jobs][HF Jobs].
   PAGE-XML, hOCR, Parquet and JSON Lines out. Project-specific code belongs in projects built on it.
 
 📖 **Docs:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/): the reference, a page
-for every block and catalog entry, and [`llms.txt`](https://storytracer.github.io/linecaster/latest/llms.txt) for
+for every component and catalog entry, and [`llms.txt`](https://storytracer.github.io/linecaster/latest/llms.txt) for
 coding agents.
 
 ## 🚀 Quick start
@@ -101,7 +101,7 @@ Options after a recipe's name override single steps; the run record lists them.
 | an earlier run | `--pages OUT/pages` |
 
 Any fsspec path works: local, `s3://`, `hf://`, `http(s)://`. linecaster reads IIIF Presentation and METS/MODS
-manifests itself; `--existing-ocr` also keeps the library's own OCR as `ocr_original`. PDF files are read by the `PdfReader` block (extra `pypdfium2`).
+manifests itself; `--existing-ocr` also keeps the library's own OCR as `ocr_original`. PDF files are read by the `PdfReader` component (extra `pypdfium2`).
 `--sample 10000 --sample-per-item 8` reads a fixed sample of the input instead, chosen by hashes of its ids before
 any image is read and the same whatever the setup (`OUT/sample.parquet`; `linecaster sample` without a run).
 
@@ -210,19 +210,20 @@ uv run pipelines/transcribe_modular.py s3://<bucket>/images hf://buckets/<ns>/<b
 
 ## ✍️ Your own pipeline
 
-A pipeline is a list of blocks; [datatrove] runs it. This is the modular pipeline, cut down:
+A pipeline is a list of components; [datatrove] runs it. This is the modular pipeline, cut down:
 
 ```python
 from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess as P
-from linecaster.blocks.composition import (
-    Composer, Recomposer, Typographer)
-from linecaster.blocks.layout import LayoutDetector
-from linecaster.blocks.lines import (
+from linecaster.components.document import Composer
+from linecaster.components.hierarchy import Typographer
+from linecaster.components.paragraphs import Recomposer
+from linecaster.components.layout import LayoutDetector
+from linecaster.components.lines import (
     LineAssigner, LineDetector)
-from linecaster.blocks.readers import ImageFolderReader
-from linecaster.blocks.recognition import LineRecognizer
-from linecaster.blocks.writers import PageFileWriter
+from linecaster.components.readers import ImageFolderReader
+from linecaster.components.recognition import LineRecognizer
+from linecaster.components.writers import PageFileWriter
 
 pipeline = [
     ImageFolderReader("scans/"),
@@ -253,8 +254,8 @@ SlurmPipelineExecutor(
     logging_dir="out/logs").run()
 ```
 
-Every block declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
-lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` block of
+Every component declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
+lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` component of
 `pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.runtime.run.main` to get
 the pipelines' command line on every machine. The [pipelines reference](docs/reference/pipelines.md) covers
 backends, partial runs (`--until`, `--after`) and the builder.
@@ -264,7 +265,7 @@ backends, partial runs (`--until`, `--after`) and the builder.
 1. **One record per page.** Every step reads the page's `Transcription` and adds its annotations under its own
    annotator: regions, lines, readings, tables, classifications, edits. Nothing is overwritten, and documents, files
    and texts are rendered from the record under a rendering policy. Steps share the data model and nothing else.
-2. **Contracts.** Each block declares what it reads, adds, replaces or removes; the builder checks the pipeline
+2. **Contracts.** Each component declares what it reads, adds, replaces or removes; the builder checks the pipeline
    and draws its graph from them.
 3. **Backends.** A model step runs `InProcess`, `Served` (a model server reached through [saturate], which keeps
    the GPU busy) or `Chat` (a vision-language model behind an OpenAI-compatible server).
@@ -275,7 +276,7 @@ Models batch only the lines of one page, and model revisions and numerically rel
 a page's output never depends on the machine or on what else runs. Different GPU types can still differ in rare
 single characters.
 
-## 🧰 Models and blocks
+## 🧰 Models and components
 
 Every configuration is a **preset** in Linecaster's catalog: an engine, a model at a pinned revision with its
 original model card, and settings. The release versions the catalog: each entry's hash is in `catalog.index`, and a
@@ -285,7 +286,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 
 Every preset and recipe, with its model and settings: [the catalog](https://storytracer.github.io/linecaster/latest/catalog/).
 
-Every block by family, with its contract, backends and options: [the blocks](https://storytracer.github.io/linecaster/latest/blocks/).
+Every component by family, with its contract, backends and options: [the components](https://storytracer.github.io/linecaster/latest/components/).
 
 ## 📚 Reference
 
@@ -293,17 +294,17 @@ Every block by family, with its contract, backends and options: [the blocks](htt
 |---|---|
 | [glossary](docs/reference/glossary.md) | every term linecaster uses, one meaning each |
 | [architecture](docs/reference/architecture.md) | the packages, how a run fits together, the tests |
-| [pipelines](docs/reference/pipelines.md) | blocks and their contracts, the builder, partial runs, failed pages, the run record |
+| [pipelines](docs/reference/pipelines.md) | components and their contracts, the builder, partial runs, failed pages, the run record |
 | [data model](docs/reference/data-model.md) | what a page record holds: `Item`, `Page`, annotation sets and their annotators, raw outputs and annotations, rendering policies, documents and transcription strategies |
 | [evaluation](docs/reference/evaluation.md) | scoring transcriptions against ground truths: benchmarks, lanes, score records, evidence |
 | [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR, the IIIF annotation page and the importers |
 | [catalog](docs/reference/catalog.md) | models, presets, recipes, policies, conventions, normalizations and strategies, release versioning, and where measurements live |
-| [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, blocks, retries, unexpected HTML and the HTTP policy |
+| [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, components, retries, unexpected HTML and the HTTP policy |
 | [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
 | [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a trace sample of pages |
 | [compatibility](docs/reference/compatibility.md) | what counts as a breaking change and how one is announced |
 | [conventions](docs/reference/conventions.md) | the repository's rules: names, spelling, YAML and Markdown, docstrings, logging, errors, secrets |
-| [blocks](https://storytracer.github.io/linecaster/latest/blocks/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) | every block, engine, model, preset and recipe, generated from the code |
+| [components](https://storytracer.github.io/linecaster/latest/components/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) | every component, engine, model, preset and recipe, generated from the code |
 
 ## 🏷️ Versions
 
