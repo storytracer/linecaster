@@ -6,13 +6,45 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+## 0.13.1 (2026-11-17)
+
+The README and the tutorials start from combining models, on the command line and in Python; recipes come after.
+No output changes, and nothing to change in code that runs on 0.13.0.
+
+### Added
+
+- Tutorials [Your first pipeline](docs/start/first-run.md) (a preset for each step on the command line, one model
+  swapped, steps added, then a recipe; it replaces "Run a recipe") and
+  [A pipeline in Python](docs/start/python.md) (the same as a uv script, with `check()`, `draw()` and `to_dict()`).
+- [Running at scale](docs/reference/running.md) says where a run runs (a model server that stays up, Ray and
+  Kubernetes, Hugging Face Jobs, Slurm) and how a large collection is fetched, transcribed and bound; these were
+  sections of the README.
+
 ### Changed
 
+- The README is rewritten as a front page: what linecaster does, a quick start with the modular pipeline, combining
+  models, the same pipeline in Python with presets by their ids, vision-language models, recipes, input and output,
+  and where each topic is in the docs. Its Python example is a uv script that runs as written.
 - The reference has a page [Running at scale](docs/reference/running.md): samples, tasks, workers and rate limits,
   the console, secrets and the HF Jobs helpers, which were sections of the pipelines page. Links to those sections
   point to the new page.
 - The docs call the engine a by-script engine sends a script's decisions to a per-script engine, not a strategy; a
   strategy is the catalog's.
+- The console, the logs and the builder's messages name components as their classes do: `hierarchy`, `paragraphs`
+  and `document` (were `typographer`, `recomposer`, `composer`), `item assembler` and `item splitter` (were
+  `binder`, `splitter`), `engine server`, `VLM server` and `vendor server` (were `model server`, `chat model
+  server`, `service server`). datatrove's stats files are keyed by these names.
+
+### Fixed
+
+- The reference named two normalizations wrongly: the catalog's `typography` normalization was written `hierarchy`
+  in [catalog](docs/reference/catalog.md) and [evaluation](docs/reference/evaluation.md). `Contract`'s field is
+  `kind` in [pipelines](docs/reference/pipelines.md), and the data model's tables name the steps `hierarchy` and
+  `paragraphs`.
+- The help of `transcribe_modular.py` and `bind.py` gave `--set composition.sections=true`; the option is
+  `--set document.sections=true`. The help no longer shows `--formulas pp-formulanet-plus-l` with
+  `transcribe_modular.py`, whose environment has no torch for that model; a recipe's script that installs torch
+  runs it.
 
 ## 0.13.0 (2026-11-17)
 
