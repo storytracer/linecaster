@@ -8,7 +8,7 @@ each a preset.
     ... --text literal:txt --text latin-historic+flow+unicode-marks:md    # texts by named strategies
     uv run pipelines/transcribe_modular.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
     uv run pipelines/bind.py OUT1/pages OUT2 ... --tasks 64
-    ... --set composition.sections=true          # an option over the preset's
+    ... --set document.sections=true          # an option over the preset's
     ... --jsonl                                  # the texts as JSON Lines too
     ... --on hf-jobs --namespace NS --commit <sha> --flavor cpu-upgrade --tasks 64
 
@@ -30,11 +30,11 @@ RULE_SLOTS = ("paragraphs", "document")
 
 
 def options(ap):
-    ap.add_argument("--paragraphs", help="recomposition preset: the item's pages as running text, paragraphs "
+    ap.add_argument("--paragraphs", help="paragraphs preset: the item's pages as running text, paragraphs "
                                             "continued across page breaks (e.g. unicode-paragraphs)")
-    ap.add_argument("--document", help="composition preset: the item's document (e.g. linked-document)")
+    ap.add_argument("--document", help="document preset: the item's document (e.g. linked-document)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
-                    help="an engine option over the preset's, e.g. composition.sections=true; repeatable")
+                    help="an engine option over the preset's, e.g. document.sections=true; repeatable")
     ap.add_argument("--text", action="append", default=[], metavar="STRATEGY:FORMAT",
                     help="an item text, one file per item (OUT/documents/<strategy>/<item>.<ext>): a transcription "
                          "strategy (literal, a catalog strategy, or normalizations joined by +) and a format (md, "

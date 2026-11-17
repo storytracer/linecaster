@@ -1,7 +1,7 @@
 r"""The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster presets`):
 a layout (a layout model, or `single-region` for the page as one region), text lines and a line recognizer,
-optionally table and formula models after; then the rule-based steps, each a preset too: typography (--hierarchy),
-recomposition (--paragraphs; without one the page stays as laid out) and page composition (--document). Page
+optionally table and formula models after; then the rule-based steps, each a preset too: headings (--hierarchy),
+paragraphs (--paragraphs; without one the page stays as laid out) and the page's document (--document). Page
 records in OUT/pages; with --files per-page files in the --formats asked for (`<item>/<page><suffix>.<ext>`, or with
 --naming flat `<page><suffix>.<ext>` in one folder; --suffix SUFFIX, e.g. `.paddle`), written literally or by a
 --strategy; with --item-texts one file per item and --text (an item stage: the item recomposed and composed as one,
@@ -17,9 +17,9 @@ server started from it.
     ... --item-texts OUT/texts --paragraphs unicode-paragraphs --document linked-document \
         --text literal:txt --text latin-historic+flow+unicode-marks:md     # texts by named strategies
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
-        --recognition tesseract-best-latin --tables slanet-plus --formulas pp-formulanet-plus-l
+        --recognition tesseract-best-latin --tables slanet-plus
     ... --set recognition.batch_size=4          # an option over the preset's
-    ... --set composition.sections=true         # also for the rule-based steps
+    ... --set document.sections=true         # also for the rule-based steps
     ... --backend served                        # a server in the task
     ... --files OUT/files --formats md,txt,json --naming flat --suffix .paddle --furniture   # <page>.paddle.md, ...
     uv run pipelines/transcribe_modular.py serve --layout pp-doclayoutv3 ...    # linecaster serve with the presets named
@@ -61,10 +61,10 @@ def options(ap):
                     help="the pages' writing direction the line assigner orders rows in (default: each region's "
                          "recorded direction, else horizontal-lr); a layout model without learned order takes its "
                          "own option (--set layout.direction=...)")
-    ap.add_argument("--hierarchy", help="typography preset: headings and their levels, initials (e.g. ratios)")
-    ap.add_argument("--paragraphs", help="recomposition preset: the text regions as running text, in paragraphs "
+    ap.add_argument("--hierarchy", help="hierarchy preset: headings and their levels, initials (e.g. ratios)")
+    ap.add_argument("--paragraphs", help="paragraphs preset: the text regions as running text, in paragraphs "
                                             "(e.g. unicode-paragraphs; none: the page stays as laid out)")
-    ap.add_argument("--document", help="page composition preset: the page's document, for md, txt, html and json "
+    ap.add_argument("--document", help="document preset: the page's document, for md, txt, html and json "
                                           "(e.g. linked-document)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
