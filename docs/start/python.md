@@ -1,6 +1,6 @@
 # A pipeline in Python
 
-This tutorial builds the pipeline of [Your first pipeline](first-run.md) in Python: a list of components that
+This tutorial builds the pipeline of [Combine models step by step](first-run.md) in Python: a list of components that
 you can check, draw, run and change.
 
 ## What you need
@@ -24,6 +24,7 @@ the engine packages of the models it names.
 # linecaster-tesseract = { git = "https://github.com/storytracer/linecaster", branch = "main", subdirectory = "engines/tesseract" }
 # ///
 from linecaster import Pipeline
+from linecaster.components.document import DocumentComposer
 from linecaster.components.layout import LayoutDetector
 from linecaster.components.lines import LineAssigner, LineDetector
 from linecaster.components.readers import ImageFolderReader
@@ -36,14 +37,16 @@ pipeline = Pipeline([
     LineDetector("pp-ocrv6-medium-det"),
     LineAssigner(),
     LineRecognizer("paddlex-ppocrv6-medium"),
+    DocumentComposer("linked-document"),
     PageJsonlWriter("out/pages"),
-    PageFileWriter("out/files", formats=("txt", "alto")),
+    PageFileWriter("out/files", formats=("md", "html")),
 ])
 pipeline.run("out")
 ```
 
 A **component** does one thing to a page. A model component takes a **preset** by its id, the same ids as on the
-command line. `LineAssigner` needs no model: it says which region each line belongs to.
+command line. `LineAssigner` needs no model: it says which region each line belongs to. `DocumentComposer` builds the page's
+document, which the Markdown and HTML files are written from.
 
 ## 2. Run it
 
@@ -51,7 +54,7 @@ command line. `LineAssigner` needs no model: it says which region each line belo
 uv run my_pipeline.py
 ```
 
-The page records are in `out/pages/` and the text and ALTO files in `out/files/`.
+The page records are in `out/pages/` and the Markdown and HTML files in `out/files/`.
 
 ## 3. Swap one component's model
 
@@ -85,11 +88,9 @@ PipelineConfigError: the pipeline cannot run:
 
 ## 5. Add components
 
-Components for headings, paragraphs and the document go after the recognizer. With a document, the writer can
-write Markdown:
+Components for headings and paragraphs go after the recognizer, before the document:
 
 ```python
-from linecaster.components.document import DocumentComposer
 from linecaster.components.hierarchy import HierarchyDetector
 from linecaster.components.paragraphs import ParagraphBuilder
 
@@ -103,7 +104,7 @@ pipeline = Pipeline([
     ParagraphBuilder("unicode-paragraphs"),
     DocumentComposer("linked-document"),
     PageJsonlWriter("out/pages"),
-    PageFileWriter("out/files", formats=("md", "alto")),
+    PageFileWriter("out/files", formats=("md", "html")),
 ])
 ```
 

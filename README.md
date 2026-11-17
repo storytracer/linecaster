@@ -8,26 +8,46 @@
 <p align="center"><sub>An Intertype C4 linecaster (1961), after a photograph in the Science Museum Group
 Collection, CC BY-NC-SA 4.0. <a href="#license">Credit</a></sub></p>
 
-Linecaster turns page images into text. A pipeline is a chain of steps, and for every step you pick a model:
+Linecaster turns page images into text, with any OCR model, on any machine, and tells you how good the result is.
 
-```mermaid
-flowchart LR
-    I[page images] --> L[layout] --> D[lines] --> R[recognition] --> P[headings and paragraphs] --> O[page records and files]
-```
+## The problem
 
-Any model can be swapped for another without touching the rest. The same pipeline runs on a laptop, a GPU
-server, a Ray or Slurm cluster or [Hugging Face Jobs][HF Jobs].
+There are dozens of good OCR models: classic engines that read line by line, and vision-language models that read
+a whole page. Each comes with its own installation, its own input and output formats and its own scripts. That
+makes four things harder than they should be:
 
-- **Combine models freely.** Layout, line, text, table and formula models from [PaddleX], [kraken] and
-  [Tesseract], and vision-language models that read a whole page, all behind the same few options.
-- **Run anywhere.** Only the command line changes, never the pipeline. A page's text depends only on that page
-  and on models pinned to an exact revision.
-- **Built for long runs.** An interrupted run resumes. A page that fails is set aside with the reason.
-- **Nothing is lost or changed silently.** Each page has one record that holds what every step found and which
-  model found it. The text is stored exactly as read.
-- **Standards in and out.** Folders, buckets, Parquet, PDF, IIIF and METS manifests in; [ALTO], [PAGE-XML],
-  [hOCR], Markdown, HTML, [Parquet] and [JSON Lines] out.
-- **Measurable.** Linecaster reads ground truth in the same formats and scores a run against it.
+- **Trying another model** means writing new glue code, so most projects stay with the first model that worked.
+- **Combining models**, such as one model's layout with another model's text recognition, is not possible at all
+  with most tools.
+- **Going from ten pages to ten million** means rewriting the same job for a cluster.
+- **Knowing which setup is best** for your material needs ground truth and a fair comparison, which few tools
+  include.
+
+Linecaster puts every model behind the same few options and every result into the same record. You change a
+model by changing one word, you run the same pipeline on a laptop or a cluster, and you score the result against
+ground truth.
+
+<p align="center">
+  <img src="docs/pipeline.svg" alt="Page images are read either by one vision-language model that reads the whole page, or by one model for each step: layout, lines, text, tables, headings and paragraphs. Both write page records, from which Markdown, HTML and other files are written." width="900">
+</p>
+
+## What it does
+
+| | | |
+|---|---|---|
+| 📥 | **Harvest** | Fetch page images from IIIF and METS manifests, with rate limits, proxies and resume |
+| 🖼️ | **Convert** | Convert page images to JPEG, JPEG 2000, PNG or WebP, on the GPU where there is one |
+| 🤖 | **Read with a vision-language model** | Models that read a whole page in one go, served by [vLLM] or [SGLang] |
+| 🧩 | **Read step by step** | Layout, lines, text, tables and formulas, each by a model you pick: [PaddleX], [kraken], [Tesseract] |
+| 🧱 | **Structure** | Headings and their levels, paragraphs, and a document per page |
+| 📚 | **Bind** | Join pages into books and issues, with one text per item |
+| 📝 | **Write** | Markdown, HTML, plain text and JSON; [ALTO], [PAGE-XML] and [hOCR] with every word's position |
+| 🔤 | **Keep the text as read** | The stored text is exactly what the model read; every change is a rule you name |
+| 🎓 | **Import ground truth** | ALTO, PAGE-XML, hOCR, TEI, HTML and plain text, read into the same records |
+| 🎯 | **Score** | Character and word error rates with confidence intervals, for pages, tables and formulas |
+| 🌍 | **Run anywhere** | A laptop, a GPU server, Ray, Slurm or [Hugging Face Jobs][HF Jobs]: the pipeline stays the same |
+| 🔁 | **Survive long runs** | An interrupted run resumes; a page that fails is set aside with the reason |
+| 🔎 | **Trace everything** | Each result names the model that made it; each run records its models, settings and versions |
 
 **Documentation:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/)
 
@@ -38,42 +58,59 @@ You need Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer. An NV
 ```bash
 git clone https://github.com/storytracer/linecaster
 cd linecaster
-uv run pipelines/transcribe_modular.py scans/ out/ \
-  --layout pp-doclayoutv3 \
-  --lines pp-ocrv6-medium-det \
-  --recognition paddlex-ppocrv6-medium \
-  --files out/files --formats txt,alto
+```
+
+There is nothing to install. Every pipeline is a [uv script][uv scripts] with pinned dependencies, which `uv run`
+installs on the first run. Models download on first use.
+
+The three examples below go from simple to flexible: one model for the whole page, a model for each step, and a
+tested combination under a name.
+
+## 1. One model reads the page
+
+A vision-language model reads a whole page in one request, so there is one model to pick. It runs behind [vLLM]
+or [SGLang], which needs an NVIDIA GPU and the `vllm` command on the `PATH`:
+
+```bash
+uv run pipelines/transcribe_vlm.py scans/ out/ --recognition lightonocr-2-1b
 ```
 
 This reads the images in `scans/` and writes:
 
 | In `out/` | What it is |
 |---|---|
-| `pages/` | one page record per page: everything that was found, with who found it |
-| `files/` | a text file and an ALTO file per page |
+| `pages/` | one page record per page: the text the model read, with the model's raw answer |
 | `rejects/` | pages that failed, each with the reason |
 | `run.yaml` | the run record: what ran, with which models and versions |
 
-> [!NOTE]
-> There is nothing to install. Every pipeline is a [uv script][uv scripts] with pinned dependencies, which
-> `uv run` installs on the first run. Models download on first use.
+`uv run linecaster presets --step recognition` lists the models. Tutorial:
+[Run a vision-language model](docs/start/vlm.md).
 
-## Combine models
+## 2. A model for each step
 
-Each option names a **preset**: a model at a pinned revision with its settings. `linecaster presets` lists them
-by step:
-
-```bash
-uv run linecaster presets --step recognition
-```
-
-To swap a model, change one option. This run keeps the layout and the lines and reads the text with Tesseract:
+The modular pipeline divides the work into steps, and each option names a **preset**: a model at a pinned
+revision with its settings.
 
 ```bash
 uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
-  --recognition tesseract-best-latin
+  --recognition paddlex-ppocrv6-medium \
+  --document linked-document \
+  --files out/files --formats md,html
+```
+
+This also writes a Markdown and an HTML file for each page to `out/files/`.
+
+To swap a model, change one option. This run keeps the layout and the lines and reads the text with Tesseract:
+
+```bash
+uv run pipelines/transcribe_modular.py scans/ out-tesseract/ \
+  --layout pp-doclayoutv3 \
+  --lines pp-ocrv6-medium-det \
+  --recognition tesseract-best-latin \
+  --document linked-document \
+  --files out-tesseract/files --formats md,html
 ```
 
 More steps are more options:
@@ -87,14 +124,14 @@ More steps are more options:
 | `--formulas` | formulas as LaTeX (its model needs torch: run it in a script that installs torch, as a recipe's does) |
 | `--hierarchy` | headings and their levels |
 | `--paragraphs` | lines joined into paragraphs |
-| `--document` | the page as a document, for Markdown, HTML and JSON |
+| `--document` | the page as a document, which Markdown, HTML and JSON are written from |
 
 No step has a default, so a run always names what it ran. `--set recognition.batch_size=4` changes one setting
 of a preset, `--dry-run` prints the plan and runs nothing, and `--help` lists everything else.
 
-Tutorial: [Your first pipeline](docs/start/first-run.md).
+Tutorial: [Combine models step by step](docs/start/first-run.md).
 
-## The same in Python
+### The same in Python
 
 A `Pipeline` is a list of components, one for each thing that happens to a page. Save this as a script and run
 it with `uv run`:
@@ -128,7 +165,7 @@ pipeline = Pipeline([
     ParagraphBuilder("unicode-paragraphs"),
     DocumentComposer("linked-document"),
     PageJsonlWriter("out/pages"),
-    PageFileWriter("out/files", formats=("md", "alto")),
+    PageFileWriter("out/files", formats=("md", "html")),
 ])
 pipeline.run("out")
 ```
@@ -139,24 +176,7 @@ that cannot work stops before it starts: a recognizer without a line detector fa
 
 Tutorial: [A pipeline in Python](docs/start/python.md).
 
-## Vision-language models
-
-A vision-language model reads a whole page in one request, so its pipeline has one step to fill. The model runs
-behind [vLLM] or [SGLang], which needs an NVIDIA GPU and the `vllm` command on the `PATH`:
-
-```bash
-uv run pipelines/transcribe_vlm.py scans/ out/ --recognition lightonocr-2-1b
-```
-
-With a layout preset, the model reads one region at a time:
-
-```bash
-uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
-```
-
-Tutorial: [Run a vision-language model](docs/start/vlm.md).
-
-## Recipes
+## 3. A recipe
 
 A **recipe** is a tested combination kept under a name: one preset for each step, and the texts to write. A
 recipe has a script of its own with exactly the engines it needs, and `launch.py` runs it by name:
@@ -188,8 +208,8 @@ Paths can be local or remote: `s3://`, `hf://`, `http(s)://` and every other [fs
 | Output | Option |
 |---|---|
 | page records, as JSON Lines or Parquet | always, in `OUT/pages/` |
+| Markdown, HTML, plain text and JSON per page | `--files DIR --formats md,html,txt,json`, with `--document` |
 | ALTO, PAGE-XML and hOCR, with every word's position | `--files DIR --formats alto,page,hocr` |
-| plain text, Markdown, HTML and JSON per page | `--files DIR --formats txt,md,html,json` |
 | one text per book or issue | `--item-texts DIR --text literal:txt`, with `--document` |
 
 The stored text is exactly what the model read. Joining divided words, folding historic letterforms and similar
@@ -236,14 +256,14 @@ measured. Tutorial: [Score a run against ground truth](docs/start/score.md).
 | run record | what a run ran: every preset with its hash, and the versions |
 
 A component adds to the page record and never overwrites what is there. Files and texts are written from the
-record, so one run can serve ALTO to a library and Markdown to a reader. The
+record, so one run can serve Markdown to a reader and ALTO to a library. The
 [overview](docs/concepts/overview.md) explains these ideas in a few minutes.
 
 ## Documentation
 
 | | |
 |---|---|
-| Get started | [Your first pipeline](docs/start/first-run.md), [A pipeline in Python](docs/start/python.md), [Run a vision-language model](docs/start/vlm.md), [Score a run](docs/start/score.md) |
+| Get started | [Run a vision-language model](docs/start/vlm.md), [Combine models step by step](docs/start/first-run.md), [A pipeline in Python](docs/start/python.md), [Score a run](docs/start/score.md) |
 | Concepts | [Overview](docs/concepts/overview.md), [components and pipelines](docs/concepts/pipelines.md), [models, engines and presets](docs/concepts/models.md), [page records](docs/concepts/page-records.md), [text and normalization](docs/concepts/text.md), [evaluation](docs/concepts/evaluation.md) |
 | Look up | [every component](https://storytracer.github.io/linecaster/latest/components/), [every preset, model and recipe](https://storytracer.github.io/linecaster/latest/catalog/), the [glossary](docs/reference/glossary.md) |
 | Reference | [architecture](docs/reference/architecture.md), [pipelines](docs/reference/pipelines.md), [data model](docs/reference/data-model.md), [serialization](docs/reference/serialization.md), [catalog files](docs/reference/catalog.md), [evaluation](docs/reference/evaluation.md) |

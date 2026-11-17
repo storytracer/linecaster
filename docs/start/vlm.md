@@ -5,19 +5,30 @@ tables. This tutorial runs one on a folder of page images.
 
 ## What you need
 
-- everything from [Your first pipeline](first-run.md)
+- Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer
+- a folder of page images, here `scans/`
 - an NVIDIA GPU
 - the `vllm` command on your `PATH`, or let linecaster build an environment for it with uv
 
-## 1. Pick a preset
+## 1. Get linecaster
+
+```bash
+git clone https://github.com/storytracer/linecaster
+cd linecaster
+```
+
+There is nothing to install: every pipeline is a uv script that brings its own environment on its first run.
+
+## 2. Pick a preset
 
 ```bash
 uv run linecaster presets --step recognition
 ```
 
-The presets whose engine is `chat.v1` are vision-language models, for example `lightonocr-2-1b`.
+A **preset** is a model with its settings. The presets whose engine is `chat.v1` are vision-language models, for
+example `lightonocr-2-1b`.
 
-## 2. Run it
+## 3. Run it
 
 The pipeline has one step to fill:
 
@@ -29,7 +40,7 @@ Linecaster starts a vLLM server for the model, sends the pages to it and stops t
 Starting the server takes a few minutes. `uv run launch.py lightonocr-2-1b scans/ out/` is a shorter way to write
 the same run.
 
-## 3. Use a server that is already running
+## 4. Use a server that is already running
 
 If you already serve the model, name its address and no server is started:
 
@@ -38,7 +49,7 @@ uv run pipelines/transcribe_vlm.py scans/ out/ --recognition lightonocr-2-1b \
   --recognition-endpoint http://127.0.0.1:8000/v1
 ```
 
-## 4. Let a layout model find the regions first
+## 5. Let a layout model find the regions first
 
 Some presets read one layout region at a time. Add a layout preset, and the model reads each region:
 
@@ -53,5 +64,6 @@ parsed from it. If a page looks wrong, the raw output shows what the model actua
 
 ## Next
 
+- [Combine models step by step](first-run.md): a model for each step instead of one for the page.
 - [Score a run against ground truth](score.md).
 - The [catalog](../catalog/README.md) has a page for every preset, with the model's settings.

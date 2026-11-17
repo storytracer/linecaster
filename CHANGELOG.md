@@ -6,6 +6,14 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Changed
+
+- The README states the problem linecaster solves, lists what it does from harvest to scoring, and gives its
+  examples from simple to flexible: a vision-language model, a model for each step, a recipe. Its diagram is a
+  static image (`docs/pipeline.svg`), and its examples write Markdown and HTML.
+- The tutorials follow the same order: [Run a vision-language model](docs/start/vlm.md) comes first and stands on
+  its own, and "Your first pipeline" is [Combine models step by step](docs/start/first-run.md).
+
 ## 0.13.1 (2026-11-17)
 
 The README and the tutorials start from combining models, on the command line and in Python; recipes come after.

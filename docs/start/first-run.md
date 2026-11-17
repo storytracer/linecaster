@@ -1,7 +1,7 @@
-# Your first pipeline
+# Combine models step by step
 
-This tutorial transcribes a folder of page images. You choose a model for each step on the command line, then
-swap one of them for another.
+This tutorial transcribes a folder of page images with the modular pipeline. You choose a model for each step on
+the command line, then swap one of them for another.
 
 ## What you need
 
@@ -18,6 +18,7 @@ cd linecaster
 ```
 
 There is nothing to install: every pipeline is a uv script that brings its own environment on its first run.
+If you followed [Run a vision-language model](vlm.md), you have it already.
 
 ## 2. See what you can combine
 
@@ -54,15 +55,17 @@ exactly what ran.
 | `rejects/` | pages that failed, each with the reason |
 | `run.yaml` | the run record: what ran, with which presets and versions |
 
-To get files you can open, name a folder and the formats:
+To get files you can open, add the document step, a folder and the formats:
 
 ```bash
 uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognition paddlex-ppocrv6-medium \
-  --files out/files --formats txt,alto
+  --document linked-document \
+  --files out/files --formats md,html
 ```
 
-The run resumes: pages that are already done are not read again.
+This writes a Markdown and an HTML file for each page. The run resumes: pages that are already done are not read
+again.
 
 ## 5. Swap one model
 
@@ -73,22 +76,22 @@ Tesseract instead:
 uv run pipelines/transcribe_modular.py scans/ out-tesseract/ \
   --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
   --recognition tesseract-best-latin \
-  --files out-tesseract/files --formats txt,alto
+  --document linked-document \
+  --files out-tesseract/files --formats md,html
 ```
 
-Compare the two folders of text files to see what the change did.
+Compare the two folders of Markdown files to see what the change did.
 
 ## 6. Add steps
 
-More steps are more options. This run also reads tables, finds the headings, joins the lines into paragraphs and
-builds a document, which the Markdown is written from:
+More steps are more options. This run also reads tables, finds the headings and joins the lines into paragraphs:
 
 ```bash
 uv run pipelines/transcribe_modular.py scans/ out-full/ \
   --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognition paddlex-ppocrv6-medium \
   --tables slanet-plus \
   --hierarchy ratios --paragraphs unicode-paragraphs --document linked-document \
-  --files out-full/files --formats md,alto
+  --files out-full/files --formats md,html
 ```
 
 Two more options are useful while you try things out:
@@ -117,5 +120,4 @@ Options after the recipe's name replace single steps, and the run record lists w
 ## Next
 
 - [Build the same pipeline in Python](python.md).
-- [Run a vision-language model](vlm.md) instead of the modular pipeline.
 - Read the [overview](../concepts/overview.md) to see how the parts fit together.

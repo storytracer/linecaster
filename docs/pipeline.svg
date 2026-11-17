@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 250" width="900" height="250" role="img" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>A linecaster pipeline</title>
+  <desc>Page images are read either by one vision-language model that reads the whole page, or by one model per step: layout, lines, text, tables, headings and paragraphs. Both write page records, from which Markdown, HTML and other files are written.</desc>
+  <style>
+    .end { fill: #2b2a27; }
+    .endlabel { fill: #ffffff; font-size: 15px; font-weight: 600; text-anchor: middle; }
+    .endsub { fill: #d8d4c8; font-size: 11px; text-anchor: middle; }
+    .vlm { fill: #dfe8f5; stroke: #6f8fbf; stroke-width: 1.5; }
+    .step { fill: #f4efe2; stroke: #a3977a; stroke-width: 1.5; }
+    .label { fill: #1f1e1b; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .note { fill: #8a8578; font-size: 13px; text-anchor: middle; }
+    .arrow { fill: none; stroke: #8a8578; stroke-width: 1.5; }
+  </style>
+  <defs>
+    <marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8a8578"/>
+    </marker>
+  </defs>
+
+  <rect class="end" x="10" y="95" width="130" height="60" rx="8"/>
+  <text class="endlabel" x="75" y="130">Page images</text>
+
+  <text class="note" x="450" y="28">one model reads the whole page</text>
+  <rect class="vlm" x="190" y="40" width="520" height="50" rx="8"/>
+  <text class="label" x="450" y="70">Vision-language model</text>
+
+  <rect class="step" x="190" y="150" width="80" height="50" rx="8"/>
+  <text class="label" x="230.0" y="180">Layout</text>
+  <rect class="step" x="278" y="150" width="80" height="50" rx="8"/>
+  <text class="label" x="318.0" y="180">Lines</text>
+  <path class="arrow" d="M270 175 H278" marker-end="url(#tip)" style="stroke-width:1"/>
+  <rect class="step" x="366" y="150" width="80" height="50" rx="8"/>
+  <text class="label" x="406.0" y="180">Text</text>
+  <path class="arrow" d="M358 175 H366" marker-end="url(#tip)" style="stroke-width:1"/>
+  <rect class="step" x="454" y="150" width="80" height="50" rx="8"/>
+  <text class="label" x="494.0" y="180">Tables</text>
+  <path class="arrow" d="M446 175 H454" marker-end="url(#tip)" style="stroke-width:1"/>
+  <rect class="step" x="542" y="150" width="80" height="50" rx="8"/>
+  <text class="label" x="582.0" y="180">Headings</text>
+  <path class="arrow" d="M534 175 H542" marker-end="url(#tip)" style="stroke-width:1"/>
+  <rect class="step" x="630" y="150" width="80" height="50" rx="8"/>
+  <text class="label" x="670.0" y="180">Paragraphs</text>
+  <path class="arrow" d="M622 175 H630" marker-end="url(#tip)" style="stroke-width:1"/>
+  <text class="note" x="450" y="226">or one model for each step, and any of them can be swapped</text>
+
+  <path class="arrow" d="M140 112 H165 V65 H190" marker-end="url(#tip)"/>
+  <path class="arrow" d="M140 138 H165 V175 H190" marker-end="url(#tip)"/>
+  <path class="arrow" d="M710 65 H735 V112 H760" marker-end="url(#tip)"/>
+  <path class="arrow" d="M710 175 H735 V138 H760" marker-end="url(#tip)"/>
+
+  <rect class="end" x="760" y="85" width="130" height="80" rx="8"/>
+  <text class="endlabel" x="825" y="118">Page records</text>
+  <text class="endsub" x="825" y="138">Markdown · HTML</text>
+  <text class="endsub" x="825" y="153">ALTO · PAGE-XML</text>
+</svg>

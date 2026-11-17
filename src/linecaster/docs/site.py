@@ -17,7 +17,7 @@ RAW = "https://raw.githubusercontent.com/storytracer/linecaster/main"
 REFERENCE = ("glossary", "conventions", "architecture", "pipelines", "running", "data-model", "serialization", "catalog",
              "tracing", "compatibility")
 #: the hand-written tutorials and concept pages, by folder, in the site's order
-GUIDES = (("start", ("first-run", "python", "vlm", "score")),
+GUIDES = (("start", ("vlm", "first-run", "python", "score")),
           ("concepts", ("overview", "pipelines", "models", "page-records", "text", "evaluation")))
 ALERTS = {"NOTE": "note", "TIP": "tip", "IMPORTANT": "info", "WARNING": "warning", "CAUTION": "danger"}
 

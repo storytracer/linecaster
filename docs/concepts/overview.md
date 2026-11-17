@@ -64,7 +64,7 @@ Read more: [evaluation](evaluation.md).
 
 ## Where to go next
 
-- [Your first pipeline](../start/first-run.md): combine models on the command line.
+- [Run a vision-language model](../start/vlm.md): one model reads the page.
+- [Combine models step by step](../start/first-run.md): a model for each step, on the command line.
 - [A pipeline in Python](../start/python.md).
-- [Run a vision-language model](../start/vlm.md).
 - [Score a run against ground truth](../start/score.md).

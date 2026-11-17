@@ -60,9 +60,9 @@ validation:
 nav:
   - Home: index.md
   - Get started:
-      - Your first pipeline: start/first-run.md
-      - A pipeline in Python: start/python.md
       - Run a vision-language model: start/vlm.md
+      - Combine models step by step: start/first-run.md
+      - A pipeline in Python: start/python.md
       - Score a run: start/score.md
   - Concepts:
       - Overview: concepts/overview.md
