@@ -45,7 +45,7 @@ class EngineServer(Contracted, PipelineStep):
     """
 
     type = "🔠 - LINECASTER"
-    name = "🖥️ model server"
+    name = "🖥️ engine server"
     unit, kind = "any", "server"
     docs_args = {"models": []}
 
@@ -134,7 +134,7 @@ class VLMServer(Contracted, PipelineStep):
     """
 
     type = "🔠 - LINECASTER"
-    name = "🖥️ chat model server"
+    name = "🖥️ VLM server"
     unit, kind = "any", "server"
     docs_args = {"spec": "lightonocr-2-1b"}
 

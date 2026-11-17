@@ -30,7 +30,7 @@ class ItemAssembler(Contracted, PipelineStep):
     """
 
     type = "🔠 - LINECASTER"
-    name = "📚 binder"
+    name = "📚 item assembler"
     kind = "binder"
 
     def __init__(self, count_key: str = "item_page_count"):

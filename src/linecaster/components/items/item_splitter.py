@@ -25,7 +25,7 @@ class ItemSplitter(Contracted, PipelineStep):
     """
 
     type = "🔠 - LINECASTER"
-    name = "📄 splitter"
+    name = "📄 item splitter"
     kind = "splitter"
 
     def __init__(self, primary: str = "ocr_new"):

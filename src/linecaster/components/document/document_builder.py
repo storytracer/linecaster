@@ -47,14 +47,14 @@ class DocumentComposer(RuleComponent):
         DocumentComposer("linked-document", unit="item")
     """
 
-    name = "composer"
+    name = "document"
     step = "document"
     docs_args = {"preset": "linked-document"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None, policy: str = DEFAULT_POLICY_REF):
         if unit not in UNITS:
-            raise PipelineConfigError(f"composer: unit {unit!r}; choose {', '.join(UNITS)}")
+            raise PipelineConfigError(f"document composer: unit {unit!r}; choose {', '.join(UNITS)}")
         self.unit, self.policy = unit, policy
         super().__init__(preset, transcription, options)
         rendering_policy(policy)                      # an unknown policy fails at construction

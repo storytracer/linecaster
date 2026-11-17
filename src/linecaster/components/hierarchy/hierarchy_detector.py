@@ -19,7 +19,7 @@ class HierarchyDetector(RuleComponent):
         HierarchyDetector("ratios")
     """
 
-    name = "typographer"
+    name = "hierarchy"
     step = "hierarchy"
     docs_args = {"preset": "ratios"}
     parts_read = ("regions", "lines")

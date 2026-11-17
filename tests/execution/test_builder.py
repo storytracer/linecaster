@@ -155,7 +155,7 @@ def test_a_removed_part_is_gone_for_later_components(tmp_path: Path):
 
 def test_a_page_component_after_an_item_stream():
     problems = _problems([ImageFolderReader("x"), _lines(), _text(), ItemAssembler(), DocumentComposer("linked-document")])
-    assert "DocumentComposer (composer) works on pages, but the stream carries items here" in problems
+    assert "DocumentComposer (document) works on pages, but the stream carries items here" in problems
     # and an item writer before any binder
     assert _problems([ImageFolderReader("x"), _lines(), _text(), ItemTextWriter("t")]) == [
         "ItemTextWriter (📚 item texts) works on items, but the stream carries pages here",
@@ -165,9 +165,9 @@ def test_a_page_component_after_an_item_stream():
 def test_server_components_go_last():
     problems = _problems([ImageFolderReader("x"), EngineServer([{"name": "lines"}]), _lines(), PageJsonlWriter("o")])
     assert problems == [
-        "LineDetector (lines (in-process)) comes after the server component EngineServer (🖥️ model server): server components "
+        "LineDetector (lines (in-process)) comes after the server component EngineServer (🖥️ engine server): server components "
         "go last",
-        "PageJsonlWriter (🐿 page records (jsonl)) comes after the server component EngineServer (🖥️ model server): server "
+        "PageJsonlWriter (🐿 page records (jsonl)) comes after the server component EngineServer (🖥️ engine server): server "
         "components go last"]
 
 
@@ -394,7 +394,7 @@ def test_one_task_or_whole_items_need_no_cut(tmp_path: Path):
     assert [s.name for s in build(components, tasks=4, run_folder=str(tmp_path)).stages] == ["pages and items"]
     components = [ImageFolderReader("x"), _lines(), _text(), ItemAssembler(), *item_texts("t")]
     p = build(components, tasks=4)
-    assert p.problems == ["ItemAssembler (📚 binder) binds items from pages that 4 tasks read: the cut into stages "
+    assert p.problems == ["ItemAssembler (📚 item assembler) binds items from pages that 4 tasks read: the cut into stages "
                           "needs a run folder"]
 
 

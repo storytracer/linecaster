@@ -38,14 +38,14 @@ class ParagraphBuilder(RuleComponent):
         ParagraphBuilder("unicode-paragraphs", unit="item")
     """
 
-    name = "recomposer"
+    name = "paragraphs"
     step = "paragraphs"
     docs_args = {"preset": "unicode-paragraphs"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None):
         if unit not in UNITS:
-            raise PipelineConfigError(f"recomposer: unit {unit!r}; choose {', '.join(UNITS)}")
+            raise PipelineConfigError(f"paragraph builder: unit {unit!r}; choose {', '.join(UNITS)}")
         self.unit = unit
         super().__init__(preset, transcription, options)
 

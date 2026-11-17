@@ -57,7 +57,7 @@ class VendorServer(Contracted, PipelineStep):
     """
 
     type = "🔠 - LINECASTER"
-    name = "🖥️ service server"
+    name = "🖥️ vendor server"
     unit, kind = "any", "server"
     docs_args = {"preset": "falcon-ocr"}
 
