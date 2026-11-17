@@ -1,0 +1,43 @@
+# Linecaster
+
+> Modular OCR pipelines you can run anywhere: text recognition (OCR and HTR) for print and handwriting, with layout, line, text, table and formula recognizers and post-processing as components of datatrove pipelines that run in-process or against model servers, on a laptop, a cluster or Hugging Face Jobs.
+
+Every model configuration is a catalog preset at a pinned revision; tested combinations are recipes. The pages below are Markdown, except the generated Components and Catalog, which are the site's pages (llms-full.txt holds their indexes).
+
+## Start
+
+- [README](https://raw.githubusercontent.com/storytracer/linecaster/main/README.md): why, quick start, how it works, running anywhere, outputs
+- [Run a recipe](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/first-run.md): This tutorial transcribes a folder of page images with a recipe.
+- [Run a vision-language model](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/vlm.md): A vision-language model (VLM) reads a whole page in one request and returns its text, often with layout and tables.
+- [Score a run against ground truth](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/score.md): This tutorial measures how well a run read its pages.
+- [Overview](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/overview.md): Linecaster turns page images into text.
+- [Components and pipelines](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/pipelines.md): A component does one thing to a page.
+- [Models, engines and presets](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/models.md): You only ever pick a preset.
+- [Page records](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/page-records.md): An **item** is an ordered set of pages.
+- [Text and normalization](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/text.md): A page record stores each line's text exactly as the model or the source gave it.
+- [Evaluation](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/evaluation.md): flowchart LR G[ground truth files] -->|importer| GR[page records] I[page images] -->|pipeline| RR[page records] GR --> S[score] RR --> S B[benchmark] --> S S --> E[evidence record].
+
+## Reference
+
+- [Glossary](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/glossary.md): The words linecaster uses.
+- [Conventions](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/conventions.md): Rules that hold across the repository.
+- [Architecture](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/architecture.md): What linecaster is made of and how a run fits together.
+- [Pipelines: contracts and the builder](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/pipelines.md): A pipeline is a list of components (datatrove `PipelineStep`s) and composites.
+- [The data model](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/data-model.md): `linecaster.data` holds what is read from a page and how it is rendered; `linecaster.data.page` the page record it travels in.
+- [Serialization and working images](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/serialization.md): `linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml, `linecaster.formats.iiif` writes an annotation set as an IIIF annotation page and reads one, `linecaster.document` writes a page's or an item's document as HTML, Markdown, text and JSON, `linecaster.formats.docling` reads a DoclingDocument (the `docling` extra), `linecaster.formats.tei` a page of a TEI P5 document and `linecaster.formats.text` plain text (a line per line, or the text of a line image); `linecaster.images.convert` turns any page image into the working image.
+- [The catalog: models, presets, recipes, policies, conventions, normalizations, strategies, vocabularies](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/catalog.md): The catalog describes every model Linecaster can run, how it runs it, and the tested combinations.
+- [Tracing](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/tracing.md): Every run is traced with OpenTelemetry (`linecaster.tracing`).
+- [Compatibility](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/compatibility.md): What linecaster keeps stable for downstream projects, pipelines and stored outputs, and how a change that breaks it is announced.
+- [Broker](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/broker.md): The broker is a shared folder through which workers across tasks, runs and machines agree on who uses which shared resource and what is unavailable until when.
+- [Evaluation](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/evaluation.md): linecaster scores transcriptions against ground truths and writes the result as evidence.
+- [HTTP](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/http.md): How linecaster's readers fetch over http(s) (`linecaster.net.http`, `linecaster.net.proxies`, `linecaster.net.policy`).
+
+## Generated
+
+- [Components](https://storytracer.github.io/linecaster/latest/components/): every component by family, with a page each (contract, backends, options, behavior)
+- [Catalog](https://storytracer.github.io/linecaster/latest/catalog/): engines, models, presets, pipelines and recipes, with a page each
+
+## Optional
+
+- [Changelog](https://raw.githubusercontent.com/storytracer/linecaster/main/CHANGELOG.md): upgrade notes and changes
+- [Repository](https://github.com/storytracer/linecaster): the source

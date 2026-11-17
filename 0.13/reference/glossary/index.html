@@ -1,0 +1,2479 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.13/reference/glossary/">
+      
+      
+      
+        <link rel="prev" href="../evaluation/">
+      
+      
+        <link rel="next" href="../http/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.1.1">
+    
+    
+      
+        <title>Glossary - Linecaster</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.ebb7f775.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.b60ce83d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/layout.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Glossary
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get started
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Get started
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/first-run/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a recipe
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/vlm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a vision-language model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Score a run
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Concepts
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Concepts
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Components and pipelines
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Models, engines and presets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/page-records/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Page records
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/text/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Text and normalization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Evaluation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../components/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Reference
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Catalog
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Architecture
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Pipelines
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Data model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Serialization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Catalog files
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Evaluation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Glossary
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Glossary
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Pipelines
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Parts
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#models-and-the-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Models and the catalog
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pages-items-and-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Pages, items and text
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Evaluation
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-at-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Running at scale
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vision-language-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Vision-language models
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ground-truth-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Ground-truth sources
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#classification-schemes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Classification schemes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fetching" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fetching
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tracing
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Contributing
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The name
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Operations
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operations
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Fetching over HTTP
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Broker
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Tracing
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Contributing
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Contributing
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Conventions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Compatibility and releases
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Pipelines
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Parts
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#models-and-the-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Models and the catalog
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pages-items-and-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Pages, items and text
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Evaluation
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-at-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Running at scale
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vision-language-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Vision-language models
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ground-truth-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Ground-truth sources
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#classification-schemes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Classification schemes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fetching" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fetching
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tracing
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Contributing
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The name
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+  
+  
+
+
+<h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
+<p>The words linecaster uses. Each word has one meaning. A word that needs a second meaning gets a qualifier
+("content role", "datatrove <code>Document</code>") and is never used bare for it. Code, docs and commit messages use
+these terms; a new term is added here before it is used.</p>
+<p>The first four sections are the core: what you need to read any other page. The sections after them belong to
+one subject each and link to the page that explains it.</p>
+<h2 id="pipelines">Pipelines<a class="headerlink" href="#pipelines" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>component</strong></td>
+<td>One processing unit of a pipeline. Technically a datatrove <code>PipelineStep</code> with a contract. Components are named after what they do: <code>LineRecognizer</code>, <code>ParagraphBuilder</code>, <code>PageJsonlWriter</code>.</td>
+</tr>
+<tr>
+<td><strong>step</strong></td>
+<td>One kind of work in a pipeline: <code>layout</code>, <code>lines</code>, <code>recognition</code>, <code>tables</code>, <code>formulas</code>, <code>image</code>, <code>hierarchy</code>, <code>paragraphs</code>, <code>document</code>, <code>import</code>, <code>tagging</code>. An engine does the work of one step and a preset belongs to one step, so the presets of a step are interchangeable. datatrove's class is always written <code>PipelineStep</code>.</td>
+</tr>
+<tr>
+<td><strong>contract</strong></td>
+<td>What a component reads, adds, replaces and removes in the page record, with its unit and its kind (reader, writer, model, transform, server). Contracts are checked before a run starts.</td>
+</tr>
+<tr>
+<td><strong>part</strong></td>
+<td>One named piece of a page record that a contract refers to: <code>image</code>, <code>lines</code>, <code>text</code>, <code>paragraphs</code>. The <a href="#parts">parts</a> table lists them.</td>
+</tr>
+<tr>
+<td><strong>unit</strong></td>
+<td>What one call of a component or an engine processes: a <code>line</code>, a <code>region</code>, a <code>page</code> or an <code>item</code>.</td>
+</tr>
+<tr>
+<td><strong>condition</strong></td>
+<td>A test on the page record. A component with a condition (<code>when=</code>) processes only the pages that pass; the others go through unchanged.</td>
+</tr>
+<tr>
+<td><strong>composite</strong></td>
+<td>A named group of components that is used like one component, with one contract (<code>ModularTranscriber</code>).</td>
+</tr>
+<tr>
+<td><strong>pipeline</strong></td>
+<td>An ordered list of components that a stream of pages passes through. A datatrove executor runs it.</td>
+</tr>
+<tr>
+<td><strong>pipeline template</strong></td>
+<td>The code that builds one kind of pipeline from options (<code>linecaster.templates.transcribe_modular</code>), with an id (<code>transcribe_modular.v1</code>).</td>
+</tr>
+<tr>
+<td><strong>slot</strong></td>
+<td>A place in a pipeline template that a preset fills. It is named after its step, and so is its flag (<code>--layout</code>, <code>--recognition</code>). No slot has a default preset.</td>
+</tr>
+<tr>
+<td><strong>pipeline script</strong></td>
+<td>A self-contained uv script in <code>pipelines/</code> that gives one pipeline template its environment and its command line.</td>
+</tr>
+<tr>
+<td><strong>recipe</strong></td>
+<td>A tested way to fill a pipeline template, as a catalog entry: a preset for each slot and the options.</td>
+</tr>
+<tr>
+<td><strong>stage</strong></td>
+<td>One datatrove pipeline run as part of a longer computation. Stages run one after another and hand over through files. A pipeline is cut into stages where the unit changes from page to item.</td>
+</tr>
+<tr>
+<td><strong>executor</strong>, <strong>job</strong>, <strong>task</strong>, <strong>worker</strong>, <strong>shard</strong></td>
+<td>datatrove's terms. The executor runs a pipeline as tasks. A job is one launch (one HF Job, one Slurm job). A task is one unit of work. Workers are tasks running at the same time. A shard is the part of the input one task reads.</td>
+</tr>
+<tr>
+<td><strong>backend</strong></td>
+<td>Where a component's engine runs: in the pipeline's process (<code>InProcess</code>), behind <code>linecaster serve</code> (<code>Served</code>), or behind an OpenAI-compatible server (<code>Chat</code>).</td>
+</tr>
+<tr>
+<td><strong>server</strong></td>
+<td>A process that hosts models: <code>linecaster serve</code>, vLLM or SGLang, or a vendor's own image. The server components <code>EngineServer</code>, <code>VLMServer</code> and <code>VendorServer</code> start one inside a task; they go last in a pipeline.</td>
+</tr>
+<tr>
+<td><strong>run</strong></td>
+<td>One execution of a pipeline over one input, into one run folder.</td>
+</tr>
+<tr>
+<td><strong>run folder</strong></td>
+<td>The output folder of a run: <code>pages/</code> (the page records), <code>rejects/</code>, <code>logs/</code>, <code>traces/</code> and <code>run.yaml</code>.</td>
+</tr>
+<tr>
+<td><strong>run record</strong></td>
+<td><code>run.yaml</code> in the run folder: the pipeline as it ran, with every component's parameters, the recipe, the command line and the software versions.</td>
+</tr>
+<tr>
+<td><strong>sample</strong></td>
+<td>The pages a run reads when it is given a sample rule (<code>--sample N</code>). The same input and rule always give the same pages.</td>
+</tr>
+<tr>
+<td><strong>reject</strong></td>
+<td>A page that failed a check or a component. It is written to <code>rejects/</code> with the reason and stays in the page records with its errors.</td>
+</tr>
+<tr>
+<td><strong>error budget</strong></td>
+<td>The share of a task's pages that may fail in a component before the task fails.</td>
+</tr>
+<tr>
+<td><strong>warm-up</strong></td>
+<td>What a component loads before its first unit: an engine, a client.</td>
+</tr>
+<tr>
+<td><strong>functional parameter</strong>, <strong>operational parameter</strong></td>
+<td>A functional parameter can change what a run writes. An operational parameter only says where things are or how the work runs (folders, ports, worker counts). The run record's hash covers the functional ones.</td>
+</tr>
+<tr>
+<td><strong>downstream project</strong></td>
+<td>A project built on linecaster, with its own pipelines, components or engines. Project-specific code lives there, never in linecaster.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="parts">Parts<a class="headerlink" href="#parts" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>image</code></td>
+<td>The page image's bytes, as the reader brought them.</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>The page record's own fields: ids, sequence, the image's record, the metadata.</td>
+</tr>
+<tr>
+<td><code>transcription_file</code></td>
+<td>A transcription delivered with the page as a file (ALTO, PAGE-XML, hOCR or text). The <code>TranscriptionConverter</code> reads it into a transcription.</td>
+</tr>
+<tr>
+<td><code>regions</code>, <code>reading_order</code>, <code>lines</code>, <code>baselines</code>, <code>text</code>, <code>words</code>, ...</td>
+<td>What presets produce (<code>PRODUCES</code> in the catalog's schema).</td>
+</tr>
+<tr>
+<td><code>line_regions</code></td>
+<td>Lines assigned to the layout regions and ordered within them (<code>LineAssigner</code>).</td>
+</tr>
+<tr>
+<td><code>hierarchy</code></td>
+<td>Heading levels, headline splits and drop capitals (<code>HierarchyDetector</code>).</td>
+</tr>
+<tr>
+<td><code>paragraphs</code></td>
+<td>The paragraphs of the rows, with the decisions that made them (<code>ParagraphBuilder</code>). Structure only, no text.</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>Tags with their basis (<code>Tagger</code>).</td>
+</tr>
+<tr>
+<td><code>document</code></td>
+<td>The document of a page or an item (<code>DocumentBuilder</code>). It travels with the page through the pipeline and is not stored in the page record.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="models-and-the-catalog">Models and the catalog<a class="headerlink" href="#models-and-the-catalog" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>model</strong></td>
+<td>Weights from upstream (or learned data such as hyphenation patterns), pinned to a revision.</td>
+</tr>
+<tr>
+<td><strong>engine</strong></td>
+<td>Code that does the work of one step: it loads a model and processes one unit per call. Engines have a versioned id (<code>kraken.recognition.v1</code>). Rule-based engines need no model. Built-in engines are in the core; engine packages (<code>linecaster-kraken</code>, ...) add more.</td>
+</tr>
+<tr>
+<td><strong>preset</strong></td>
+<td>A named configuration of one engine: its options and the model it loads. A preset is what you pick for a step (<code>--recognition kraken-ppocrv6-medium</code>).</td>
+</tr>
+<tr>
+<td><strong>catalog</strong></td>
+<td>linecaster's register of models, presets, recipes, normalizations, strategies, rendering policies, conventions and vocabularies. It holds no measurements.</td>
+</tr>
+<tr>
+<td><strong>catalog entry</strong></td>
+<td>One thing in the catalog: a YAML file, with an optional Markdown file for prose.</td>
+</tr>
+<tr>
+<td><strong>revision</strong></td>
+<td>The exact upstream commit a model is pinned to.</td>
+</tr>
+<tr>
+<td><strong>code id</strong></td>
+<td>The versioned id of an engine or a pipeline template: <code>&lt;name&gt;.v&lt;n&gt;</code>.</td>
+</tr>
+<tr>
+<td><strong>index</strong></td>
+<td><code>catalog.index</code>: the hash of every catalog entry. A change in it is a change of behavior.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pages-items-and-text">Pages, items and text<a class="headerlink" href="#pages-items-and-text" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>item</strong></td>
+<td>A named, ordered container of pages: a book, an issue, a PDF, a folder of images. linecaster assumes nothing more about it.</td>
+</tr>
+<tr>
+<td><strong>page</strong></td>
+<td>One page of an item, with its image and its annotation sets.</td>
+</tr>
+<tr>
+<td><strong>page record</strong></td>
+<td>A page as stored and as passed through a pipeline (<code>Page</code>): the image reference, the annotation sets and the metadata. Components read it and add to it.</td>
+</tr>
+<tr>
+<td><strong>item record</strong></td>
+<td>An item with its pages in order, as the <code>ItemAssembler</code> passes it on.</td>
+</tr>
+<tr>
+<td><strong>page image</strong></td>
+<td>The image a page's coordinates refer to (<code>PageImage</code>).</td>
+</tr>
+<tr>
+<td><strong>annotation</strong></td>
+<td>One thing an annotator said about a page: a zone, a reading, a table, a formula, a classification, an edit, a link, a reading order. Never changed after it is added.</td>
+</tr>
+<tr>
+<td><strong>annotation set</strong></td>
+<td>Everything one source said about one page (<code>AnnotationSet</code>).</td>
+</tr>
+<tr>
+<td><strong>transcription</strong></td>
+<td>An annotation set that also holds text (<code>Transcription</code>). A page has named transcriptions: <code>ocr_new</code> (linecaster's), <code>ocr_original</code> (delivered with the page), <code>ground_truth</code>.</td>
+</tr>
+<tr>
+<td><strong>annotator</strong></td>
+<td>Who or what added annotations (<code>Annotator</code>): a model, a rule-based engine, a delivered file, or people. It records the engine, the preset, the recipe and the linecaster version.</td>
+</tr>
+<tr>
+<td><strong>raw output</strong></td>
+<td>What one request returned, verbatim (<code>RawOutput</code>): a model's completion or an engine's native result.</td>
+</tr>
+<tr>
+<td><strong>zone</strong></td>
+<td>A place on the page image (<code>Zone</code>): a region or a line, with a box and a polygon.</td>
+</tr>
+<tr>
+<td><strong>region</strong></td>
+<td>A zone found by layout analysis.</td>
+</tr>
+<tr>
+<td><strong>line</strong></td>
+<td>One printed or written line (<code>Line</code>): a zone and, once recognized, its reading.</td>
+</tr>
+<tr>
+<td><strong>reading</strong></td>
+<td>The text a recognizer read on one line (<code>Reading</code>), with its words and alternatives. Stored exactly as given.</td>
+</tr>
+<tr>
+<td><strong>reading order</strong></td>
+<td>The order in which a page's regions and lines are read.</td>
+</tr>
+<tr>
+<td><strong>row</strong></td>
+<td>The lines of one region that sit side by side at the same height. Detection often splits one printed line into several lines of one row.</td>
+</tr>
+<tr>
+<td><strong>classification</strong></td>
+<td>A value of one scheme given to a target (<code>Classification</code>): content role, production, heading level, language, script.</td>
+</tr>
+<tr>
+<td><strong>content role</strong></td>
+<td>What a region or line is: paragraph, heading, marginalia, footnote, header, page number. Always written with "content".</td>
+</tr>
+<tr>
+<td><strong>region label</strong></td>
+<td>The coarser word layout models use for a region (<code>text</code>, <code>title</code>, <code>table</code>, <code>picture</code>). Each content role maps to one.</td>
+</tr>
+<tr>
+<td><strong>edit</strong></td>
+<td>Another form of a target's text that the source itself states (<code>Edit</code>): corrected, expanded, regularized, or the whole of a divided word. The original text stays.</td>
+</tr>
+<tr>
+<td><strong>paragraph</strong></td>
+<td>Running text built from the rows of lines (<code>Paragraph</code>), with the decisions that made it.</td>
+</tr>
+<tr>
+<td><strong>document</strong></td>
+<td>The reader-facing result for a page or an item (<code>linecaster.document.Document</code>): titles, headings, paragraphs, tables and notes in order. Built from transcriptions, written as HTML, Markdown, text or JSON. datatrove's class of the same name is always written "datatrove <code>Document</code>".</td>
+</tr>
+<tr>
+<td><strong>block</strong></td>
+<td>One unit of a document (<code>Block</code>): a heading, a paragraph, a list item, a caption, a table, a picture.</td>
+</tr>
+<tr>
+<td><strong>rendering</strong></td>
+<td>Anything written from an annotation set: a document, ALTO, PAGE-XML, hOCR, a IIIF annotation page, a text. Renderings are written out and never stored in the page record.</td>
+</tr>
+<tr>
+<td><strong>rendering policy</strong></td>
+<td>A catalog entry that decides which annotations go into which layer of a rendering. It changes no text.</td>
+</tr>
+<tr>
+<td><strong>layer</strong></td>
+<td>Where a rendering puts content: <code>body</code>, <code>furniture</code> (running heads, page numbers), <code>notes</code>, <code>background</code>, <code>invisible</code>, <code>metadata</code> or <code>none</code>.</td>
+</tr>
+<tr>
+<td><strong>normalization</strong></td>
+<td>One named change of a text, as a catalog entry: <code>nfc</code>, <code>long-s</code>, <code>flow</code>. Nothing is normalized unless a strategy says so.</td>
+</tr>
+<tr>
+<td><strong>strategy</strong></td>
+<td>A named, ordered list of normalizations, as a catalog entry (<code>latin-historic</code>). It is applied when a text is written (<code>--text latin-historic:md</code>), never to what is stored. Several joined by <code>+</code> make an unnamed one (<code>nfc+long-s+flow</code>).</td>
+</tr>
+<tr>
+<td><strong>literal</strong></td>
+<td>The strategy that changes nothing: the readings exactly as given.</td>
+</tr>
+<tr>
+<td><strong>text</strong></td>
+<td>A written text of a page or an item: a strategy and a format (<code>literal:txt</code>).</td>
+</tr>
+<tr>
+<td><strong>flow</strong></td>
+<td>The normalization that joins the rows of a block into running text. A division mark that nothing resolved is kept.</td>
+</tr>
+<tr>
+<td><strong>division mark</strong></td>
+<td>A hyphen the typesetter added where a word was divided at a line end.</td>
+</tr>
+<tr>
+<td><strong>script</strong></td>
+<td>A writing system, by its ISO 15924 code (<code>Latn</code>, <code>Hebr</code>). A uv script is always a "pipeline script" or "recipe script".</td>
+</tr>
+</tbody>
+</table>
+<h2 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ground truth</strong></td>
+<td>A transcription made or checked by people, which runs are scored against.</td>
+</tr>
+<tr>
+<td><strong>benchmark</strong></td>
+<td>A definition of how runs are scored against one ground truth: the dataset, the pages, the rendering policy, the lanes and the metrics.</td>
+</tr>
+<tr>
+<td><strong>evaluation</strong></td>
+<td>Runs scored under a benchmark, with their score records and evidence records. An evaluation lives in its own repository.</td>
+</tr>
+<tr>
+<td><strong>score record</strong></td>
+<td>One page's counts for one text and one lane. Every rate is derived from the counts.</td>
+</tr>
+<tr>
+<td><strong>evidence record</strong></td>
+<td>A measurement of a preset or recipe with its source: the run, the benchmark and the scoring it was measured with. Kept by an evaluation, never in the catalog.</td>
+</tr>
+<tr>
+<td><strong>element</strong></td>
+<td>A part of a page that is scored on its own: a region's text, a table or a formula.</td>
+</tr>
+<tr>
+<td><strong>match group</strong></td>
+<td>Elements of the ground truth and of the output that were matched to each other and are compared as wholes.</td>
+</tr>
+<tr>
+<td><strong>lane</strong></td>
+<td>A strategy both sides of a comparison go through before they are counted (<code>diplomatic</code>, <code>reading</code>, <code>alnum</code>).</td>
+</tr>
+<tr>
+<td><strong>stratum</strong></td>
+<td>The pages or elements that share one value of a dimension (content role, language, script, a tag). Rates are reported per stratum.</td>
+</tr>
+<tr>
+<td><strong>slice</strong></td>
+<td>The pages of a benchmark whose ground truth has tables, formulas, or neither, with rates of their own.</td>
+</tr>
+<tr>
+<td><strong>split</strong></td>
+<td>A named share of a ground truth's items (<code>test</code>, <code>train</code>). Every page of an item is in the same split.</td>
+</tr>
+<tr>
+<td><strong>export</strong></td>
+<td>A ground truth and a run written as another project's benchmark files (<code>linecaster export omnidocbench</code>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="running-at-scale">Running at scale<a class="headerlink" href="#running-at-scale" title="Permanent link">&para;</a></h2>
+<p>Explained in <a href="../pipelines/">pipelines</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>item shard</strong></td>
+<td>A folder of page records that holds every page of a set of items, so that a later stage reads whole items.</td>
+</tr>
+<tr>
+<td><strong>observer</strong></td>
+<td>A callback before and after each unit of a component: progress, taps, tracing.</td>
+</tr>
+<tr>
+<td><strong>tap</strong></td>
+<td>An observer that writes the page records as they leave a given component (<code>--tap-after</code>).</td>
+</tr>
+<tr>
+<td><strong>partial run</strong></td>
+<td>A run of part of a pipeline: up to a component (<code>--until</code>) or from the page records after one (<code>--after</code>).</td>
+</tr>
+<tr>
+<td><strong>item rank</strong>, <strong>page rank</strong></td>
+<td>An item's place in the sample order, and a page's place within its item. Both come from a hash of the seed and the ids.</td>
+</tr>
+<tr>
+<td><strong>stratified sample</strong></td>
+<td>A sample whose pages are chosen separately for each stratum.</td>
+</tr>
+<tr>
+<td><strong>secret reference</strong></td>
+<td><code>EnvVar("NAME")</code>: a credential named by its environment variable. It is read in the task and never stored.</td>
+</tr>
+<tr>
+<td><strong>image warning</strong></td>
+<td>A fault in an image file that is read around and recorded, without failing the page: for example an optional PNG chunk with a wrong checksum, or EXIF that cannot be read.</td>
+</tr>
+<tr>
+<td><strong>working image</strong></td>
+<td>The image preset <code>working-image</code>: lossless WebP at full resolution, 8-bit sRGB.</td>
+</tr>
+<tr>
+<td><strong>manifest</strong></td>
+<td>An item's list of its pages and their files: a IIIF Presentation manifest or a METS document.</td>
+</tr>
+<tr>
+<td><strong>resource</strong></td>
+<td>A remote file of an item or a page (a catalogue record, a manifest, OCR, an image), fetched and kept as a raw copy with a fetch record.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="vision-language-models">Vision-language models<a class="headerlink" href="#vision-language-models" title="Permanent link">&para;</a></h2>
+<p>Explained in the <a href="../catalog/#engines">catalog</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>pass</strong></td>
+<td>One request for a page. A page has more than one pass only when it is repaired.</td>
+</tr>
+<tr>
+<td><strong>repair pass</strong></td>
+<td>A further request for a page whose completion stopped at its token limit, with a higher limit. The page keeps the first completion that finished.</td>
+</tr>
+<tr>
+<td><strong>repetition detection</strong></td>
+<td>vLLM's guard against a completion that loops: the server ends it early. Such a page is not repaired.</td>
+</tr>
+<tr>
+<td><strong>grounding</strong></td>
+<td>A model's mode that labels and locates every text block of the page while it transcribes it. linecaster makes one region per block.</td>
+</tr>
+<tr>
+<td><strong>adapter</strong></td>
+<td>The code that talks to one VLM family over the OpenAI-compatible API: its request and its parsing (<code>linecaster.engines.chat</code>).</td>
+</tr>
+<tr>
+<td><strong>page engine</strong></td>
+<td>An engine whose unit is the page: it reads the whole page and returns its transcription (<code>PageRecognizer</code> runs it).</td>
+</tr>
+<tr>
+<td><strong>service</strong></td>
+<td>The server a page engine talks to that is neither <code>linecaster serve</code> nor a chat server: a vendor's own image. <code>VendorServer</code> starts it.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ground-truth-sources">Ground-truth sources<a class="headerlink" href="#ground-truth-sources" title="Permanent link">&para;</a></h2>
+<p>Explained in the <a href="../catalog/">catalog</a> and in <a href="../evaluation/">evaluation</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>importer</strong></td>
+<td>An engine of the <code>import</code> step: it reads a source file into a transcription.</td>
+</tr>
+<tr>
+<td><strong>source file</strong></td>
+<td>The file, record or wiki page an importer reads (<code>SourceFile</code>).</td>
+</tr>
+<tr>
+<td><strong>conventions</strong></td>
+<td>A catalog entry that says what one public source's markup means, as rules an importer applies.</td>
+</tr>
+<tr>
+<td><strong>match</strong></td>
+<td>Where a conventions rule points: a CSS selector, a JSONPath or a regular expression.</td>
+</tr>
+<tr>
+<td><strong>decision</strong></td>
+<td>What a conventions rule says the matched thing is: <code>remove</code>, <code>text_block</code>, <code>note</code>, <code>edit</code>, <code>cell</code>. Also: one choice the <code>ParagraphBuilder</code> made at a row end, always written "paragraph decision".</td>
+</tr>
+<tr>
+<td><strong>coverage</strong></td>
+<td>What an importer's conventions handled on a page: the matches per rule and what no rule matched.</td>
+</tr>
+<tr>
+<td><strong>anchor</strong></td>
+<td>Where a zone's text comes from in the source text: a character range.</td>
+</tr>
+<tr>
+<td><strong>line image</strong></td>
+<td>An image of one line with its text, as line-level ground-truth datasets give them.</td>
+</tr>
+<tr>
+<td><strong>tokenizer</strong></td>
+<td>How the word metrics cut a text into words (<code>uax29</code>, <code>whitespace</code>, <code>characters</code>). A model's tokenizer is always written "the model's tokenizer".</td>
+</tr>
+</tbody>
+</table>
+<h2 id="classification-schemes">Classification schemes<a class="headerlink" href="#classification-schemes" title="Permanent link">&para;</a></h2>
+<p>Explained in the <a href="../data-model/">data model</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>vocabulary</strong></td>
+<td>A catalog entry that defines the values of one classification scheme.</td>
+</tr>
+<tr>
+<td><strong>property scheme</strong></td>
+<td>A classification scheme whose values are <code>yes</code> and <code>no</code>: <code>degraded</code>, <code>tiny</code>, <code>rotated</code>, <code>multi_column</code>, <code>form</code>.</td>
+</tr>
+<tr>
+<td><strong>tag</strong></td>
+<td>A classification in a property scheme, with its basis. No tag does not mean <code>no</code>.</td>
+</tr>
+<tr>
+<td><strong>tagger</strong></td>
+<td>An engine of the <code>tagging</code> step: rules on geometry, or a panel of models.</td>
+</tr>
+<tr>
+<td><strong>production</strong></td>
+<td>How content was made: printed, typewritten, handwritten, stamped, born digital.</td>
+</tr>
+<tr>
+<td><strong>writing direction</strong></td>
+<td>The direction a page or block is written in: <code>horizontal-lr</code>, <code>horizontal-rl</code>, <code>vertical-rl</code>, <code>vertical-lr</code>.</td>
+</tr>
+<tr>
+<td><strong>motivation</strong></td>
+<td>Why an annotation was made (<code>segmenting</code>, <code>transcribing</code>, <code>classifying</code>, ...). The W3C Web Annotation term.</td>
+</tr>
+<tr>
+<td><strong>shape</strong></td>
+<td>Geometry without an annotator of its own (<code>Shape</code>): a word, a glyph, a cell.</td>
+</tr>
+<tr>
+<td><strong>word</strong>, <strong>glyph</strong></td>
+<td>A word of a reading, and one character of a word, each with its box and confidence.</td>
+</tr>
+<tr>
+<td><strong>link</strong></td>
+<td>A cross-reference between two annotations (<code>Link</code>): caption of, note of, continues.</td>
+</tr>
+<tr>
+<td><strong>range</strong></td>
+<td>A logical unit of content across pages (<code>Range</code>): a chapter, a section, an article.</td>
+</tr>
+<tr>
+<td><strong>reference</strong></td>
+<td>A string naming an annotation in the same set (<code>Ref</code>).</td>
+</tr>
+<tr>
+<td><strong>measurements</strong></td>
+<td>Numbers an annotator records for a page: seconds, tokens, device.</td>
+</tr>
+<tr>
+<td><strong>XY-cut</strong>, <strong>XY-Cut++</strong></td>
+<td>The two ways linecaster computes a reading order when the layout model gives none.</td>
+</tr>
+<tr>
+<td><strong>cross-layout region</strong></td>
+<td>A text region that spans several columns: longer than 1.3 times the median region and overlapping two or more others horizontally. XY-Cut++ sets it aside before cutting.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="fetching">Fetching<a class="headerlink" href="#fetching" title="Permanent link">&para;</a></h2>
+<p>Explained in <a href="../http/">HTTP</a> and <a href="../broker/">broker</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HTTP policy</strong></td>
+<td>How a run's requests go out, from one YAML file (<code>--http-policy</code>): rate limits, retries, the User-Agent, the proxies, and a host entry for each host that differs.</td>
+</tr>
+<tr>
+<td><strong>host entry</strong></td>
+<td>The settings of one host in an HTTP policy. They replace the general ones.</td>
+</tr>
+<tr>
+<td><strong>HTTP block</strong></td>
+<td>A host turning a request away because of where it comes from: a 429 by default (<code>block_on</code>). The proxy is left out for that host, or the worker's requests to it pause. An HTTP block does not count as a failed attempt. Always written with "HTTP" or of a proxy or host; a bare "block" is a document's.</td>
+</tr>
+<tr>
+<td><strong>unexpected HTML</strong></td>
+<td>A successful response with an HTML page where an image, XML or JSON was expected. A failed attempt by default.</td>
+</tr>
+<tr>
+<td><strong>pause</strong></td>
+<td>A time in which a worker sends no request to a host and its requests wait.</td>
+</tr>
+<tr>
+<td><strong>breaker</strong></td>
+<td>A guard against an outage: when most recent attempts got a server error, requests pause until the host answers again.</td>
+</tr>
+<tr>
+<td><strong>broken proxy</strong></td>
+<td>A proxy that failed several attempts in a row itself. It is left out for every host for a while.</td>
+</tr>
+<tr>
+<td><strong>proxies per worker</strong></td>
+<td>How many proxies of a list one worker holds at a time.</td>
+</tr>
+<tr>
+<td><strong>broker</strong></td>
+<td>A shared folder through which workers on any machine agree on who uses which shared thing, such as a proxy. It has no server.</td>
+</tr>
+<tr>
+<td><strong>lease</strong></td>
+<td>A worker's claim on one thing in the broker. It expires unless renewed.</td>
+</tr>
+<tr>
+<td><strong>mark</strong></td>
+<td>A note in the broker that something is unavailable until a time.</td>
+</tr>
+<tr>
+<td><strong>worker identity</strong></td>
+<td>Who holds leases in the broker: a numbered place on a machine, which outlives the processes that fill it.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tracing">Tracing<a class="headerlink" href="#tracing" title="Permanent link">&para;</a></h2>
+<p>Explained in <a href="../tracing/">tracing</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>trace</strong>, <strong>span</strong></td>
+<td>OpenTelemetry's terms. A trace is one page's or one task's path through a run, made of spans.</td>
+</tr>
+<tr>
+<td><strong>traced pages</strong></td>
+<td>The pages that get a trace: a fixed share chosen by page id (<code>--trace-share</code>), plus every page that failed.</td>
+</tr>
+<tr>
+<td><strong>trace context</strong></td>
+<td>A page's <code>traceparent</code>, given by the reader. The page's spans are its children.</td>
+</tr>
+<tr>
+<td><strong>task span</strong></td>
+<td>A span of the task's own work: a warm-up, a server start, a writer's flush.</td>
+</tr>
+<tr>
+<td><strong>gap</strong></td>
+<td>The time a component had no page in it between its first page and its last.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h2>
+<p>Explained in <a href="../conventions/">conventions</a> and <a href="../compatibility/">compatibility</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>engine API</strong></td>
+<td>What an engine package may import from linecaster besides the data model: <code>linecaster.engines.api</code>.</td>
+</tr>
+<tr>
+<td><strong>fake engine</strong></td>
+<td>A deterministic CPU engine for tests, one per step (<code>linecaster.testing</code>).</td>
+</tr>
+<tr>
+<td><strong>conformance check</strong></td>
+<td><code>check_engine</code> and <code>check_component</code>: the tests every engine and every component must pass.</td>
+</tr>
+<tr>
+<td><strong>generated docs</strong></td>
+<td>The pages <code>linecaster docs</code> writes from code, docstrings and the catalog. Never edited by hand and not in git.</td>
+</tr>
+<tr>
+<td><strong>breaking change</strong></td>
+<td>A change after which code, a command line, a stored file or a catalog reference stops working or means something else.</td>
+</tr>
+<tr>
+<td><strong>upgrade note</strong></td>
+<td>The CHANGELOG entry for a breaking change: what changed, who is affected, what to do.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-name">The name<a class="headerlink" href="#the-name" title="Permanent link">&para;</a></h2>
+<p>A linecaster is a hot-metal typesetting machine that casts whole lines of type. linecaster makes a new, digital
+edition of a printed item, line by line.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.sections","navigation.indexes","navigation.top","content.code.copy","search.highlight"],"redirect":null,"search":"../../assets/javascripts/workers/search.719e0d91.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"default":"latest","provider":"mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.3cb411a8.min.js"></script>
+      
+    
+  </body>
+</html>

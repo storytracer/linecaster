@@ -1,0 +1,2451 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modular OCR pipelines you can run anywhere">
+      
+      
+      
+        <link rel="canonical" href="https://storytracer.github.io/linecaster/0.13/catalog/vocabularies/role/">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.1.1">
+    
+    
+      
+        <title>role - Linecaster</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.ebb7f775.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/modern/palette.b60ce83d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/layout.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Linecaster" class="md-header__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Linecaster
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              role
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Linecaster" class="md-nav__button md-logo" aria-label="Linecaster" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    Linecaster
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/storytracer/linecaster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    storytracer/linecaster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get started
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Get started
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../start/first-run/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a recipe
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../start/vlm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a vision-language model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../start/score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Score a run
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Concepts
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Concepts
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Components and pipelines
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Models, engines and presets
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/page-records/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Page records
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/text/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Text and normalization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Evaluation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../components/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Reference
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Catalog
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Architecture
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Pipelines
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Data model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Serialization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Catalog files
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Evaluation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Glossary
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Operations
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operations
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Fetching over HTTP
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Broker
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Tracing
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Contributing
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Contributing
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Conventions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Compatibility and releases
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#values" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Values
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Values">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#paragraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>paragraph</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#heading" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>heading</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#title" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>title</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caption" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>caption</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list_item" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>list_item</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list_label" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>list_label</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toc_entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>toc_entry</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#footnote" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>footnote</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#footnote_continued" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>footnote_continued</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#endnote" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>endnote</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#marginalia" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>marginalia</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drop_capital" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>drop_capital</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#credit" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>credit</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#floating" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>floating</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>reference</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>code</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#table" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>table</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>formula</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chemistry" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>chemistry</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#music" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>music</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>picture</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>chart</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#map" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>map</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advert" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>advert</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#form" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>form</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>key_value</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#header" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>header</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#footer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>footer</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#page_number" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>page_number</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#catch_word" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>catch_word</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signature_mark" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>signature_mark</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#separator" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>separator</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#noise" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>noise</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>other</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Mappings
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Provenance
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+  
+  
+
+
+<!-- Generated by `linecaster docs`: edit the code, the docstrings or the catalog, not this file. -->
+<h1 id="role">role<a class="headerlink" href="#role" title="Permanent link">&para;</a></h1>
+<p><em>Vocabulary · closed scheme · classifies lines, regions</em></p>
+<p>What a zone or range is, its content role, whatever layer a rendering puts it in.</p>
+<h2 id="values">Values<a class="headerlink" href="#values" title="Permanent link">&para;</a></h2>
+<h3 id="paragraph"><code>paragraph</code><a class="headerlink" href="#paragraph" title="Permanent link">&para;</a></h3>
+<p>Running text of the page's content, read as part of its main text.</p>
+<p>Counts:</p>
+<ul>
+<li>a paragraph of prose</li>
+<li>a stanza or a block of verse</li>
+<li>a block quotation</li>
+<li>the text of a letter, a dialogue or a speech</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a heading or a title (heading, title)</li>
+<li>an item of a list (list_item)</li>
+<li>a note keyed to a mark (footnote, endnote)</li>
+<li>text in the margin beside the main text (marginalia)</li>
+<li>text set apart in a sidebar or box (floating)</li>
+</ul>
+<h3 id="heading"><code>heading</code><a class="headerlink" href="#heading" title="Permanent link">&para;</a></h3>
+<p>A heading that names a section of the content that follows it, set on its own line or lines.</p>
+<p>Counts:</p>
+<ul>
+<li>a chapter, section or subsection heading</li>
+<li>a numbered heading, such as "3.2 Methods"</li>
+<li>a heading inside an article, a letter or a list of entries</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>the title of the document, an article or a chapter as a whole (title)</li>
+<li>a table's column or row headings (table)</li>
+<li>bold or spaced words that begin a paragraph (paragraph)</li>
+<li>a running title in the top margin (header)</li>
+</ul>
+<h3 id="title"><code>title</code><a class="headerlink" href="#title" title="Permanent link">&para;</a></h3>
+<p>The title of a whole document, article, chapter or story, set as its main heading.</p>
+<p>Counts:</p>
+<ul>
+<li>a book's title on its title page</li>
+<li>an article's title on its first page</li>
+<li>a newspaper article's headline</li>
+<li>a chapter's title where it opens the chapter</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a heading of a section within the work (heading)</li>
+<li>the work's title repeated as a running title in the margin (header)</li>
+<li>the name of a periodical in its masthead's running line (header)</li>
+</ul>
+<h3 id="caption"><code>caption</code><a class="headerlink" href="#caption" title="Permanent link">&para;</a></h3>
+<p>Text that names or describes a table, figure, picture, chart or map, set next to it.</p>
+<p>Counts:</p>
+<ul>
+<li>a figure's or table's caption, such as "Table 2. ..." or "Fig. 3 ..."</li>
+<li>the legend under a photograph or a plate</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>notes under a table, keyed to marks in it (footnote)</li>
+<li>text drawn inside the figure (part of the picture, chart or map)</li>
+<li>a line naming the photographer or rights holder (credit)</li>
+</ul>
+<h3 id="list_item"><code>list_item</code><a class="headerlink" href="#list_item" title="Permanent link">&para;</a></h3>
+<p>One entry of a list, with its bullet, number or letter where the zone holds it.</p>
+<p>Counts:</p>
+<ul>
+<li>an entry of a bulleted, numbered or lettered list</li>
+<li>a step of a numbered procedure</li>
+<li>an entry of a glossary or a list of names</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>an entry of a reference list or bibliography (reference)</li>
+<li>an entry of a table of contents or an index (toc_entry)</li>
+<li>a numbered heading (heading)</li>
+<li>a row of a table (table)</li>
+<li>a paragraph that merely begins with a number (paragraph)</li>
+</ul>
+<h3 id="list_label"><code>list_label</code><a class="headerlink" href="#list_label" title="Permanent link">&para;</a></h3>
+<p>The bullet, number or letter of a list item, set apart from the item's text in a zone of its own.</p>
+<p>Counts:</p>
+<ul>
+<li>a numeral or bullet a layout gives its own zone, left of the item's text</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a label inside the zone of the item's text (list_item)</li>
+</ul>
+<h3 id="toc_entry"><code>toc_entry</code><a class="headerlink" href="#toc_entry" title="Permanent link">&para;</a></h3>
+<p>An entry of a table of contents or an index, naming a part of the work or a term, usually with where it is found.</p>
+<p>Counts:</p>
+<ul>
+<li>a line of a table of contents with its page number</li>
+<li>an entry of an index with its page references</li>
+<li>an entry of a list of figures or tables</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>an entry of a reference list (reference)</li>
+<li>a heading of the table of contents itself, such as "Contents" (heading)</li>
+</ul>
+<h3 id="footnote"><code>footnote</code><a class="headerlink" href="#footnote" title="Permanent link">&para;</a></h3>
+<p>A note keyed to a mark in the text, set at the foot of the page or under the table it belongs to.</p>
+<p>Counts:</p>
+<ul>
+<li>a footnote with its mark</li>
+<li>a note under a table keyed to a mark in it, such as "a P &lt; 0.05"</li>
+<li>a source line under a table</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>the part of a footnote carried over from an earlier page or column (footnote_continued)</li>
+<li>a note gathered at the end of a chapter or book (endnote)</li>
+<li>a running footer (footer)</li>
+<li>a note in the margin (marginalia)</li>
+</ul>
+<h3 id="footnote_continued"><code>footnote_continued</code><a class="headerlink" href="#footnote_continued" title="Permanent link">&para;</a></h3>
+<p>The rest of a footnote begun on an earlier page or column, continued here without its mark.</p>
+<p>Counts:</p>
+<ul>
+<li>footnote text at the foot of a page that starts without a mark and finishes a note from before</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a footnote that begins here with its mark (footnote)</li>
+</ul>
+<h3 id="endnote"><code>endnote</code><a class="headerlink" href="#endnote" title="Permanent link">&para;</a></h3>
+<p>A note keyed to a mark in the text, gathered with the others at the end of a chapter, article or book.</p>
+<p>Counts:</p>
+<ul>
+<li>an entry of a "Notes" section at the end of a chapter or book</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a note at the foot of the page it belongs to (footnote)</li>
+<li>an entry of a reference list (reference)</li>
+</ul>
+<h3 id="marginalia"><code>marginalia</code><a class="headerlink" href="#marginalia" title="Permanent link">&para;</a></h3>
+<p>A note in the margin beside the main text, printed or written there.</p>
+<p>Counts:</p>
+<ul>
+<li>a printed side note or shoulder note</li>
+<li>a gloss beside the text</li>
+<li>a reader's handwritten note in the margin</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a running header or footer (header, footer)</li>
+<li>a page number (page_number)</li>
+<li>a column of the main text (paragraph)</li>
+</ul>
+<h3 id="drop_capital"><code>drop_capital</code><a class="headerlink" href="#drop_capital" title="Permanent link">&para;</a></h3>
+<p>An enlarged first letter of a paragraph or chapter, set into or beside several of its lines.</p>
+<p>Counts:</p>
+<ul>
+<li>a large initial that sinks into the first lines of the text</li>
+<li>a decorated or historiated initial that begins the text</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a capital letter in the size of the text (part of its line)</li>
+<li>a large first word or line set on one line (part of the paragraph or title)</li>
+</ul>
+<h3 id="credit"><code>credit</code><a class="headerlink" href="#credit" title="Permanent link">&para;</a></h3>
+<p>A line that names who made or owns a piece of the content.</p>
+<p>Counts:</p>
+<ul>
+<li>a photograph's or illustration's credit, such as "Photo: ..."</li>
+<li>an article's byline</li>
+<li>a copyright or rights holder's line under a picture</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a caption that describes the picture (caption)</li>
+<li>a copyright line of the publication in the bottom margin (footer)</li>
+</ul>
+<h3 id="floating"><code>floating</code><a class="headerlink" href="#floating" title="Permanent link">&para;</a></h3>
+<p>Text set apart from the main flow of the page and placed where the layout had room for it.</p>
+<p>Counts:</p>
+<ul>
+<li>a sidebar or a boxed text</li>
+<li>a pull quote</li>
+<li>a short notice inserted between articles</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a column of the main text (paragraph)</li>
+<li>a note in the margin (marginalia)</li>
+<li>an advertisement (advert)</li>
+</ul>
+<h3 id="reference"><code>reference</code><a class="headerlink" href="#reference" title="Permanent link">&para;</a></h3>
+<p>An entry of a reference list or bibliography, describing one work cited.</p>
+<p>Counts:</p>
+<ul>
+<li>an entry of a "References" or "Bibliography" section</li>
+<li>a numbered entry of a list of works cited</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a footnote or endnote that cites a work (footnote, endnote)</li>
+<li>a citation within the text (part of its paragraph)</li>
+</ul>
+<h3 id="code"><code>code</code><a class="headerlink" href="#code" title="Permanent link">&para;</a></h3>
+<p>Source code, a command, a configuration or other text set as code, usually in a monospaced font or a code block.</p>
+<p>Counts:</p>
+<ul>
+<li>a program listing</li>
+<li>a command line with its output</li>
+<li>a configuration file's text</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a name of a variable or a file in ordinary prose that is not set as code (part of its paragraph)</li>
+<li>text that is typewritten (its production, not its role)</li>
+</ul>
+<h3 id="table"><code>table</code><a class="headerlink" href="#table" title="Permanent link">&para;</a></h3>
+<p>A table, a grid of cells in which a heading is shared by several cells, so that a cell is read by the column heading above it, the row label beside it, or both.</p>
+<p>Counts:</p>
+<ul>
+<li>a table with its header cells, body cells, row labels and section rows</li>
+<li>a grid with no printed headings whose rows repeat the same columns, such as a price list or a data sheet</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a form whose fields each have their own label (form)</li>
+<li>pairs of labels and values side by side (key_value)</li>
+<li>the table's caption or its notes (caption, footnote)</li>
+<li>two columns of prose (paragraph)</li>
+<li>a table of contents (toc_entry)</li>
+</ul>
+<h3 id="formula"><code>formula</code><a class="headerlink" href="#formula" title="Permanent link">&para;</a></h3>
+<p>Mathematical notation set apart from the text, as a display.</p>
+<p>Counts:</p>
+<ul>
+<li>a displayed equation, with its number</li>
+<li>a system or derivation of equations set on several lines</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a formula within a line of text (part of its paragraph)</li>
+<li>chemical notation (chemistry)</li>
+</ul>
+<h3 id="chemistry"><code>chemistry</code><a class="headerlink" href="#chemistry" title="Permanent link">&para;</a></h3>
+<p>Chemical notation set apart from the text.</p>
+<p>Counts:</p>
+<ul>
+<li>a structural formula</li>
+<li>a reaction scheme or a chemical equation set as a display</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a chemical formula written in a line of text, such as H2O (part of its paragraph)</li>
+<li>mathematical notation (formula)</li>
+</ul>
+<h3 id="music"><code>music</code><a class="headerlink" href="#music" title="Permanent link">&para;</a></h3>
+<p>Musical notation.</p>
+<p>Counts:</p>
+<ul>
+<li>staves with notes</li>
+<li>tablature or another notation of music, with the words set under it</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>the words of a song set as text without notation (paragraph)</li>
+</ul>
+<h3 id="picture"><code>picture</code><a class="headerlink" href="#picture" title="Permanent link">&para;</a></h3>
+<p>An image on the page, drawn, printed or photographed, that is none of a chart, a map or an advertisement.</p>
+<p>Counts:</p>
+<ul>
+<li>a photograph, an engraving, a drawing, an illustration</li>
+<li>an ornament, a vignette, a printer's device, a logo</li>
+<li>a seal, a stamp or a signature taken as an image</li>
+<li>a diagram drawn as a picture</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a chart or plot of data (chart)</li>
+<li>a map or plan (map)</li>
+<li>an advertisement (advert)</li>
+<li>a line or rule between parts of the page (separator)</li>
+</ul>
+<h3 id="chart"><code>chart</code><a class="headerlink" href="#chart" title="Permanent link">&para;</a></h3>
+<p>A chart or graph that shows data.</p>
+<p>Counts:</p>
+<ul>
+<li>a bar, line or pie chart</li>
+<li>a scatter plot, a histogram</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a table of the same data (table)</li>
+<li>a drawing or diagram that shows no data (picture)</li>
+<li>a map (map)</li>
+</ul>
+<h3 id="map"><code>map</code><a class="headerlink" href="#map" title="Permanent link">&para;</a></h3>
+<p>A map or plan of a place, showing its area, routes or features.</p>
+<p>Counts:</p>
+<ul>
+<li>a map of a country, a town or the sea</li>
+<li>a plan of a site, a building or a battle</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a chart of data (chart)</li>
+<li>a picture of a landscape (picture)</li>
+</ul>
+<h3 id="advert"><code>advert</code><a class="headerlink" href="#advert" title="Permanent link">&para;</a></h3>
+<p>An advertisement, a notice set apart as one unit that promotes a product, a service, an event or a person.</p>
+<p>Counts:</p>
+<ul>
+<li>a display advertisement in a newspaper or magazine</li>
+<li>a classified advertisement</li>
+<li>a publisher's list of its other books at the end of a volume</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>an article about a product (paragraph, title)</li>
+</ul>
+<h3 id="form"><code>form</code><a class="headerlink" href="#form" title="Permanent link">&para;</a></h3>
+<p>A form, or a part of one, with fields to fill in or boxes to tick.</p>
+<p>Counts:</p>
+<ul>
+<li>a field's label with its blank, line, box or filled value</li>
+<li>checkboxes with their labels</li>
+<li>a questionnaire printed in a report</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>instructions on how to fill the form in (paragraph)</li>
+<li>pairs of labels and values set side by side with no field to fill in (key_value)</li>
+<li>a table read by its column headings (table)</li>
+</ul>
+<h3 id="key_value"><code>key_value</code><a class="headerlink" href="#key_value" title="Permanent link">&para;</a></h3>
+<p>Pairs of a label and its value set side by side, each label naming the value beside it.</p>
+<p>Counts:</p>
+<ul>
+<li>the lines of a data sheet, a receipt or a catalog record, such as "Date: 12 May"</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a form's fields to fill in (form)</li>
+<li>a table whose cells are read by shared headings (table)</li>
+</ul>
+<h3 id="header"><code>header</code><a class="headerlink" href="#header" title="Permanent link">&para;</a></h3>
+<p>A running header, text in the top margin that belongs to the publication rather than to the page's content.</p>
+<p>Counts:</p>
+<ul>
+<li>a running title, the work's or chapter's name in the top margin</li>
+<li>a journal's name, an author's name or a date line in the top margin</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>the page number (page_number)</li>
+<li>the article's own title on its first page (title)</li>
+<li>a heading of the page's content (heading)</li>
+</ul>
+<h3 id="footer"><code>footer</code><a class="headerlink" href="#footer" title="Permanent link">&para;</a></h3>
+<p>A running footer, text in the bottom margin that belongs to the publication rather than to the page's content.</p>
+<p>Counts:</p>
+<ul>
+<li>a journal's citation line or a copyright line in the bottom margin</li>
+<li>a running title set at the foot of the page</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>the page number (page_number)</li>
+<li>a footnote (footnote)</li>
+<li>a catchword or a signature mark (catch_word, signature_mark)</li>
+<li>a table's last row near the bottom of the page (table)</li>
+</ul>
+<h3 id="page_number"><code>page_number</code><a class="headerlink" href="#page_number" title="Permanent link">&para;</a></h3>
+<p>The number of the page, printed or written on it.</p>
+<p>Counts:</p>
+<ul>
+<li>a page number in the top or bottom margin</li>
+<li>a folio number written in the corner of a leaf</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a number in the text or a table</li>
+<li>a page number given in a table of contents or an index (toc_entry)</li>
+</ul>
+<h3 id="catch_word"><code>catch_word</code><a class="headerlink" href="#catch_word" title="Permanent link">&para;</a></h3>
+<p>The first word or syllable of the next page, printed at the foot of this one below its last line.</p>
+<p>Counts:</p>
+<ul>
+<li>a catchword in the bottom right corner of a page of an early printed book</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>the last word of the page's text (part of its line)</li>
+<li>a signature mark (signature_mark)</li>
+</ul>
+<h3 id="signature_mark"><code>signature_mark</code><a class="headerlink" href="#signature_mark" title="Permanent link">&para;</a></h3>
+<p>A printer's mark at the foot of a page that numbers the sheets for folding and binding.</p>
+<p>Counts:</p>
+<ul>
+<li>a letter, a number or a symbol with a number, such as A2, B, 3*, at the foot of a page</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a page number (page_number)</li>
+<li>a catchword (catch_word)</li>
+</ul>
+<h3 id="separator"><code>separator</code><a class="headerlink" href="#separator" title="Permanent link">&para;</a></h3>
+<p>A line or rule that separates parts of the page and carries no text.</p>
+<p>Counts:</p>
+<ul>
+<li>a rule between columns or articles</li>
+<li>a border or a frame around a part of the page</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>an ornament or a vignette (picture)</li>
+<li>a dotted leader in a table of contents (part of its entry)</li>
+</ul>
+<h3 id="noise"><code>noise</code><a class="headerlink" href="#noise" title="Permanent link">&para;</a></h3>
+<p>Marks in the image that are not content of the page.</p>
+<p>Counts:</p>
+<ul>
+<li>specks, stains or dirt</li>
+<li>a punch hole, a tear, the edge of the scanner, a finger</li>
+<li>a color chart or ruler photographed with the page</li>
+<li>bleed-through of the other side of the leaf</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>a stamp, a seal or a signature (picture)</li>
+<li>a reader's handwritten note (marginalia)</li>
+</ul>
+<h3 id="other"><code>other</code><a class="headerlink" href="#other" title="Permanent link">&para;</a></h3>
+<p>Content that none of the other roles describes.</p>
+<p>Counts:</p>
+<ul>
+<li>content the annotator could not place in any other role</li>
+</ul>
+<p>Does not count:</p>
+<ul>
+<li>content that one of the other roles describes</li>
+</ul>
+<h2 id="mappings">Mappings<a class="headerlink" href="#mappings" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>PAGE-XML</th>
+<th>Region label</th>
+<th>Default layer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paragraph</code></td>
+<td><code>paragraph</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>heading</code></td>
+<td><code>heading</code></td>
+<td><code>section_header</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>heading</code></td>
+<td><code>title</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>caption</code></td>
+<td><code>caption</code></td>
+<td><code>caption</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>list_item</code></td>
+<td><code>paragraph</code></td>
+<td><code>list_item</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>list_label</code></td>
+<td><code>list-label</code></td>
+<td><code>list_item</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>toc_entry</code></td>
+<td><code>TOC-entry</code></td>
+<td><code>document_index</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>footnote</code></td>
+<td><code>footnote</code></td>
+<td><code>footnote</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>footnote_continued</code></td>
+<td><code>footnote-continued</code></td>
+<td><code>footnote</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>endnote</code></td>
+<td><code>endnote</code></td>
+<td><code>footnote</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>marginalia</code></td>
+<td><code>marginalia</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>drop_capital</code></td>
+<td><code>drop-capital</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>credit</code></td>
+<td><code>credit</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>floating</code></td>
+<td><code>floating</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>reference</code></td>
+<td><code>paragraph</code></td>
+<td><code>reference</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td><code>other</code></td>
+<td><code>code</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>table</code></td>
+<td><code>TableRegion</code></td>
+<td><code>table</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>formula</code></td>
+<td><code>MathsRegion</code></td>
+<td><code>formula</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>chemistry</code></td>
+<td><code>ChemRegion</code></td>
+<td><code>formula</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>music</code></td>
+<td><code>MusicRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>picture</code></td>
+<td><code>ImageRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>chart</code></td>
+<td><code>ChartRegion</code></td>
+<td><code>chart</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>map</code></td>
+<td><code>MapRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>advert</code></td>
+<td><code>AdvertRegion</code></td>
+<td><code>picture</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>form</code></td>
+<td><code>other</code></td>
+<td><code>form</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>key_value</code></td>
+<td><code>other</code></td>
+<td><code>key_value_region</code></td>
+<td>body</td>
+</tr>
+<tr>
+<td><code>header</code></td>
+<td><code>header</code></td>
+<td><code>page_header</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td><code>footer</code></td>
+<td><code>page_footer</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>page_number</code></td>
+<td><code>page-number</code></td>
+<td><code>page_header</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>catch_word</code></td>
+<td><code>catch-word</code></td>
+<td><code>page_footer</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>signature_mark</code></td>
+<td><code>signature-mark</code></td>
+<td><code>page_footer</code></td>
+<td>furniture</td>
+</tr>
+<tr>
+<td><code>separator</code></td>
+<td><code>SeparatorRegion</code></td>
+<td><code>picture</code></td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>noise</code></td>
+<td><code>NoiseRegion</code></td>
+<td><code>picture</code></td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>other</code></td>
+<td><code>other</code></td>
+<td><code>text</code></td>
+<td>body</td>
+</tr>
+</tbody>
+</table>
+<h2 id="provenance">Provenance<a class="headerlink" href="#provenance" title="Permanent link">&para;</a></h2>
+<ul>
+<li>PAGE-XML: the region types and text region types, which the roles follow where PAGE has a name</li>
+<li>SegmOnto: the zone types of its controlled vocabulary for the layout of historical documents</li>
+<li>Omni Parse Bench: the definitions of its content tags (heading, caption, footnote, list, code, header and footer, table, form)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../..","features":["navigation.sections","navigation.indexes","navigation.top","content.code.copy","search.highlight"],"redirect":null,"search":"../../../assets/javascripts/workers/search.719e0d91.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"default":"latest","provider":"mike"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.3cb411a8.min.js"></script>
+      
+    
+  </body>
+</html>
