@@ -10,6 +10,7 @@ import pytest
 
 from linecaster.net.broker import Broker
 from linecaster.net.proxies import KIND, proxy_id
+from linecaster.execution import allocation
 from linecaster.execution import run
 
 PROXIES = [f"10.0.0.{i}:8080" for i in range(7)]
@@ -37,7 +38,7 @@ def one_each(tmp_path) -> list[str]:
 @pytest.fixture(autouse=True)
 def no_cpus(monkeypatch):
     """Two CPUs whatever the machine's count, cgroup quota and affinity (``available_cpus``): the proxies decide."""
-    monkeypatch.setattr(run, "available_cpus", lambda: 2)
+    monkeypatch.setattr(allocation, "available_cpus", lambda: 2)
 
 
 def test_a_first_launch_runs_a_worker_per_proxy(tmp_path):
@@ -107,11 +108,11 @@ MANY = [f"10.0.{i // 250}.{i % 250}:8080" for i in range(250)]
 
 def test_a_fair_share_runs_at_most_a_worker_per_cpu_and_per_proxy(tmp_path, monkeypatch):
     """A fair share (the default) needs no worker per proxy: one per CPU, fewer when fewer proxies are available."""
-    monkeypatch.setattr(run, "available_cpus", lambda: 2)
+    monkeypatch.setattr(allocation, "available_cpus", lambda: 2)
     a = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"))
     run.allocate(a, [])
     assert a.workers == 2 and run.workers_note(a) == "7 proxies available, 2 CPUs → 2 workers, a fair share each"
-    monkeypatch.setattr(run, "available_cpus", lambda: 20)
+    monkeypatch.setattr(allocation, "available_cpus", lambda: 20)
     few = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"))
     run.allocate(few, [])
     assert few.workers == 7 and run.workers_note(few) == "7 proxies available → 7 workers, a fair share each"
@@ -127,7 +128,7 @@ def test_a_fair_share_runs_at_most_a_worker_per_cpu_and_per_proxy(tmp_path, monk
 
 @pytest.mark.parametrize("out", ["s3://bucket/run", "gs://bucket/run", "hf://buckets/org/run", "az://c/run"])
 def test_with_out_on_object_storage_a_fair_share_runs_at_most_64_workers(tmp_path, monkeypatch, out):
-    monkeypatch.setattr(run, "available_cpus", lambda: 512)
+    monkeypatch.setattr(allocation, "available_cpus", lambda: 512)
     a = options(tmp_path, "--proxies", "PROXIES", "--rate-limit", "150/60", "--broker", str(tmp_path / "broker"),
                 out=out, proxies=MANY)
     run.allocate(a, [])
@@ -165,10 +166,10 @@ def test_on_ray_a_run_without_engines_runs_every_task_at_once(monkeypatch):
 
     from linecaster.execution import run
 
-    monkeypatch.setattr(run, "available_cpus", lambda: 16)
-    monkeypatch.setattr(run, "_proxy_plan", lambda a: (False, []))
-    monkeypatch.setattr(run, "_policy_rate_limited", lambda a: False)
-    monkeypatch.setattr(run, "has_engines", lambda a: False)
+    monkeypatch.setattr(allocation, "available_cpus", lambda: 16)
+    monkeypatch.setattr(allocation, "_proxy_plan", lambda a: (False, []))
+    monkeypatch.setattr(allocation, "_policy_rate_limited", lambda a: False)
+    monkeypatch.setattr(allocation, "has_engines", lambda a: False)
     ray = argparse.Namespace(on="ray", tasks=64, workers=None, rate_limits=None)
     run.allocate(ray, [])
     assert ray.workers == 64
