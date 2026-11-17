@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import re
 
-import datatrove.executor
-
 from linecaster import cli
 from linecaster.catalog import code
 from linecaster.docs import SITE
@@ -37,22 +35,21 @@ def _own_pipeline_snippet() -> str:
 
 
 def test_the_readme_pipeline_builds_and_checks(tmp_path, monkeypatch):
-    """The snippet as written, up to the executor: its ``run()`` builds the plan and checks it instead (no engine
-    loads before a component's warm-up, so none is needed)."""
-    from linecaster.execution.builder import build
+    """The snippet as written, up to the executor: ``Pipeline.run`` checks the plan and hands its stages to the local
+    executor, which is replaced here (no engine loads before a component's warm-up, so none is needed)."""
+    import linecaster.execution.local as local
 
-    plans = []
+    stages = []
 
     class Executor:
-        def __init__(self, pipeline, logging_dir=None, **kwargs):
-            self.pipeline = pipeline
+        def __init__(self, pipeline, **kwargs):
+            stages.append(pipeline)
 
         def run(self):
-            plan = build(self.pipeline)
-            plan.check()
-            plans.append(plan)
+            pass
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(datatrove.executor, "LocalPipelineExecutor", Executor)
+    monkeypatch.setattr(local, "LocalExecutor", Executor)
     exec(compile(_own_pipeline_snippet(), "README.md", "exec"), {})
-    assert len(plans) == 1 and [type(b).__name__ for b in plans[0].stages[0].components][-1] == "PageFileWriter"
+    names = [type(step).__name__ for step in stages[0] if type(step).__name__ != "Boundary"]
+    assert len(stages) == 1 and names[0] == "ImageFolderReader" and names[-1] == "PageFileWriter"

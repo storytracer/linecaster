@@ -29,27 +29,31 @@ earlier component adds, the run does not start and the message says what is miss
 
 ## Writing a pipeline
 
-A pipeline is a Python list:
+A `Pipeline` is a list of components:
 
 ```python
+from linecaster import Pipeline
 from linecaster.components.layout import LayoutDetector
 from linecaster.components.lines import LineAssigner, LineDetector
 from linecaster.components.readers import ImageFolderReader
 from linecaster.components.recognition import LineRecognizer
 from linecaster.components.writers import PageJsonlWriter
 
-pipeline = [
+pipeline = Pipeline([
     ImageFolderReader("scans/"),
     LayoutDetector("pp-doclayoutv3"),
     LineDetector("pp-ocrv6-medium-det"),
     LineAssigner(),
     LineRecognizer("kraken-ppocrv6-medium"),
     PageJsonlWriter("out/pages"),
-]
+])
+pipeline.check()        # the contracts, before anything runs
+pipeline.run("out")     # on this machine
 ```
 
-A model component takes a preset by its id. A datatrove executor runs the list; the
-[README](https://github.com/storytracer/linecaster#-your-own-pipeline) shows a complete example.
+A model component takes a preset by its id. `check()` returns a plan of stages, and each stage is a list that any
+datatrove executor runs: `pipeline.run()` uses the local one. `pipeline.to_dict()` gives the pipeline as plain
+data, and `Pipeline.from_dict()` builds it again.
 
 ## Pipeline templates and scripts
 

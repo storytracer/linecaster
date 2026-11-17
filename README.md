@@ -210,10 +210,10 @@ uv run pipelines/transcribe_modular.py s3://<bucket>/images hf://buckets/<ns>/<b
 
 ## ✍️ Your own pipeline
 
-A pipeline is a list of components; [datatrove] runs it. This is the modular pipeline, cut down:
+A `Pipeline` is a list of components; [datatrove] runs it. This is the modular pipeline, cut down:
 
 ```python
-from datatrove.executor import LocalPipelineExecutor
+from linecaster import Pipeline
 from linecaster.backends import InProcess as P
 from linecaster.components.document import DocumentComposer
 from linecaster.components.hierarchy import HierarchyDetector
@@ -225,7 +225,7 @@ from linecaster.components.readers import ImageFolderReader
 from linecaster.components.recognition import LineRecognizer
 from linecaster.components.writers import PageFileWriter
 
-pipeline = [
+pipeline = Pipeline([
     ImageFolderReader("scans/"),
     LayoutDetector(P("linecaster_paddlex:PaddleLayoutEngine")),
     LineDetector(P("linecaster_paddlex:PaddleLineEngine")),
@@ -237,9 +237,8 @@ pipeline = [
     DocumentComposer("linked-document"),
     PageFileWriter("out/", formats=("md", "alto"),
                    strategy="latin-historic+flow"),
-]
-LocalPipelineExecutor(
-    pipeline, logging_dir="out/logs").run()
+])
+pipeline.run("out")
 ```
 
 The same list runs on a Slurm cluster through [datatrove]'s Slurm executor: one array job, one GPU per task, in an
@@ -249,13 +248,13 @@ environment that has the engines (`venv_path`):
 from datatrove.executor import SlurmPipelineExecutor
 
 SlurmPipelineExecutor(
-    pipeline, tasks=64, time="04:00:00", partition="gpu",
+    pipeline.steps(), tasks=64, time="04:00:00", partition="gpu",
     gpus_per_task=1, venv_path="/path/to/venv",
     logging_dir="out/logs").run()
 ```
 
-Every component declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
-lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` component of
+Every component declares what it reads and adds, so `pipeline.check()` (which `run` calls first) finds a pipeline
+that cannot work before it starts: a recognizer without lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` block of
 `pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.execution.run.main` to get
 the pipelines' command line on every machine. The [pipelines reference](docs/reference/pipelines.md) covers
 backends, partial runs (`--until`, `--after`) and the builder.
