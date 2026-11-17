@@ -10,7 +10,7 @@ refuses, or a GPU that fails, is decoded with Pillow (``Pixels.fallback``: ``ref
 ``gpu`` either is an error.
 
 ``accel`` and the CUDA device come from the call, else from the process's choice (``set_decoding``), which linecaster's
-model blocks set from their ``image_decode`` (``--image-decode``) and the worker's GPU. A process decodes a page once:
+model components set from their ``image_decode`` (``--image-decode``) and the worker's GPU. A process decodes a page once:
 the last decodes are kept by the file's content (Python's hash of the bytes, kept on the bytes object, then an equality
 check), so the blocks after the first that needs the image use the same pixels, which are read-only, whether they
 hold the same bytes object (a page's ``media_bytes`` in a task) or a copy (each request to ``linecaster serve``). How

@@ -12,24 +12,24 @@ one subject each and link to the page that explains it.
 | Term | Meaning |
 |---|---|
 | **component** | One processing unit of a pipeline. Technically a datatrove `PipelineStep` with a contract. Components are named after what they do: `LineRecognizer`, `ParagraphBuilder`, `PageJsonlWriter`. |
-| **role** | The kind of work a component, an engine or a preset does: `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `hierarchy`, `paragraphs`, `document`, `items`, `import`, `tagging`, and the readers, writers, validation and scoring. Things with the same role are interchangeable. Each role is one subpackage of `linecaster.components` and one folder of presets. |
-| **contract** | What a component reads, adds, replaces and removes in the page record, and its unit. Contracts are checked before a run starts. |
+| **step** | One kind of work in a pipeline: `layout`, `lines`, `recognition`, `tables`, `formulas`, `image`, `hierarchy`, `paragraphs`, `document`, `import`, `tagging`. An engine does the work of one step and a preset belongs to one step, so the presets of a step are interchangeable. datatrove's class is always written `PipelineStep`. |
+| **contract** | What a component reads, adds, replaces and removes in the page record, with its unit and its kind (reader, writer, model, transform, server). Contracts are checked before a run starts. |
 | **part** | One named piece of a page record that a contract refers to: `image`, `lines`, `text`, `paragraphs`. The [parts](#parts) table lists them. |
 | **unit** | What one call of a component or an engine processes: a `line`, a `region`, a `page` or an `item`. |
 | **condition** | A test on the page record. A component with a condition (`when=`) processes only the pages that pass; the others go through unchanged. |
 | **composite** | A named group of components that is used like one component, with one contract (`ModularTranscriber`). |
-| **pipeline** | An ordered list of components that a stream of pages passes through (`Pipeline`). It also names the servers its components need. A datatrove executor runs it. |
-| **pipeline template** | A function that builds a pipeline from parameters: `transcribe_modular(layout=..., lines=..., recognition=...)`. It has an id (`transcribe_modular.v1`). |
-| **parameter** | An argument of a pipeline template: a preset for one role, or an option. On the command line each parameter is a flag (`--layout`, `--recognition`). No parameter has a default preset. |
+| **pipeline** | An ordered list of components that a stream of pages passes through. A datatrove executor runs it. |
+| **pipeline template** | The code that builds one kind of pipeline from options (`linecaster.templates.transcribe_modular`), with an id (`transcribe_modular.v1`). |
+| **slot** | A place in a pipeline template that a preset fills. It is named after its step, and so is its flag (`--layout`, `--recognition`). No slot has a default preset. |
 | **pipeline script** | A self-contained uv script in `pipelines/` that gives one pipeline template its environment and its command line. |
-| **recipe** | A tested set of parameter values for one pipeline template, as a catalog entry: a preset for each role and the options. |
+| **recipe** | A tested way to fill a pipeline template, as a catalog entry: a preset for each slot and the options. |
 | **stage** | One datatrove pipeline run as part of a longer computation. Stages run one after another and hand over through files. A pipeline is cut into stages where the unit changes from page to item. |
 | **executor**, **job**, **task**, **worker**, **shard** | datatrove's terms. The executor runs a pipeline as tasks. A job is one launch (one HF Job, one Slurm job). A task is one unit of work. Workers are tasks running at the same time. A shard is the part of the input one task reads. |
 | **backend** | Where a component's engine runs: in the pipeline's process (`InProcess`), behind `linecaster serve` (`Served`), or behind an OpenAI-compatible server (`Chat`). |
-| **server** | A process that hosts models: `linecaster serve` (`EngineServer`), vLLM or SGLang (`VLMServer`), or a vendor's own image (`VendorServer`). A pipeline starts the servers its presets need. |
+| **server** | A process that hosts models: `linecaster serve`, vLLM or SGLang, or a vendor's own image. The server components `EngineServer`, `VLMServer` and `VendorServer` start one inside a task; they go last in a pipeline. |
 | **run** | One execution of a pipeline over one input, into one run folder. |
 | **run folder** | The output folder of a run: `pages/` (the page records), `rejects/`, `logs/`, `traces/` and `run.yaml`. |
-| **run record** | `run.yaml` in the run folder: the pipeline as it ran, with every component's parameters, the recipe, the command line and the software versions. A pipeline can be rebuilt from it. |
+| **run record** | `run.yaml` in the run folder: the pipeline as it ran, with every component's parameters, the recipe, the command line and the software versions. |
 | **sample** | The pages a run reads when it is given a sample rule (`--sample N`). The same input and rule always give the same pages. |
 | **reject** | A page that failed a check or a component. It is written to `rejects/` with the reason and stays in the page records with its errors. |
 | **error budget** | The share of a task's pages that may fail in a component before the task fails. |
@@ -56,9 +56,9 @@ one subject each and link to the page that explains it.
 | Term | Meaning |
 |---|---|
 | **model** | Weights from upstream (or learned data such as hyphenation patterns), pinned to a revision. |
-| **engine** | Code that does the work of one role: it loads a model and processes one unit per call. Engines have a versioned id (`kraken.recognition.v1`). Rule-based engines need no model. Built-in engines are in the core; engine packages (`linecaster-kraken`, ...) add more. |
-| **preset** | A named configuration of one engine: its options and the model it loads. A preset is what you pick for a role (`--recognition kraken-ppocrv6-medium`). |
-| **catalog** | linecaster's register of models, presets, recipes, normalizations, normalization profiles, rendering policies, conventions and vocabularies. It holds no measurements. |
+| **engine** | Code that does the work of one step: it loads a model and processes one unit per call. Engines have a versioned id (`kraken.recognition.v1`). Rule-based engines need no model. Built-in engines are in the core; engine packages (`linecaster-kraken`, ...) add more. |
+| **preset** | A named configuration of one engine: its options and the model it loads. A preset is what you pick for a step (`--recognition kraken-ppocrv6-medium`). |
+| **catalog** | linecaster's register of models, presets, recipes, normalizations, strategies, rendering policies, conventions and vocabularies. It holds no measurements. |
 | **catalog entry** | One thing in the catalog: a YAML file, with an optional Markdown file for prose. |
 | **revision** | The exact upstream commit a model is pinned to. |
 | **code id** | The versioned id of an engine or a pipeline template: `<name>.v<n>`. |
@@ -94,10 +94,10 @@ one subject each and link to the page that explains it.
 | **rendering** | Anything written from an annotation set: a document, ALTO, PAGE-XML, hOCR, a IIIF annotation page, a text. Renderings are written out and never stored in the page record. |
 | **rendering policy** | A catalog entry that decides which annotations go into which layer of a rendering. It changes no text. |
 | **layer** | Where a rendering puts content: `body`, `furniture` (running heads, page numbers), `notes`, `background`, `invisible`, `metadata` or `none`. |
-| **normalization** | One named change of a text, as a catalog entry: `nfc`, `long-s`, `flow`. Nothing is normalized unless a normalization profile says so. |
-| **normalization profile** | A named, ordered list of normalizations, as a catalog entry. It is used when a text is written (`--text latin-historic:md`) or when two texts are compared for scoring (`diplomatic`). It is never applied to what is stored. |
-| **literal** | The profile that changes nothing: the readings exactly as given. |
-| **text** | A written text of a page or an item: a normalization profile and a format (`literal:txt`). |
+| **normalization** | One named change of a text, as a catalog entry: `nfc`, `long-s`, `flow`. Nothing is normalized unless a strategy says so. |
+| **strategy** | A named, ordered list of normalizations, as a catalog entry (`latin-historic`). It is applied when a text is written (`--text latin-historic:md`), never to what is stored. Several joined by `+` make an unnamed one (`nfc+long-s+flow`). |
+| **literal** | The strategy that changes nothing: the readings exactly as given. |
+| **text** | A written text of a page or an item: a strategy and a format (`literal:txt`). |
 | **flow** | The normalization that joins the rows of a block into running text. A division mark that nothing resolved is kept. |
 | **division mark** | A hyphen the typesetter added where a word was divided at a line end. |
 | **script** | A writing system, by its ISO 15924 code (`Latn`, `Hebr`). A uv script is always a "pipeline script" or "recipe script". |
@@ -107,13 +107,15 @@ one subject each and link to the page that explains it.
 | Term | Meaning |
 |---|---|
 | **ground truth** | A transcription made or checked by people, which runs are scored against. |
-| **benchmark** | A definition of how runs are scored against one ground truth: the dataset, the pages, the rendering policy, the normalization profiles and the metrics. |
+| **benchmark** | A definition of how runs are scored against one ground truth: the dataset, the pages, the rendering policy, the lanes and the metrics. |
 | **evaluation** | Runs scored under a benchmark, with their score records and evidence records. An evaluation lives in its own repository. |
-| **score record** | One page's counts for one text and one normalization profile. Every rate is derived from the counts. |
+| **score record** | One page's counts for one text and one lane. Every rate is derived from the counts. |
 | **evidence record** | A measurement of a preset or recipe with its source: the run, the benchmark and the scoring it was measured with. Kept by an evaluation, never in the catalog. |
 | **element** | A part of a page that is scored on its own: a region's text, a table or a formula. |
 | **match group** | Elements of the ground truth and of the output that were matched to each other and are compared as wholes. |
-| **stratum** | The pages or elements that share one value of a dimension (content role, language, script, a tag, or the content: tables, formulas, plain). Rates are reported per stratum. |
+| **lane** | A strategy both sides of a comparison go through before they are counted (`diplomatic`, `reading`, `alnum`). |
+| **stratum** | The pages or elements that share one value of a dimension (content role, language, script, a tag). Rates are reported per stratum. |
+| **slice** | The pages of a benchmark whose ground truth has tables, formulas, or neither, with rates of their own. |
 | **split** | A named share of a ground truth's items (`test`, `train`). Every page of an item is in the same split. |
 | **export** | A ground truth and a run written as another project's benchmark files (`linecaster export omnidocbench`). |
 
@@ -145,6 +147,9 @@ Explained in the [catalog](catalog.md#engines).
 | **repair pass** | A further request for a page whose completion stopped at its token limit, with a higher limit. The page keeps the first completion that finished. |
 | **repetition detection** | vLLM's guard against a completion that loops: the server ends it early. Such a page is not repaired. |
 | **grounding** | A model's mode that labels and locates every text block of the page while it transcribes it. linecaster makes one region per block. |
+| **adapter** | The code that talks to one VLM family over the OpenAI-compatible API: its request and its parsing (`linecaster.engines.chat`). |
+| **page engine** | An engine whose unit is the page: it reads the whole page and returns its transcription (`PageRecognizer` runs it). |
+| **service** | The server a page engine talks to that is neither `linecaster serve` nor a chat server: a vendor's own image. `VendorServer` starts it. |
 
 ## Ground-truth sources
 
@@ -152,7 +157,7 @@ Explained in the [catalog](catalog.md) and in [evaluation](evaluation.md).
 
 | Term | Meaning |
 |---|---|
-| **importer** | An engine of the `import` role: it reads a source file into a transcription. |
+| **importer** | An engine of the `import` step: it reads a source file into a transcription. |
 | **source file** | The file, record or wiki page an importer reads (`SourceFile`). |
 | **conventions** | A catalog entry that says what one public source's markup means, as rules an importer applies. |
 | **match** | Where a conventions rule points: a CSS selector, a JSONPath or a regular expression. |
@@ -171,7 +176,7 @@ Explained in the [data model](data-model.md).
 | **vocabulary** | A catalog entry that defines the values of one classification scheme. |
 | **property scheme** | A classification scheme whose values are `yes` and `no`: `degraded`, `tiny`, `rotated`, `multi_column`, `form`. |
 | **tag** | A classification in a property scheme, with its basis. No tag does not mean `no`. |
-| **tagger** | An engine of the `tagging` role: rules on geometry, or a panel of models. |
+| **tagger** | An engine of the `tagging` step: rules on geometry, or a panel of models. |
 | **production** | How content was made: printed, typewritten, handwritten, stamped, born digital. |
 | **writing direction** | The direction a page or block is written in: `horizontal-lr`, `horizontal-rl`, `vertical-rl`, `vertical-lr`. |
 | **motivation** | Why an annotation was made (`segmenting`, `transcribing`, `classifying`, ...). The W3C Web Annotation term. |
@@ -190,9 +195,9 @@ Explained in [HTTP](http.md) and [broker](broker.md).
 
 | Term | Meaning |
 |---|---|
-| **HTTP config** | How a run's requests go out, from one YAML file (`--http-config`): rate limits, retries, the User-Agent, the proxies, and a host entry for each host that differs. |
-| **host entry** | The settings of one host in an HTTP config. They replace the general ones. |
-| **refusal** | A host turning a request away because of where it comes from: a 429 by default (`refuse_on`). The proxy is left out for that host, or the worker's requests to it pause. A refusal does not count as a failed attempt. |
+| **HTTP policy** | How a run's requests go out, from one YAML file (`--http-policy`): rate limits, retries, the User-Agent, the proxies, and a host entry for each host that differs. |
+| **host entry** | The settings of one host in an HTTP policy. They replace the general ones. |
+| **HTTP block** | A host turning a request away because of where it comes from: a 429 by default (`block_on`). The proxy is left out for that host, or the worker's requests to it pause. An HTTP block does not count as a failed attempt. Always written with "HTTP" or of a proxy or host; a bare "block" is a document's. |
 | **unexpected HTML** | A successful response with an HTML page where an image, XML or JSON was expected. A failed attempt by default. |
 | **pause** | A time in which a worker sends no request to a host and its requests wait. |
 | **breaker** | A guard against an outage: when most recent attempts got a server error, requests pause until the host answers again. |
@@ -222,7 +227,7 @@ Explained in [conventions](conventions.md) and [compatibility](compatibility.md)
 | Term | Meaning |
 |---|---|
 | **engine API** | What an engine package may import from linecaster besides the data model: `linecaster.engines.api`. |
-| **fake engine** | A deterministic CPU engine for tests, one per role (`linecaster.testing`). |
+| **fake engine** | A deterministic CPU engine for tests, one per step (`linecaster.testing`). |
 | **conformance check** | `check_engine` and `check_component`: the tests every engine and every component must pass. |
 | **generated docs** | The pages `linecaster docs` writes from code, docstrings and the catalog. Never edited by hand and not in git. |
 | **breaking change** | A change after which code, a command line, a stored file or a catalog reference stops working or means something else. |

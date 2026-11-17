@@ -1,6 +1,6 @@
 """``linecaster traces OUT``: what a run's traces say (``OUT/traces/**/*.jsonl.gz``, OTLP JSON lines).
 
-* **components**: per component (``--by component``; or per preset edition, or per task) the duration of its ``linecaster.component``
+* **components**: per component (``--by component``; or per preset, or per task) the duration of its ``linecaster.component``
   spans (p50, p90, p99 over the traced pages), for served components the split of a request: the whole request as the
   pipeline saw it, and the server's queue, decode and model spans;
 * **gaps**: the time each component had no page in it between its first and its last (it waited for its input), when

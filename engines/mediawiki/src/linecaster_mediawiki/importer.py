@@ -4,7 +4,7 @@ transcription, through wikitextprocessor in the wiki's own context (``PageReader
 The source document's content is the revision's wikitext; its ``context`` gives the page's title (``title``, else the
 document's ``record``) and, where known, where its header ends and its footer starts (``header_end``,
 ``footer_start``; else ProofreadPage's stored form says it). The options name the wiki (``site``: a folder written by
-``linecaster-mediawiki intake``) and its conventions (``conventions``: a catalog entry, ``id@edition``).
+``linecaster-mediawiki intake``) and its conventions (``conventions``: a catalog entry, by its ``id``).
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ class MediaWikiImporter(Importer):
 
     class Options(Importer.Options):
         site: str | None = Field(None, description="the wiki: a folder written by linecaster-mediawiki intake")
-        conventions: str | None = Field(None, description="the wiki's conventions, a catalog entry (id@edition)")
+        conventions: str | None = Field(None, description="the wiki's conventions, a catalog entry (its id)")
 
     def __init__(self, **options):
         super().__init__(**options)
