@@ -1,0 +1,4750 @@
+{
+ "items": [
+  {
+   "document": {
+    "html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>item1</title>\n</head>\n<body>\n<p>Die Zeitung er-<br>scheint täglich und<br>koſtet vierteljähr-<br>lich 2 Mark.<br>Anzeigen 10 Pf.<br>die Zeile.</p>\n<p>Die Zeitung er-<br>scheint täglich und<br>koſtet vierteljähr-<br>lich 2 Mark.<br>Anzeigen 10 Pf.<br>die Zeile.</p>\n<p>Die Zeitung er-<br>scheint täglich und<br>koſtet vierteljähr-<br>lich 2 Mark.<br>Anzeigen 10 Pf.<br>die Zeile.</p>\n</body>\n</html>\n",
+    "json": {
+     "blocks": [
+      {
+       "file": null,
+       "grid": null,
+       "id": "b0",
+       "kind": "paragraph",
+       "layer": "body",
+       "level": null,
+       "origins": [
+        {
+         "box": [
+          80.0,
+          31.0,
+          720.0,
+          62.0
+         ],
+         "lines": [
+          "text_0_l0"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          0,
+          15
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          92.0,
+          720.0,
+          123.0
+         ],
+         "lines": [
+          "text_0_l1"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          16,
+          35
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          154.0,
+          720.0,
+          185.0
+         ],
+         "lines": [
+          "text_0_l2"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          36,
+          55
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          215.0,
+          720.0,
+          246.0
+         ],
+         "lines": [
+          "text_0_l3"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          56,
+          68
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          277.0,
+          720.0,
+          308.0
+         ],
+         "lines": [
+          "text_0_l4"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          69,
+          84
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          338.0,
+          720.0,
+          369.0
+         ],
+         "lines": [
+          "text_0_l5"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          85,
+          95
+         ]
+        }
+       ],
+       "role": "paragraph",
+       "section": null,
+       "spans": [],
+       "text": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+       "wraps": [
+        15,
+        35,
+        55,
+        68,
+        84
+       ]
+      },
+      {
+       "file": null,
+       "grid": null,
+       "id": "b1",
+       "kind": "paragraph",
+       "layer": "body",
+       "level": null,
+       "origins": [
+        {
+         "box": [
+          80.0,
+          31.0,
+          720.0,
+          62.0
+         ],
+         "lines": [
+          "text_0_l0"
+         ],
+         "page": 2,
+         "region": "text_0",
+         "span": [
+          0,
+          15
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          92.0,
+          720.0,
+          123.0
+         ],
+         "lines": [
+          "text_0_l1"
+         ],
+         "page": 2,
+         "region": "text_0",
+         "span": [
+          16,
+          35
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          154.0,
+          720.0,
+          185.0
+         ],
+         "lines": [
+          "text_0_l2"
+         ],
+         "page": 2,
+         "region": "text_0",
+         "span": [
+          36,
+          55
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          215.0,
+          720.0,
+          246.0
+         ],
+         "lines": [
+          "text_0_l3"
+         ],
+         "page": 2,
+         "region": "text_0",
+         "span": [
+          56,
+          68
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          277.0,
+          720.0,
+          308.0
+         ],
+         "lines": [
+          "text_0_l4"
+         ],
+         "page": 2,
+         "region": "text_0",
+         "span": [
+          69,
+          84
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          338.0,
+          720.0,
+          369.0
+         ],
+         "lines": [
+          "text_0_l5"
+         ],
+         "page": 2,
+         "region": "text_0",
+         "span": [
+          85,
+          95
+         ]
+        }
+       ],
+       "role": "paragraph",
+       "section": null,
+       "spans": [],
+       "text": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+       "wraps": [
+        15,
+        35,
+        55,
+        68,
+        84
+       ]
+      },
+      {
+       "file": null,
+       "grid": null,
+       "id": "b2",
+       "kind": "paragraph",
+       "layer": "body",
+       "level": null,
+       "origins": [
+        {
+         "box": [
+          80.0,
+          31.0,
+          720.0,
+          62.0
+         ],
+         "lines": [
+          "text_0_l0"
+         ],
+         "page": 3,
+         "region": "text_0",
+         "span": [
+          0,
+          15
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          92.0,
+          720.0,
+          123.0
+         ],
+         "lines": [
+          "text_0_l1"
+         ],
+         "page": 3,
+         "region": "text_0",
+         "span": [
+          16,
+          35
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          154.0,
+          720.0,
+          185.0
+         ],
+         "lines": [
+          "text_0_l2"
+         ],
+         "page": 3,
+         "region": "text_0",
+         "span": [
+          36,
+          55
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          215.0,
+          720.0,
+          246.0
+         ],
+         "lines": [
+          "text_0_l3"
+         ],
+         "page": 3,
+         "region": "text_0",
+         "span": [
+          56,
+          68
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          277.0,
+          720.0,
+          308.0
+         ],
+         "lines": [
+          "text_0_l4"
+         ],
+         "page": 3,
+         "region": "text_0",
+         "span": [
+          69,
+          84
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          338.0,
+          720.0,
+          369.0
+         ],
+         "lines": [
+          "text_0_l5"
+         ],
+         "page": 3,
+         "region": "text_0",
+         "span": [
+          85,
+          95
+         ]
+        }
+       ],
+       "role": "paragraph",
+       "section": null,
+       "spans": [],
+       "text": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+       "wraps": [
+        15,
+        35,
+        55,
+        68,
+        84
+       ]
+      }
+     ],
+     "name": "item1",
+     "pages": [
+      {
+       "height": 400,
+       "id": "item1_0001",
+       "page": 1,
+       "width": 800
+      },
+      {
+       "height": 400,
+       "id": "item1_0002",
+       "page": 2,
+       "width": 800
+      },
+      {
+       "height": 400,
+       "id": "item1_0003",
+       "page": 3,
+       "width": 800
+      }
+     ],
+     "schema": "linecaster.document/2",
+     "strategy": "literal"
+    },
+    "latin-historic+flow": "Die Zeitung er-scheint täglich und kostet vierteljähr-lich 2 Mark. Anzeigen 10 Pf. die Zeile.\n\nDie Zeitung er-scheint täglich und kostet vierteljähr-lich 2 Mark. Anzeigen 10 Pf. die Zeile.\n\nDie Zeitung er-scheint täglich und kostet vierteljähr-lich 2 Mark. Anzeigen 10 Pf. die Zeile.",
+    "literal": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.\n\nDie Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.\n\nDie Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "markdown": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.\n\nDie Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.\n\nDie Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "nfc+long-s+unicode-marks+flow": "Die Zeitung erscheint täglich und kostet vierteljährlich 2 Mark. Anzeigen 10 Pf. die Zeile.\n\nDie Zeitung erscheint täglich und kostet vierteljährlich 2 Mark. Anzeigen 10 Pf. die Zeile.\n\nDie Zeitung erscheint täglich und kostet vierteljährlich 2 Mark. Anzeigen 10 Pf. die Zeile."
+   },
+   "pages": [
+    "item1_0001",
+    "item1_0002",
+    "item1_0003"
+   ]
+  }
+ ],
+ "modeled": [
+  {
+   "annotations": {},
+   "image": {
+    "extra": {},
+    "format": "png",
+    "height": 400,
+    "sha256": "36689fc5c003e6e535bed7583b99bca9513e3d0ed24035e965496e9a7ef41a72",
+    "uri": "/scans/item1_0001.png",
+    "width": 800
+   },
+   "item_id": "item1",
+   "measurements": {},
+   "metadata": {},
+   "page_id": "item1_0001",
+   "sequence": 1,
+   "transcriptions": {
+    "ocr_new": {
+     "annotators": [
+      {
+       "kind": "model",
+       "measurements": {},
+       "name": "sample",
+       "settings": {},
+       "step": "layout"
+      },
+      {
+       "backend": "fake (cpu)",
+       "engine": "fake.layout.v1",
+       "kind": "model",
+       "measurements": {},
+       "name": "fake-layout",
+       "settings": {
+        "cols": 1,
+        "label": "text",
+        "rows": 2
+       },
+       "step": "layout"
+      },
+      {
+       "backend": "fake (cpu)",
+       "engine": "fake.lines.v1",
+       "kind": "model",
+       "measurements": {},
+       "name": "fake-lines",
+       "settings": {
+        "boxes": null,
+        "split": 3
+       },
+       "step": "lines"
+      },
+      {
+       "kind": "rule",
+       "measurements": {},
+       "name": "line assigner",
+       "settings": {
+        "formulas_separately": true,
+        "skip_labels": [
+         "chart",
+         "picture"
+        ]
+       },
+       "step": "assignment"
+      },
+      {
+       "backend": "fake (cpu)",
+       "engine": "fake.recognition.v1",
+       "kind": "model",
+       "measurements": {},
+       "name": "fake-recognition",
+       "settings": {
+        "confidence": 0.99,
+        "template": "line {index}"
+       },
+       "step": "recognition"
+      }
+     ],
+     "classifications": [
+      {
+       "annotator": 0,
+       "derived_from": [],
+       "scheme": "role",
+       "target": "text_0",
+       "value": "paragraph"
+      },
+      {
+       "annotator": 1,
+       "derived_from": [],
+       "scheme": "role",
+       "target": "text_0",
+       "value": "paragraph"
+      },
+      {
+       "annotator": 1,
+       "derived_from": [],
+       "scheme": "role",
+       "target": "text_1",
+       "value": "paragraph"
+      },
+      {
+       "annotator": 3,
+       "derived_from": [],
+       "scheme": "status",
+       "target": "text_0_l3",
+       "value": "duplicate"
+      }
+     ],
+     "descriptions": [],
+     "edits": [],
+     "formulas": [],
+     "lines": [
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        0.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l0",
+       "polygon": [
+        [
+         0.0,
+         0.0
+        ],
+        [
+         800.0,
+         0.0
+        ],
+        [
+         800.0,
+         66.0
+        ],
+        [
+         0.0,
+         66.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 0",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        80.0,
+        44.0,
+        640.0,
+        103.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l0",
+       "polygon": [
+        [
+         80.0,
+         44.0
+        ],
+        [
+         720.0,
+         44.0
+        ],
+        [
+         720.0,
+         147.0
+        ],
+        [
+         80.0,
+         147.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 1",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        132.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l2",
+       "polygon": [
+        [
+         0.0,
+         132.0
+        ],
+        [
+         800.0,
+         132.0
+        ],
+        [
+         800.0,
+         198.0
+        ],
+        [
+         0.0,
+         198.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 2",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        80.0,
+        147.0,
+        640.0,
+        103.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l1",
+       "polygon": [
+        [
+         80.0,
+         147.0
+        ],
+        [
+         720.0,
+         147.0
+        ],
+        [
+         720.0,
+         250.0
+        ],
+        [
+         80.0,
+         250.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 3",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         257.2
+        ],
+        [
+         720.0,
+         257.2
+        ]
+       ],
+       "box": [
+        80.0,
+        222.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l2",
+       "polygon": [
+        [
+         80.0,
+         222.0
+        ],
+        [
+         720.0,
+         222.0
+        ],
+        [
+         720.0,
+         266.0
+        ],
+        [
+         80.0,
+         266.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 4",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        80.0,
+        250.0,
+        640.0,
+        103.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l2",
+       "polygon": [
+        [
+         80.0,
+         250.0
+        ],
+        [
+         720.0,
+         250.0
+        ],
+        [
+         720.0,
+         353.0
+        ],
+        [
+         80.0,
+         353.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 5",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        200.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_1_l0",
+       "polygon": [
+        [
+         0.0,
+         200.0
+        ],
+        [
+         800.0,
+         200.0
+        ],
+        [
+         800.0,
+         266.0
+        ],
+        [
+         0.0,
+         266.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 6",
+        "words": []
+       },
+       "region": "text_1"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        266.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_1_l1",
+       "polygon": [
+        [
+         0.0,
+         266.0
+        ],
+        [
+         800.0,
+         266.0
+        ],
+        [
+         800.0,
+         332.0
+        ],
+        [
+         0.0,
+         332.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 7",
+        "words": []
+       },
+       "region": "text_1"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        332.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_1_l2",
+       "polygon": [
+        [
+         0.0,
+         332.0
+        ],
+        [
+         800.0,
+         332.0
+        ],
+        [
+         800.0,
+         398.0
+        ],
+        [
+         0.0,
+         398.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 8",
+        "words": []
+       },
+       "region": "text_1"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         79.2
+        ],
+        [
+         720.0,
+         79.2
+        ]
+       ],
+       "box": [
+        80.0,
+        44.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l0",
+       "polygon": [
+        [
+         80.0,
+         44.0
+        ],
+        [
+         720.0,
+         44.0
+        ],
+        [
+         720.0,
+         88.0
+        ],
+        [
+         80.0,
+         88.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 9",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         168.2
+        ],
+        [
+         720.0,
+         168.2
+        ]
+       ],
+       "box": [
+        80.0,
+        133.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l1",
+       "polygon": [
+        [
+         80.0,
+         133.0
+        ],
+        [
+         720.0,
+         133.0
+        ],
+        [
+         720.0,
+         177.0
+        ],
+        [
+         80.0,
+         177.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 10",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        66.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l1",
+       "polygon": [
+        [
+         0.0,
+         66.0
+        ],
+        [
+         800.0,
+         66.0
+        ],
+        [
+         800.0,
+         132.0
+        ],
+        [
+         0.0,
+         132.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 11",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         346.2
+        ],
+        [
+         720.0,
+         346.2
+        ]
+       ],
+       "box": [
+        80.0,
+        311.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l3",
+       "polygon": [
+        [
+         80.0,
+         311.0
+        ],
+        [
+         720.0,
+         311.0
+        ],
+        [
+         720.0,
+         355.0
+        ],
+        [
+         80.0,
+         355.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 12",
+        "words": []
+       },
+       "region": "text_0"
+      }
+     ],
+     "links": [],
+     "orders": [
+      {
+       "annotator": 0,
+       "derived_from": [],
+       "lines": [
+        "text_0_l0",
+        "text_0_l1",
+        "text_0_l2",
+        "text_0_l3"
+       ],
+       "regions": [
+        "text_0"
+       ],
+       "rows": [
+        0,
+        1,
+        2,
+        3
+       ]
+      },
+      {
+       "annotator": 1,
+       "derived_from": [],
+       "lines": [],
+       "regions": [
+        "text_0",
+        "text_1"
+       ],
+       "rows": []
+      },
+      {
+       "annotator": 2,
+       "derived_from": [],
+       "lines": [
+        "text_0_l0",
+        "text_0_l1",
+        "text_0_l2",
+        "text_0_l0",
+        "text_0_l1",
+        "text_0_l2",
+        "text_1_l0",
+        "text_1_l1",
+        "text_1_l2"
+       ],
+       "regions": [],
+       "rows": [
+        0,
+        1,
+        2,
+        0,
+        1,
+        2,
+        0,
+        1,
+        2
+       ]
+      },
+      {
+       "annotator": 3,
+       "derived_from": [],
+       "lines": [
+        "text_0_l0",
+        "text_0_l0",
+        "text_0_l2",
+        "text_0_l1",
+        "text_0_l2",
+        "text_0_l2",
+        "text_1_l0",
+        "text_1_l1",
+        "text_1_l2"
+       ],
+       "regions": [
+        "text_0",
+        "text_0",
+        "text_1"
+       ],
+       "rows": [
+        1,
+        1,
+        4,
+        2,
+        4,
+        4,
+        0,
+        1,
+        2
+       ]
+      }
+     ],
+     "outputs": [],
+     "ranges": [],
+     "regions": [
+      {
+       "annotator": 0,
+       "box": [
+        80.0,
+        44.0,
+        640.0,
+        311.0
+       ],
+       "confidence": 1.0,
+       "derived_from": [],
+       "id": "text_0",
+       "label": "text",
+       "polygon": [
+        [
+         80.0,
+         44.0
+        ],
+        [
+         720.0,
+         44.0
+        ],
+        [
+         720.0,
+         355.0
+        ],
+        [
+         80.0,
+         355.0
+        ]
+       ]
+      },
+      {
+       "annotator": 1,
+       "box": [
+        0.0,
+        0.0,
+        800.0,
+        200.0
+       ],
+       "confidence": 1.0,
+       "derived_from": [],
+       "id": "text_0",
+       "label": "text",
+       "polygon": [
+        [
+         0.0,
+         0.0
+        ],
+        [
+         800.0,
+         0.0
+        ],
+        [
+         800.0,
+         200.0
+        ],
+        [
+         0.0,
+         200.0
+        ]
+       ]
+      },
+      {
+       "annotator": 1,
+       "box": [
+        0.0,
+        200.0,
+        800.0,
+        200.0
+       ],
+       "confidence": 1.0,
+       "derived_from": [],
+       "id": "text_1",
+       "label": "text",
+       "polygon": [
+        [
+         0.0,
+         200.0
+        ],
+        [
+         800.0,
+         200.0
+        ],
+        [
+         800.0,
+         400.0
+        ],
+        [
+         0.0,
+         400.0
+        ]
+       ]
+      }
+     ],
+     "source": {
+      "image_height": 400,
+      "image_width": 800,
+      "kind": "produced",
+      "normalized": []
+     },
+     "tables": []
+    }
+   }
+  },
+  {
+   "annotations": {},
+   "image": {
+    "extra": {},
+    "format": "png",
+    "height": 400,
+    "sha256": "36689fc5c003e6e535bed7583b99bca9513e3d0ed24035e965496e9a7ef41a72",
+    "uri": "/scans/item1_0002.png",
+    "width": 800
+   },
+   "item_id": "item1",
+   "measurements": {},
+   "metadata": {},
+   "page_id": "item1_0002",
+   "sequence": 2,
+   "transcriptions": {
+    "ocr_new": {
+     "annotators": [
+      {
+       "kind": "model",
+       "measurements": {},
+       "name": "sample",
+       "settings": {},
+       "step": "layout"
+      },
+      {
+       "backend": "fake (cpu)",
+       "engine": "fake.layout.v1",
+       "kind": "model",
+       "measurements": {},
+       "name": "fake-layout",
+       "settings": {
+        "cols": 1,
+        "label": "text",
+        "rows": 2
+       },
+       "step": "layout"
+      },
+      {
+       "backend": "fake (cpu)",
+       "engine": "fake.lines.v1",
+       "kind": "model",
+       "measurements": {},
+       "name": "fake-lines",
+       "settings": {
+        "boxes": null,
+        "split": 3
+       },
+       "step": "lines"
+      },
+      {
+       "kind": "rule",
+       "measurements": {},
+       "name": "line assigner",
+       "settings": {
+        "formulas_separately": true,
+        "skip_labels": [
+         "chart",
+         "picture"
+        ]
+       },
+       "step": "assignment"
+      },
+      {
+       "backend": "fake (cpu)",
+       "engine": "fake.recognition.v1",
+       "kind": "model",
+       "measurements": {},
+       "name": "fake-recognition",
+       "settings": {
+        "confidence": 0.99,
+        "template": "line {index}"
+       },
+       "step": "recognition"
+      }
+     ],
+     "classifications": [
+      {
+       "annotator": 0,
+       "derived_from": [],
+       "scheme": "role",
+       "target": "text_0",
+       "value": "paragraph"
+      },
+      {
+       "annotator": 1,
+       "derived_from": [],
+       "scheme": "role",
+       "target": "text_0",
+       "value": "paragraph"
+      },
+      {
+       "annotator": 1,
+       "derived_from": [],
+       "scheme": "role",
+       "target": "text_1",
+       "value": "paragraph"
+      },
+      {
+       "annotator": 3,
+       "derived_from": [],
+       "scheme": "status",
+       "target": "text_0_l3",
+       "value": "duplicate"
+      }
+     ],
+     "descriptions": [],
+     "edits": [],
+     "formulas": [],
+     "lines": [
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        0.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l0",
+       "polygon": [
+        [
+         0.0,
+         0.0
+        ],
+        [
+         800.0,
+         0.0
+        ],
+        [
+         800.0,
+         66.0
+        ],
+        [
+         0.0,
+         66.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 0",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        80.0,
+        44.0,
+        640.0,
+        103.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l0",
+       "polygon": [
+        [
+         80.0,
+         44.0
+        ],
+        [
+         720.0,
+         44.0
+        ],
+        [
+         720.0,
+         147.0
+        ],
+        [
+         80.0,
+         147.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 1",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        132.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l2",
+       "polygon": [
+        [
+         0.0,
+         132.0
+        ],
+        [
+         800.0,
+         132.0
+        ],
+        [
+         800.0,
+         198.0
+        ],
+        [
+         0.0,
+         198.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 2",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        80.0,
+        147.0,
+        640.0,
+        103.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l1",
+       "polygon": [
+        [
+         80.0,
+         147.0
+        ],
+        [
+         720.0,
+         147.0
+        ],
+        [
+         720.0,
+         250.0
+        ],
+        [
+         80.0,
+         250.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 3",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         257.2
+        ],
+        [
+         720.0,
+         257.2
+        ]
+       ],
+       "box": [
+        80.0,
+        222.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l2",
+       "polygon": [
+        [
+         80.0,
+         222.0
+        ],
+        [
+         720.0,
+         222.0
+        ],
+        [
+         720.0,
+         266.0
+        ],
+        [
+         80.0,
+         266.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 4",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        80.0,
+        250.0,
+        640.0,
+        103.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l2",
+       "polygon": [
+        [
+         80.0,
+         250.0
+        ],
+        [
+         720.0,
+         250.0
+        ],
+        [
+         720.0,
+         353.0
+        ],
+        [
+         80.0,
+         353.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 5",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        200.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_1_l0",
+       "polygon": [
+        [
+         0.0,
+         200.0
+        ],
+        [
+         800.0,
+         200.0
+        ],
+        [
+         800.0,
+         266.0
+        ],
+        [
+         0.0,
+         266.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 6",
+        "words": []
+       },
+       "region": "text_1"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        266.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_1_l1",
+       "polygon": [
+        [
+         0.0,
+         266.0
+        ],
+        [
+         800.0,
+         266.0
+        ],
+        [
+         800.0,
+         332.0
+        ],
+        [
+         0.0,
+         332.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 7",
+        "words": []
+       },
+       "region": "text_1"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        332.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_1_l2",
+       "polygon": [
+        [
+         0.0,
+         332.0
+        ],
+        [
+         800.0,
+         332.0
+        ],
+        [
+         800.0,
+         398.0
+        ],
+        [
+         0.0,
+         398.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 8",
+        "words": []
+       },
+       "region": "text_1"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         79.2
+        ],
+        [
+         720.0,
+         79.2
+        ]
+       ],
+       "box": [
+        80.0,
+        44.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l0",
+       "polygon": [
+        [
+         80.0,
+         44.0
+        ],
+        [
+         720.0,
+         44.0
+        ],
+        [
+         720.0,
+         88.0
+        ],
+        [
+         80.0,
+         88.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 9",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         168.2
+        ],
+        [
+         720.0,
+         168.2
+        ]
+       ],
+       "box": [
+        80.0,
+        133.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l1",
+       "polygon": [
+        [
+         80.0,
+         133.0
+        ],
+        [
+         720.0,
+         133.0
+        ],
+        [
+         720.0,
+         177.0
+        ],
+        [
+         80.0,
+         177.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 10",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 2,
+       "box": [
+        0.0,
+        66.0,
+        800.0,
+        66.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l1",
+       "polygon": [
+        [
+         0.0,
+         66.0
+        ],
+        [
+         800.0,
+         66.0
+        ],
+        [
+         800.0,
+         132.0
+        ],
+        [
+         0.0,
+         132.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 11",
+        "words": []
+       },
+       "region": "text_0"
+      },
+      {
+       "annotator": 0,
+       "baseline": [
+        [
+         80.0,
+         346.2
+        ],
+        [
+         720.0,
+         346.2
+        ]
+       ],
+       "box": [
+        80.0,
+        311.0,
+        640.0,
+        44.0
+       ],
+       "derived_from": [],
+       "id": "text_0_l3",
+       "polygon": [
+        [
+         80.0,
+         311.0
+        ],
+        [
+         720.0,
+         311.0
+        ],
+        [
+         720.0,
+         355.0
+        ],
+        [
+         80.0,
+         355.0
+        ]
+       ],
+       "reading": {
+        "alternatives": [],
+        "annotator": 4,
+        "confidence": 0.99,
+        "derived_from": [],
+        "formatting": [],
+        "text": "line 12",
+        "words": []
+       },
+       "region": "text_0"
+      }
+     ],
+     "links": [],
+     "orders": [
+      {
+       "annotator": 0,
+       "derived_from": [],
+       "lines": [
+        "text_0_l0",
+        "text_0_l1",
+        "text_0_l2",
+        "text_0_l3"
+       ],
+       "regions": [
+        "text_0"
+       ],
+       "rows": [
+        0,
+        1,
+        2,
+        3
+       ]
+      },
+      {
+       "annotator": 1,
+       "derived_from": [],
+       "lines": [],
+       "regions": [
+        "text_0",
+        "text_1"
+       ],
+       "rows": []
+      },
+      {
+       "annotator": 2,
+       "derived_from": [],
+       "lines": [
+        "text_0_l0",
+        "text_0_l1",
+        "text_0_l2",
+        "text_0_l0",
+        "text_0_l1",
+        "text_0_l2",
+        "text_1_l0",
+        "text_1_l1",
+        "text_1_l2"
+       ],
+       "regions": [],
+       "rows": [
+        0,
+        1,
+        2,
+        0,
+        1,
+        2,
+        0,
+        1,
+        2
+       ]
+      },
+      {
+       "annotator": 3,
+       "derived_from": [],
+       "lines": [
+        "text_0_l0",
+        "text_0_l0",
+        "text_0_l2",
+        "text_0_l1",
+        "text_0_l2",
+        "text_0_l2",
+        "text_1_l0",
+        "text_1_l1",
+        "text_1_l2"
+       ],
+       "regions": [
+        "text_0",
+        "text_0",
+        "text_1"
+       ],
+       "rows": [
+        1,
+        1,
+        4,
+        2,
+        4,
+        4,
+        0,
+        1,
+        2
+       ]
+      }
+     ],
+     "outputs": [],
+     "ranges": [],
+     "regions": [
+      {
+       "annotator": 0,
+       "box": [
+        80.0,
+        44.0,
+        640.0,
+        311.0
+       ],
+       "confidence": 1.0,
+       "derived_from": [],
+       "id": "text_0",
+       "label": "text",
+       "polygon": [
+        [
+         80.0,
+         44.0
+        ],
+        [
+         720.0,
+         44.0
+        ],
+        [
+         720.0,
+         355.0
+        ],
+        [
+         80.0,
+         355.0
+        ]
+       ]
+      },
+      {
+       "annotator": 1,
+       "box": [
+        0.0,
+        0.0,
+        800.0,
+        200.0
+       ],
+       "confidence": 1.0,
+       "derived_from": [],
+       "id": "text_0",
+       "label": "text",
+       "polygon": [
+        [
+         0.0,
+         0.0
+        ],
+        [
+         800.0,
+         0.0
+        ],
+        [
+         800.0,
+         200.0
+        ],
+        [
+         0.0,
+         200.0
+        ]
+       ]
+      },
+      {
+       "annotator": 1,
+       "box": [
+        0.0,
+        200.0,
+        800.0,
+        200.0
+       ],
+       "confidence": 1.0,
+       "derived_from": [],
+       "id": "text_1",
+       "label": "text",
+       "polygon": [
+        [
+         0.0,
+         200.0
+        ],
+        [
+         800.0,
+         200.0
+        ],
+        [
+         800.0,
+         400.0
+        ],
+        [
+         0.0,
+         400.0
+        ]
+       ]
+      }
+     ],
+     "source": {
+      "image_height": 400,
+      "image_width": 800,
+      "kind": "produced",
+      "normalized": []
+     },
+     "tables": []
+    }
+   }
+  }
+ ],
+ "pages": [
+  {
+   "alto": "<?xml version='1.0' encoding='UTF-8'?>\n<alto xmlns=\"http://www.loc.gov/standards/alto/ns-v4#\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xsi:schemaLocation=\"http://www.loc.gov/standards/alto/ns-v4# http://www.loc.gov/standards/alto/v4/alto-4-4.xsd\" SCHEMAVERSION=\"4.4\">\n  <Description>\n    <MeasurementUnit>pixel</MeasurementUnit>\n    <Processing ID=\"lc_processing_0\">\n      <processingCategory>contentGeneration</processingCategory>\n      <processingStepDescription>layout</processingStepDescription>\n      <processingStepSettings>{}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>sample</softwareName>\n        <applicationDescription>linecaster VERSION</applicationDescription>\n      </processingSoftware>\n    </Processing>\n    <Processing ID=\"lc_processing_1\">\n      <processingCategory>contentModification</processingCategory>\n      <processingDateTime>TIME</processingDateTime>\n      <processingStepDescription>typography</processingStepDescription>\n      <processingStepSettings>{\"engine\":\"typography.ratios.v1\",\"preset\":\"ratios\",\"preset_sha256\":\"sha256:#\",\"settings\":{\"page_number_min_conf\":0.75,\"demote\":1.2,\"split\":1.6,\"levels\":[[2.5,1],[1.7,2],[0.0,3]],\"max_headline_rows\":3,\"heading_labels\":[\"section_header\",\"title\"]}}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>typography.ratios.v1</softwareName>\n        <applicationDescription>linecaster VERSION; preset ratios</applicationDescription>\n      </processingSoftware>\n    </Processing>\n    <Processing ID=\"lc_processing_2\">\n      <processingCategory>contentModification</processingCategory>\n      <processingDateTime>TIME</processingDateTime>\n      <processingStepDescription>recomposition</processingStepDescription>\n      <processingStepSettings>{\"engine\":\"recomposition.unicode.v1\",\"preset\":\"unicode-recomposition\",\"preset_sha256\":\"sha256:#\",\"settings\":{\"rtl\":false,\"convention_marks\":\"¬\",\"indent\":0.8,\"gap_leading\":0.6,\"gap_height\":0.5,\"short_row\":1.5,\"short_row_width\":0.25,\"end_margin\":0.6,\"justified_rows\":3,\"justified_share\":0.6}}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>recomposition.unicode.v1</softwareName>\n        <applicationDescription>linecaster VERSION; preset unicode-recomposition</applicationDescription>\n      </processingSoftware>\n    </Processing>\n  </Description>\n  <Tags>\n    <LayoutTag ID=\"lc_label_text\" TYPE=\"label\" LABEL=\"text\"/>\n    <LayoutTag ID=\"lc_raw_label_text\" TYPE=\"raw_label\" LABEL=\"text\"/>\n    <OtherTag ID=\"lcx_text_0\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;score&quot;:1.0}\"/>\n    <OtherTag ID=\"lcx_text_0_l0\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n    <OtherTag ID=\"lcx_text_0_l1\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n    <OtherTag ID=\"lcx_text_0_l4\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n  </Tags>\n  <ReadingOrder>\n    <OrderedGroup ID=\"lc_reading_order\">\n      <ElementRef ID=\"lc_ro_text_0\" REF=\"text_0\"/>\n    </OrderedGroup>\n  </ReadingOrder>\n  <Layout>\n    <Page ID=\"page_1\" PHYSICAL_IMG_NR=\"1\" WIDTH=\"800\" HEIGHT=\"400\" PROCESSINGREFS=\"lc_processing_0 lc_processing_1 lc_processing_2\">\n      <PrintSpace HPOS=\"0\" VPOS=\"0\" WIDTH=\"800\" HEIGHT=\"400\">\n        <TextBlock ID=\"text_0\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"640\" HEIGHT=\"338\" TAGREFS=\"lc_label_text lc_raw_label_text lcx_text_0\">\n          <TextLine ID=\"text_0_l0\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,55.8 720,55.8\" TAGREFS=\"lcx_text_0_l0\">\n            <Shape>\n              <Polygon POINTS=\"80,31 720,31 720,62 80,62\"/>\n            </Shape>\n            <String ID=\"text_0_l0_w0\" CONTENT=\"Die\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l0_w1\" CONTENT=\"Zeitung\" HPOS=\"250.66666666666666\" VPOS=\"31\" WIDTH=\"298.66666666666663\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l0_w2\" CONTENT=\"er-\" HPOS=\"592\" VPOS=\"31\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l1\" HPOS=\"80\" VPOS=\"92\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,116.8 720,116.8\" TAGREFS=\"lcx_text_0_l1\">\n            <Shape>\n              <Polygon POINTS=\"80,92 720,92 720,123 80,123\"/>\n            </Shape>\n            <String ID=\"text_0_l1_w0\" CONTENT=\"scheint\" HPOS=\"80\" VPOS=\"92\" WIDTH=\"235.78947368421052\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l1_w1\" CONTENT=\"täglich\" HPOS=\"349.4736842105263\" VPOS=\"92\" WIDTH=\"235.78947368421052\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l1_w2\" CONTENT=\"und\" HPOS=\"618.9473684210526\" VPOS=\"92\" WIDTH=\"101.05263157894737\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l2\" HPOS=\"80\" VPOS=\"154\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,178.8 720,178.8\">\n            <Shape>\n              <Polygon POINTS=\"80,154 720,154 720,185 80,185\"/>\n            </Shape>\n            <String ID=\"text_0_l2_w0\" CONTENT=\"koſtet\" HPOS=\"80\" VPOS=\"154\" WIDTH=\"202.10526315789474\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l2_w1\" CONTENT=\"vierteljähr-\" HPOS=\"315.7894736842105\" VPOS=\"154\" WIDTH=\"404.2105263157895\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l3\" HPOS=\"80\" VPOS=\"215\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,239.8 720,239.8\">\n            <Shape>\n              <Polygon POINTS=\"80,215 720,215 720,246 80,246\"/>\n            </Shape>\n            <String ID=\"text_0_l3_w0\" CONTENT=\"lich\" HPOS=\"80\" VPOS=\"215\" WIDTH=\"213.33333333333334\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l3_w1\" CONTENT=\"2\" HPOS=\"346.6666666666667\" VPOS=\"215\" WIDTH=\"53.333333333333336\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l3_w2\" CONTENT=\"Mark.\" HPOS=\"453.33333333333337\" VPOS=\"215\" WIDTH=\"266.6666666666667\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l4\" HPOS=\"80\" VPOS=\"277\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,301.8 720,301.8\" TAGREFS=\"lcx_text_0_l4\">\n            <Shape>\n              <Polygon POINTS=\"80,277 720,277 720,308 80,308\"/>\n            </Shape>\n            <String ID=\"text_0_l4_w0\" CONTENT=\"Anzeigen\" HPOS=\"80\" VPOS=\"277\" WIDTH=\"341.3333333333333\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l4_w1\" CONTENT=\"10\" HPOS=\"464\" VPOS=\"277\" WIDTH=\"85.33333333333333\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l4_w2\" CONTENT=\"Pf.\" HPOS=\"592\" VPOS=\"277\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l5\" HPOS=\"80\" VPOS=\"338\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,362.8 720,362.8\">\n            <Shape>\n              <Polygon POINTS=\"80,338 720,338 720,369 80,369\"/>\n            </Shape>\n            <String ID=\"text_0_l5_w0\" CONTENT=\"die\" HPOS=\"80\" VPOS=\"338\" WIDTH=\"192\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l5_w1\" CONTENT=\"Zeile.\" HPOS=\"336\" VPOS=\"338\" WIDTH=\"384\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n        </TextBlock>\n      </PrintSpace>\n    </Page>\n  </Layout>\n</alto>\n",
+   "document": {
+    "html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>item1_0001</title>\n</head>\n<body>\n<p>Die Zeitung er-<br>scheint täglich und<br>koſtet vierteljähr-<br>lich 2 Mark.<br>Anzeigen 10 Pf.<br>die Zeile.</p>\n</body>\n</html>\n",
+    "json": {
+     "blocks": [
+      {
+       "file": null,
+       "grid": null,
+       "id": "b0",
+       "kind": "paragraph",
+       "layer": "body",
+       "level": null,
+       "origins": [
+        {
+         "box": [
+          80.0,
+          31.0,
+          720.0,
+          62.0
+         ],
+         "lines": [
+          "text_0_l0"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          0,
+          15
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          92.0,
+          720.0,
+          123.0
+         ],
+         "lines": [
+          "text_0_l1"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          16,
+          35
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          154.0,
+          720.0,
+          185.0
+         ],
+         "lines": [
+          "text_0_l2"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          36,
+          55
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          215.0,
+          720.0,
+          246.0
+         ],
+         "lines": [
+          "text_0_l3"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          56,
+          68
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          277.0,
+          720.0,
+          308.0
+         ],
+         "lines": [
+          "text_0_l4"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          69,
+          84
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          338.0,
+          720.0,
+          369.0
+         ],
+         "lines": [
+          "text_0_l5"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          85,
+          95
+         ]
+        }
+       ],
+       "role": "paragraph",
+       "section": null,
+       "spans": [],
+       "text": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+       "wraps": [
+        15,
+        35,
+        55,
+        68,
+        84
+       ]
+      }
+     ],
+     "name": "item1_0001",
+     "pages": [
+      {
+       "height": 400,
+       "id": null,
+       "page": 1,
+       "width": 800
+      }
+     ],
+     "schema": "linecaster.document/2",
+     "strategy": "literal"
+    },
+    "latin-historic+flow": "Die Zeitung er-scheint täglich und kostet vierteljähr-lich 2 Mark. Anzeigen 10 Pf. die Zeile.",
+    "literal": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "markdown": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "nfc+long-s+unicode-marks+flow": "Die Zeitung erscheint täglich und kostet vierteljährlich 2 Mark. Anzeigen 10 Pf. die Zeile."
+   },
+   "hocr": "<?xml version='1.0' encoding='UTF-8'?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n  <head>\n    <title></title>\n    <meta name=\"ocr-system\" content=\"linecaster VERSION\"/>\n    <meta name=\"ocr-capabilities\" content=\"ocr_page ocr_carea ocr_par ocr_line ocrx_word ocrp_poly ocrp_wconf\"/>\n    <meta name=\"ocr-number-of-pages\" content=\"1\"/>\n    <meta name=\"linecaster-step-0\" content=\"{&quot;step&quot;:&quot;layout&quot;,&quot;name&quot;:&quot;sample&quot;}\"/>\n    <meta name=\"linecaster-step-1\" content=\"{&quot;step&quot;:&quot;typography&quot;,&quot;name&quot;:&quot;typography.ratios.v1&quot;,&quot;engine&quot;:&quot;typography.ratios.v1&quot;,&quot;preset&quot;:&quot;ratios&quot;,&quot;preset_sha256&quot;:&quot;sha256:#&quot;,&quot;settings&quot;:{&quot;page_number_min_conf&quot;:0.75,&quot;demote&quot;:1.2,&quot;split&quot;:1.6,&quot;levels&quot;:[[2.5,1],[1.7,2],[0.0,3]],&quot;max_headline_rows&quot;:3,&quot;heading_labels&quot;:[&quot;section_header&quot;,&quot;title&quot;]}}\"/>\n    <meta name=\"linecaster-step-2\" content=\"{&quot;step&quot;:&quot;recomposition&quot;,&quot;name&quot;:&quot;recomposition.unicode.v1&quot;,&quot;engine&quot;:&quot;recomposition.unicode.v1&quot;,&quot;preset&quot;:&quot;unicode-recomposition&quot;,&quot;preset_sha256&quot;:&quot;sha256:#&quot;,&quot;settings&quot;:{&quot;rtl&quot;:false,&quot;convention_marks&quot;:&quot;¬&quot;,&quot;indent&quot;:0.8,&quot;gap_leading&quot;:0.6,&quot;gap_height&quot;:0.5,&quot;short_row&quot;:1.5,&quot;short_row_width&quot;:0.25,&quot;end_margin&quot;:0.6,&quot;justified_rows&quot;:3,&quot;justified_share&quot;:0.6}}\"/>\n  </head>\n  <body>\n    <div class=\"ocr_page\" id=\"page_1\" title=\"bbox 0 0 800 400; ppageno 0\"><div class=\"ocr_carea\" id=\"text_0\" title=\"bbox 80 31 720 369\" data-linecaster=\"{&quot;raw_label&quot;:&quot;text&quot;,&quot;score&quot;:1.0}\"><p class=\"ocr_par\" id=\"text_0_par\" title=\"bbox 80 31 720 369\"><span class=\"ocr_line\" id=\"text_0_l0\" title=\"bbox 80 31 720 62; baseline 0 -6; poly 80 31 720 31 720 62 80 62; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l0_w0\" title=\"bbox 80 31 208 62; x_wconf 99\">Die</span> <span class=\"ocrx_word\" id=\"text_0_l0_w1\" title=\"bbox 251 31 549 62; x_wconf 99\">Zeitung</span> <span class=\"ocrx_word\" id=\"text_0_l0_w2\" title=\"bbox 592 31 720 62; x_wconf 99\">er-</span></span><span class=\"ocr_line\" id=\"text_0_l1\" title=\"bbox 80 92 720 123; baseline 0 -6; poly 80 92 720 92 720 123 80 123; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l1_w0\" title=\"bbox 80 92 316 123; x_wconf 99\">scheint</span> <span class=\"ocrx_word\" id=\"text_0_l1_w1\" title=\"bbox 349 92 585 123; x_wconf 99\">täglich</span> <span class=\"ocrx_word\" id=\"text_0_l1_w2\" title=\"bbox 619 92 720 123; x_wconf 99\">und</span></span><span class=\"ocr_line\" id=\"text_0_l2\" title=\"bbox 80 154 720 185; baseline 0 -6; poly 80 154 720 154 720 185 80 185; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l2_w0\" title=\"bbox 80 154 282 185; x_wconf 99\">koſtet</span> <span class=\"ocrx_word\" id=\"text_0_l2_w1\" title=\"bbox 316 154 720 185; x_wconf 99\">vierteljähr-</span></span><span class=\"ocr_line\" id=\"text_0_l3\" title=\"bbox 80 215 720 246; baseline 0 -6; poly 80 215 720 215 720 246 80 246; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l3_w0\" title=\"bbox 80 215 293 246; x_wconf 99\">lich</span> <span class=\"ocrx_word\" id=\"text_0_l3_w1\" title=\"bbox 347 215 400 246; x_wconf 99\">2</span> <span class=\"ocrx_word\" id=\"text_0_l3_w2\" title=\"bbox 453 215 720 246; x_wconf 99\">Mark.</span></span><span class=\"ocr_line\" id=\"text_0_l4\" title=\"bbox 80 277 720 308; baseline 0 -6; poly 80 277 720 277 720 308 80 308; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l4_w0\" title=\"bbox 80 277 421 308; x_wconf 99\">Anzeigen</span> <span class=\"ocrx_word\" id=\"text_0_l4_w1\" title=\"bbox 464 277 549 308; x_wconf 99\">10</span> <span class=\"ocrx_word\" id=\"text_0_l4_w2\" title=\"bbox 592 277 720 308; x_wconf 99\">Pf.</span></span><span class=\"ocr_line\" id=\"text_0_l5\" title=\"bbox 80 338 720 369; baseline 0 -6; poly 80 338 720 338 720 369 80 369; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l5_w0\" title=\"bbox 80 338 272 369; x_wconf 99\">die</span> <span class=\"ocrx_word\" id=\"text_0_l5_w1\" title=\"bbox 336 338 720 369; x_wconf 99\">Zeile.</span></span></p></div></div>\n  </body>\n</html>\n",
+   "page": "<?xml version='1.0' encoding='UTF-8'?>\n<PcGts xmlns=\"http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15/pagecontent.xsd\">\n  <Metadata>\n    <Creator>linecaster VERSION</Creator>\n    <Created>TIME</Created>\n    <LastChange>TIME</LastChange>\n    <Comments>layout: sample; typography: typography.ratios.v1 (preset ratios); recomposition: recomposition.unicode.v1 (preset unicode-recomposition)</Comments>\n    <MetadataItem type=\"processingStep\" name=\"layout\" value=\"sample\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"sample\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n    </MetadataItem>\n    <MetadataItem type=\"processingStep\" name=\"typography\" value=\"ratios\" date=\"TIME\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"typography.ratios.v1\"/>\n        <Label type=\"engine\" value=\"typography.ratios.v1\"/>\n        <Label type=\"preset\" value=\"ratios\"/>\n        <Label type=\"preset_sha256\" value=\"sha256:#\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n      <Labels externalModel=\"linecaster\" externalId=\"settings\">\n        <Label type=\"page_number_min_conf\" value=\"0.75\"/>\n        <Label type=\"demote\" value=\"1.2\"/>\n        <Label type=\"split\" value=\"1.6\"/>\n        <Label type=\"levels\" value=\"[[2.5,1],[1.7,2],[0.0,3]]\"/>\n        <Label type=\"max_headline_rows\" value=\"3\"/>\n        <Label type=\"heading_labels\" value=\"[&quot;section_header&quot;,&quot;title&quot;]\"/>\n      </Labels>\n    </MetadataItem>\n    <MetadataItem type=\"processingStep\" name=\"recomposition\" value=\"unicode-recomposition\" date=\"TIME\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"recomposition.unicode.v1\"/>\n        <Label type=\"engine\" value=\"recomposition.unicode.v1\"/>\n        <Label type=\"preset\" value=\"unicode-recomposition\"/>\n        <Label type=\"preset_sha256\" value=\"sha256:#\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n      <Labels externalModel=\"linecaster\" externalId=\"settings\">\n        <Label type=\"rtl\" value=\"false\"/>\n        <Label type=\"convention_marks\" value=\"¬\"/>\n        <Label type=\"indent\" value=\"0.8\"/>\n        <Label type=\"gap_leading\" value=\"0.6\"/>\n        <Label type=\"gap_height\" value=\"0.5\"/>\n        <Label type=\"short_row\" value=\"1.5\"/>\n        <Label type=\"short_row_width\" value=\"0.25\"/>\n        <Label type=\"end_margin\" value=\"0.6\"/>\n        <Label type=\"justified_rows\" value=\"3\"/>\n        <Label type=\"justified_share\" value=\"0.6\"/>\n      </Labels>\n    </MetadataItem>\n  </Metadata>\n  <Page imageFilename=\"\" imageWidth=\"800\" imageHeight=\"400\">\n    <ReadingOrder>\n      <OrderedGroup id=\"lc_reading_order\">\n        <RegionRefIndexed index=\"0\" regionRef=\"text_0\"/>\n      </OrderedGroup>\n    </ReadingOrder>\n    <TextRegion id=\"text_0\" custom=\"structure {type:text;}\" type=\"paragraph\">\n      <Coords points=\"80,31 720,31 720,369 80,369\" conf=\"1.0\"/>\n      <TextLine id=\"text_0_l0\">\n        <Coords points=\"80,31 720,31 720,62 80,62\"/>\n        <Baseline points=\"80,56 720,56\"/>\n        <Word id=\"text_0_l0_w0\">\n          <Coords points=\"80,31 208,31 208,62 80,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Die</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l0_w1\">\n          <Coords points=\"251,31 549,31 549,62 251,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Zeitung</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l0_w2\">\n          <Coords points=\"592,31 720,31 720,62 592,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>er-</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>Die Zeitung er-</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l1\">\n        <Coords points=\"80,92 720,92 720,123 80,123\"/>\n        <Baseline points=\"80,117 720,117\"/>\n        <Word id=\"text_0_l1_w0\">\n          <Coords points=\"80,92 316,92 316,123 80,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>scheint</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l1_w1\">\n          <Coords points=\"349,92 585,92 585,123 349,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>täglich</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l1_w2\">\n          <Coords points=\"619,92 720,92 720,123 619,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>und</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>scheint täglich und</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l2\">\n        <Coords points=\"80,154 720,154 720,185 80,185\"/>\n        <Baseline points=\"80,179 720,179\"/>\n        <Word id=\"text_0_l2_w0\">\n          <Coords points=\"80,154 282,154 282,185 80,185\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>koſtet</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l2_w1\">\n          <Coords points=\"316,154 720,154 720,185 316,185\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>vierteljähr-</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>koſtet vierteljähr-</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l3\">\n        <Coords points=\"80,215 720,215 720,246 80,246\"/>\n        <Baseline points=\"80,240 720,240\"/>\n        <Word id=\"text_0_l3_w0\">\n          <Coords points=\"80,215 293,215 293,246 80,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>lich</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l3_w1\">\n          <Coords points=\"347,215 400,215 400,246 347,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>2</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l3_w2\">\n          <Coords points=\"453,215 720,215 720,246 453,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Mark.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>lich 2 Mark.</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l4\">\n        <Coords points=\"80,277 720,277 720,308 80,308\"/>\n        <Baseline points=\"80,302 720,302\"/>\n        <Word id=\"text_0_l4_w0\">\n          <Coords points=\"80,277 421,277 421,308 80,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Anzeigen</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l4_w1\">\n          <Coords points=\"464,277 549,277 549,308 464,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>10</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l4_w2\">\n          <Coords points=\"592,277 720,277 720,308 592,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Pf.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>Anzeigen 10 Pf.</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l5\">\n        <Coords points=\"80,338 720,338 720,369 80,369\"/>\n        <Baseline points=\"80,363 720,363\"/>\n        <Word id=\"text_0_l5_w0\">\n          <Coords points=\"80,338 272,338 272,369 80,369\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>die</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l5_w1\">\n          <Coords points=\"336,338 720,338 720,369 336,369\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Zeile.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>die Zeile.</Unicode>\n        </TextEquiv>\n      </TextLine>\n    </TextRegion>\n  </Page>\n</PcGts>\n",
+   "record": {
+    "annotations": {},
+    "image": {
+     "extra": {},
+     "format": "png",
+     "height": 400,
+     "sha256": "036ca32ac7c2daa79ef5b4a86b399611c6d4221858a79144b817c358f427ae8c",
+     "uri": "/scans/item1_0001.png",
+     "width": 800
+    },
+    "item_id": "item1",
+    "measurements": {},
+    "metadata": {},
+    "page_id": "item1_0001",
+    "sequence": 1,
+    "transcriptions": {
+     "ocr_new": {
+      "annotators": [
+       {
+        "kind": "model",
+        "measurements": {},
+        "name": "sample",
+        "settings": {},
+        "step": "layout"
+       },
+       {
+        "engine": "typography.ratios.v1",
+        "kind": "rule",
+        "measurements": {
+         "body_size": 31.0,
+         "demoted": 0,
+         "drop_capitals": 0,
+         "leveled": 0,
+         "numbers_dropped": 0,
+         "split": 0
+        },
+        "name": "typography.ratios.v1",
+        "preset": "ratios",
+        "settings": {
+         "demote": 1.2,
+         "heading_labels": [
+          "section_header",
+          "title"
+         ],
+         "levels": [
+          [
+           2.5,
+           1
+          ],
+          [
+           1.7,
+           2
+          ],
+          [
+           0.0,
+           3
+          ]
+         ],
+         "max_headline_rows": 3,
+         "page_number_min_conf": 0.75,
+         "split": 1.6
+        },
+        "step": "typography"
+       },
+       {
+        "engine": "recomposition.unicode.v1",
+        "kind": "rule",
+        "measurements": {
+         "continuations": 0,
+         "paragraphs": 1
+        },
+        "name": "recomposition.unicode.v1",
+        "preset": "unicode-recomposition",
+        "settings": {
+         "convention_marks": "¬",
+         "end_margin": 0.6,
+         "gap_height": 0.5,
+         "gap_leading": 0.6,
+         "indent": 0.8,
+         "justified_rows": 3,
+         "justified_share": 0.6,
+         "rtl": false,
+         "short_row": 1.5,
+         "short_row_width": 0.25
+        },
+        "step": "recomposition"
+       }
+      ],
+      "classifications": [
+       {
+        "annotator": 0,
+        "derived_from": [],
+        "scheme": "role",
+        "target": "text_0",
+        "value": "paragraph"
+       }
+      ],
+      "descriptions": [],
+      "edits": [],
+      "formulas": [],
+      "lines": [
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          55.8
+         ],
+         [
+          720.0,
+          55.8
+         ]
+        ],
+        "box": [
+         80.0,
+         31.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l0",
+        "polygon": [
+         [
+          80.0,
+          31.0
+         ],
+         [
+          720.0,
+          31.0
+         ],
+         [
+          720.0,
+          62.0
+         ],
+         [
+          80.0,
+          62.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "Die Zeitung er-",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            31.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Die"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            250.66666666666666,
+            31.0,
+            298.66666666666663,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Zeitung"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            592.0,
+            31.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "er-"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          116.8
+         ],
+         [
+          720.0,
+          116.8
+         ]
+        ],
+        "box": [
+         80.0,
+         92.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l1",
+        "polygon": [
+         [
+          80.0,
+          92.0
+         ],
+         [
+          720.0,
+          92.0
+         ],
+         [
+          720.0,
+          123.0
+         ],
+         [
+          80.0,
+          123.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "scheint täglich und",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            92.0,
+            235.78947368421052,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "scheint"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            349.4736842105263,
+            92.0,
+            235.78947368421052,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "täglich"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            618.9473684210526,
+            92.0,
+            101.05263157894737,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "und"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          178.8
+         ],
+         [
+          720.0,
+          178.8
+         ]
+        ],
+        "box": [
+         80.0,
+         154.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l2",
+        "polygon": [
+         [
+          80.0,
+          154.0
+         ],
+         [
+          720.0,
+          154.0
+         ],
+         [
+          720.0,
+          185.0
+         ],
+         [
+          80.0,
+          185.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "koſtet vierteljähr-",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            154.0,
+            202.10526315789474,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "koſtet"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            315.7894736842105,
+            154.0,
+            404.2105263157895,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "vierteljähr-"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          239.8
+         ],
+         [
+          720.0,
+          239.8
+         ]
+        ],
+        "box": [
+         80.0,
+         215.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l3",
+        "polygon": [
+         [
+          80.0,
+          215.0
+         ],
+         [
+          720.0,
+          215.0
+         ],
+         [
+          720.0,
+          246.0
+         ],
+         [
+          80.0,
+          246.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "lich 2 Mark.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            215.0,
+            213.33333333333334,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "lich"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            346.6666666666667,
+            215.0,
+            53.333333333333336,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "2"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            453.33333333333337,
+            215.0,
+            266.6666666666667,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Mark."
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          301.8
+         ],
+         [
+          720.0,
+          301.8
+         ]
+        ],
+        "box": [
+         80.0,
+         277.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l4",
+        "polygon": [
+         [
+          80.0,
+          277.0
+         ],
+         [
+          720.0,
+          277.0
+         ],
+         [
+          720.0,
+          308.0
+         ],
+         [
+          80.0,
+          308.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "Anzeigen 10 Pf.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            277.0,
+            341.3333333333333,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Anzeigen"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            464.0,
+            277.0,
+            85.33333333333333,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "10"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            592.0,
+            277.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Pf."
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          362.8
+         ],
+         [
+          720.0,
+          362.8
+         ]
+        ],
+        "box": [
+         80.0,
+         338.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l5",
+        "polygon": [
+         [
+          80.0,
+          338.0
+         ],
+         [
+          720.0,
+          338.0
+         ],
+         [
+          720.0,
+          369.0
+         ],
+         [
+          80.0,
+          369.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "die Zeile.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            338.0,
+            192.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "die"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            336.0,
+            338.0,
+            384.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Zeile."
+          }
+         ]
+        },
+        "region": "text_0"
+       }
+      ],
+      "links": [],
+      "orders": [
+       {
+        "annotator": 0,
+        "derived_from": [],
+        "lines": [
+         "text_0_l0",
+         "text_0_l1",
+         "text_0_l2",
+         "text_0_l3",
+         "text_0_l4",
+         "text_0_l5"
+        ],
+        "regions": [
+         "text_0"
+        ],
+        "rows": [
+         0,
+         1,
+         2,
+         3,
+         4,
+         5
+        ]
+       }
+      ],
+      "outputs": [],
+      "ranges": [
+       {
+        "annotator": 2,
+        "decisions": [],
+        "derived_from": [],
+        "id": "text_0_p0",
+        "kind": "paragraph",
+        "parts": [
+         "text_0"
+        ],
+        "rows": [
+         {
+          "lines": [
+           "text_0_l0"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l1"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l2"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l3"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l4"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l5"
+          ]
+         }
+        ]
+       }
+      ],
+      "regions": [
+       {
+        "annotator": 0,
+        "box": [
+         80.0,
+         31.0,
+         640.0,
+         338.0
+        ],
+        "confidence": 1.0,
+        "derived_from": [],
+        "id": "text_0",
+        "label": "text",
+        "polygon": [
+         [
+          80.0,
+          31.0
+         ],
+         [
+          720.0,
+          31.0
+         ],
+         [
+          720.0,
+          369.0
+         ],
+         [
+          80.0,
+          369.0
+         ]
+        ]
+       }
+      ],
+      "source": {
+       "image_height": 400,
+       "image_width": 800,
+       "kind": "produced",
+       "normalized": []
+      },
+      "tables": []
+     }
+    }
+   }
+  },
+  {
+   "alto": "<?xml version='1.0' encoding='UTF-8'?>\n<alto xmlns=\"http://www.loc.gov/standards/alto/ns-v4#\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xsi:schemaLocation=\"http://www.loc.gov/standards/alto/ns-v4# http://www.loc.gov/standards/alto/v4/alto-4-4.xsd\" SCHEMAVERSION=\"4.4\">\n  <Description>\n    <MeasurementUnit>pixel</MeasurementUnit>\n    <Processing ID=\"lc_processing_0\">\n      <processingCategory>contentGeneration</processingCategory>\n      <processingStepDescription>layout</processingStepDescription>\n      <processingStepSettings>{}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>sample</softwareName>\n        <applicationDescription>linecaster VERSION</applicationDescription>\n      </processingSoftware>\n    </Processing>\n    <Processing ID=\"lc_processing_1\">\n      <processingCategory>contentModification</processingCategory>\n      <processingDateTime>TIME</processingDateTime>\n      <processingStepDescription>typography</processingStepDescription>\n      <processingStepSettings>{\"engine\":\"typography.ratios.v1\",\"preset\":\"ratios\",\"preset_sha256\":\"sha256:#\",\"settings\":{\"page_number_min_conf\":0.75,\"demote\":1.2,\"split\":1.6,\"levels\":[[2.5,1],[1.7,2],[0.0,3]],\"max_headline_rows\":3,\"heading_labels\":[\"section_header\",\"title\"]}}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>typography.ratios.v1</softwareName>\n        <applicationDescription>linecaster VERSION; preset ratios</applicationDescription>\n      </processingSoftware>\n    </Processing>\n    <Processing ID=\"lc_processing_2\">\n      <processingCategory>contentModification</processingCategory>\n      <processingDateTime>TIME</processingDateTime>\n      <processingStepDescription>recomposition</processingStepDescription>\n      <processingStepSettings>{\"engine\":\"recomposition.unicode.v1\",\"preset\":\"unicode-recomposition\",\"preset_sha256\":\"sha256:#\",\"settings\":{\"rtl\":false,\"convention_marks\":\"¬\",\"indent\":0.8,\"gap_leading\":0.6,\"gap_height\":0.5,\"short_row\":1.5,\"short_row_width\":0.25,\"end_margin\":0.6,\"justified_rows\":3,\"justified_share\":0.6}}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>recomposition.unicode.v1</softwareName>\n        <applicationDescription>linecaster VERSION; preset unicode-recomposition</applicationDescription>\n      </processingSoftware>\n    </Processing>\n  </Description>\n  <Tags>\n    <LayoutTag ID=\"lc_label_text\" TYPE=\"label\" LABEL=\"text\"/>\n    <LayoutTag ID=\"lc_raw_label_text\" TYPE=\"raw_label\" LABEL=\"text\"/>\n    <OtherTag ID=\"lcx_text_0\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;score&quot;:1.0}\"/>\n    <OtherTag ID=\"lcx_text_0_l0\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n    <OtherTag ID=\"lcx_text_0_l1\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n    <OtherTag ID=\"lcx_text_0_l4\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n  </Tags>\n  <ReadingOrder>\n    <OrderedGroup ID=\"lc_reading_order\">\n      <ElementRef ID=\"lc_ro_text_0\" REF=\"text_0\"/>\n    </OrderedGroup>\n  </ReadingOrder>\n  <Layout>\n    <Page ID=\"page_1\" PHYSICAL_IMG_NR=\"1\" WIDTH=\"800\" HEIGHT=\"400\" PROCESSINGREFS=\"lc_processing_0 lc_processing_1 lc_processing_2\">\n      <PrintSpace HPOS=\"0\" VPOS=\"0\" WIDTH=\"800\" HEIGHT=\"400\">\n        <TextBlock ID=\"text_0\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"640\" HEIGHT=\"338\" TAGREFS=\"lc_label_text lc_raw_label_text lcx_text_0\">\n          <TextLine ID=\"text_0_l0\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,55.8 720,55.8\" TAGREFS=\"lcx_text_0_l0\">\n            <Shape>\n              <Polygon POINTS=\"80,31 720,31 720,62 80,62\"/>\n            </Shape>\n            <String ID=\"text_0_l0_w0\" CONTENT=\"Die\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l0_w1\" CONTENT=\"Zeitung\" HPOS=\"250.66666666666666\" VPOS=\"31\" WIDTH=\"298.66666666666663\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l0_w2\" CONTENT=\"er-\" HPOS=\"592\" VPOS=\"31\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l1\" HPOS=\"80\" VPOS=\"92\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,116.8 720,116.8\" TAGREFS=\"lcx_text_0_l1\">\n            <Shape>\n              <Polygon POINTS=\"80,92 720,92 720,123 80,123\"/>\n            </Shape>\n            <String ID=\"text_0_l1_w0\" CONTENT=\"scheint\" HPOS=\"80\" VPOS=\"92\" WIDTH=\"235.78947368421052\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l1_w1\" CONTENT=\"täglich\" HPOS=\"349.4736842105263\" VPOS=\"92\" WIDTH=\"235.78947368421052\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l1_w2\" CONTENT=\"und\" HPOS=\"618.9473684210526\" VPOS=\"92\" WIDTH=\"101.05263157894737\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l2\" HPOS=\"80\" VPOS=\"154\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,178.8 720,178.8\">\n            <Shape>\n              <Polygon POINTS=\"80,154 720,154 720,185 80,185\"/>\n            </Shape>\n            <String ID=\"text_0_l2_w0\" CONTENT=\"koſtet\" HPOS=\"80\" VPOS=\"154\" WIDTH=\"202.10526315789474\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l2_w1\" CONTENT=\"vierteljähr-\" HPOS=\"315.7894736842105\" VPOS=\"154\" WIDTH=\"404.2105263157895\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l3\" HPOS=\"80\" VPOS=\"215\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,239.8 720,239.8\">\n            <Shape>\n              <Polygon POINTS=\"80,215 720,215 720,246 80,246\"/>\n            </Shape>\n            <String ID=\"text_0_l3_w0\" CONTENT=\"lich\" HPOS=\"80\" VPOS=\"215\" WIDTH=\"213.33333333333334\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l3_w1\" CONTENT=\"2\" HPOS=\"346.6666666666667\" VPOS=\"215\" WIDTH=\"53.333333333333336\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l3_w2\" CONTENT=\"Mark.\" HPOS=\"453.33333333333337\" VPOS=\"215\" WIDTH=\"266.6666666666667\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l4\" HPOS=\"80\" VPOS=\"277\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,301.8 720,301.8\" TAGREFS=\"lcx_text_0_l4\">\n            <Shape>\n              <Polygon POINTS=\"80,277 720,277 720,308 80,308\"/>\n            </Shape>\n            <String ID=\"text_0_l4_w0\" CONTENT=\"Anzeigen\" HPOS=\"80\" VPOS=\"277\" WIDTH=\"341.3333333333333\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l4_w1\" CONTENT=\"10\" HPOS=\"464\" VPOS=\"277\" WIDTH=\"85.33333333333333\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l4_w2\" CONTENT=\"Pf.\" HPOS=\"592\" VPOS=\"277\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l5\" HPOS=\"80\" VPOS=\"338\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,362.8 720,362.8\">\n            <Shape>\n              <Polygon POINTS=\"80,338 720,338 720,369 80,369\"/>\n            </Shape>\n            <String ID=\"text_0_l5_w0\" CONTENT=\"die\" HPOS=\"80\" VPOS=\"338\" WIDTH=\"192\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l5_w1\" CONTENT=\"Zeile.\" HPOS=\"336\" VPOS=\"338\" WIDTH=\"384\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n        </TextBlock>\n      </PrintSpace>\n    </Page>\n  </Layout>\n</alto>\n",
+   "document": {
+    "html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>item1_0002</title>\n</head>\n<body>\n<p>Die Zeitung er-<br>scheint täglich und<br>koſtet vierteljähr-<br>lich 2 Mark.<br>Anzeigen 10 Pf.<br>die Zeile.</p>\n</body>\n</html>\n",
+    "json": {
+     "blocks": [
+      {
+       "file": null,
+       "grid": null,
+       "id": "b0",
+       "kind": "paragraph",
+       "layer": "body",
+       "level": null,
+       "origins": [
+        {
+         "box": [
+          80.0,
+          31.0,
+          720.0,
+          62.0
+         ],
+         "lines": [
+          "text_0_l0"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          0,
+          15
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          92.0,
+          720.0,
+          123.0
+         ],
+         "lines": [
+          "text_0_l1"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          16,
+          35
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          154.0,
+          720.0,
+          185.0
+         ],
+         "lines": [
+          "text_0_l2"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          36,
+          55
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          215.0,
+          720.0,
+          246.0
+         ],
+         "lines": [
+          "text_0_l3"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          56,
+          68
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          277.0,
+          720.0,
+          308.0
+         ],
+         "lines": [
+          "text_0_l4"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          69,
+          84
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          338.0,
+          720.0,
+          369.0
+         ],
+         "lines": [
+          "text_0_l5"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          85,
+          95
+         ]
+        }
+       ],
+       "role": "paragraph",
+       "section": null,
+       "spans": [],
+       "text": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+       "wraps": [
+        15,
+        35,
+        55,
+        68,
+        84
+       ]
+      }
+     ],
+     "name": "item1_0002",
+     "pages": [
+      {
+       "height": 400,
+       "id": null,
+       "page": 1,
+       "width": 800
+      }
+     ],
+     "schema": "linecaster.document/2",
+     "strategy": "literal"
+    },
+    "latin-historic+flow": "Die Zeitung er-scheint täglich und kostet vierteljähr-lich 2 Mark. Anzeigen 10 Pf. die Zeile.",
+    "literal": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "markdown": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "nfc+long-s+unicode-marks+flow": "Die Zeitung erscheint täglich und kostet vierteljährlich 2 Mark. Anzeigen 10 Pf. die Zeile."
+   },
+   "hocr": "<?xml version='1.0' encoding='UTF-8'?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n  <head>\n    <title></title>\n    <meta name=\"ocr-system\" content=\"linecaster VERSION\"/>\n    <meta name=\"ocr-capabilities\" content=\"ocr_page ocr_carea ocr_par ocr_line ocrx_word ocrp_poly ocrp_wconf\"/>\n    <meta name=\"ocr-number-of-pages\" content=\"1\"/>\n    <meta name=\"linecaster-step-0\" content=\"{&quot;step&quot;:&quot;layout&quot;,&quot;name&quot;:&quot;sample&quot;}\"/>\n    <meta name=\"linecaster-step-1\" content=\"{&quot;step&quot;:&quot;typography&quot;,&quot;name&quot;:&quot;typography.ratios.v1&quot;,&quot;engine&quot;:&quot;typography.ratios.v1&quot;,&quot;preset&quot;:&quot;ratios&quot;,&quot;preset_sha256&quot;:&quot;sha256:#&quot;,&quot;settings&quot;:{&quot;page_number_min_conf&quot;:0.75,&quot;demote&quot;:1.2,&quot;split&quot;:1.6,&quot;levels&quot;:[[2.5,1],[1.7,2],[0.0,3]],&quot;max_headline_rows&quot;:3,&quot;heading_labels&quot;:[&quot;section_header&quot;,&quot;title&quot;]}}\"/>\n    <meta name=\"linecaster-step-2\" content=\"{&quot;step&quot;:&quot;recomposition&quot;,&quot;name&quot;:&quot;recomposition.unicode.v1&quot;,&quot;engine&quot;:&quot;recomposition.unicode.v1&quot;,&quot;preset&quot;:&quot;unicode-recomposition&quot;,&quot;preset_sha256&quot;:&quot;sha256:#&quot;,&quot;settings&quot;:{&quot;rtl&quot;:false,&quot;convention_marks&quot;:&quot;¬&quot;,&quot;indent&quot;:0.8,&quot;gap_leading&quot;:0.6,&quot;gap_height&quot;:0.5,&quot;short_row&quot;:1.5,&quot;short_row_width&quot;:0.25,&quot;end_margin&quot;:0.6,&quot;justified_rows&quot;:3,&quot;justified_share&quot;:0.6}}\"/>\n  </head>\n  <body>\n    <div class=\"ocr_page\" id=\"page_1\" title=\"bbox 0 0 800 400; ppageno 0\"><div class=\"ocr_carea\" id=\"text_0\" title=\"bbox 80 31 720 369\" data-linecaster=\"{&quot;raw_label&quot;:&quot;text&quot;,&quot;score&quot;:1.0}\"><p class=\"ocr_par\" id=\"text_0_par\" title=\"bbox 80 31 720 369\"><span class=\"ocr_line\" id=\"text_0_l0\" title=\"bbox 80 31 720 62; baseline 0 -6; poly 80 31 720 31 720 62 80 62; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l0_w0\" title=\"bbox 80 31 208 62; x_wconf 99\">Die</span> <span class=\"ocrx_word\" id=\"text_0_l0_w1\" title=\"bbox 251 31 549 62; x_wconf 99\">Zeitung</span> <span class=\"ocrx_word\" id=\"text_0_l0_w2\" title=\"bbox 592 31 720 62; x_wconf 99\">er-</span></span><span class=\"ocr_line\" id=\"text_0_l1\" title=\"bbox 80 92 720 123; baseline 0 -6; poly 80 92 720 92 720 123 80 123; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l1_w0\" title=\"bbox 80 92 316 123; x_wconf 99\">scheint</span> <span class=\"ocrx_word\" id=\"text_0_l1_w1\" title=\"bbox 349 92 585 123; x_wconf 99\">täglich</span> <span class=\"ocrx_word\" id=\"text_0_l1_w2\" title=\"bbox 619 92 720 123; x_wconf 99\">und</span></span><span class=\"ocr_line\" id=\"text_0_l2\" title=\"bbox 80 154 720 185; baseline 0 -6; poly 80 154 720 154 720 185 80 185; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l2_w0\" title=\"bbox 80 154 282 185; x_wconf 99\">koſtet</span> <span class=\"ocrx_word\" id=\"text_0_l2_w1\" title=\"bbox 316 154 720 185; x_wconf 99\">vierteljähr-</span></span><span class=\"ocr_line\" id=\"text_0_l3\" title=\"bbox 80 215 720 246; baseline 0 -6; poly 80 215 720 215 720 246 80 246; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l3_w0\" title=\"bbox 80 215 293 246; x_wconf 99\">lich</span> <span class=\"ocrx_word\" id=\"text_0_l3_w1\" title=\"bbox 347 215 400 246; x_wconf 99\">2</span> <span class=\"ocrx_word\" id=\"text_0_l3_w2\" title=\"bbox 453 215 720 246; x_wconf 99\">Mark.</span></span><span class=\"ocr_line\" id=\"text_0_l4\" title=\"bbox 80 277 720 308; baseline 0 -6; poly 80 277 720 277 720 308 80 308; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l4_w0\" title=\"bbox 80 277 421 308; x_wconf 99\">Anzeigen</span> <span class=\"ocrx_word\" id=\"text_0_l4_w1\" title=\"bbox 464 277 549 308; x_wconf 99\">10</span> <span class=\"ocrx_word\" id=\"text_0_l4_w2\" title=\"bbox 592 277 720 308; x_wconf 99\">Pf.</span></span><span class=\"ocr_line\" id=\"text_0_l5\" title=\"bbox 80 338 720 369; baseline 0 -6; poly 80 338 720 338 720 369 80 369; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l5_w0\" title=\"bbox 80 338 272 369; x_wconf 99\">die</span> <span class=\"ocrx_word\" id=\"text_0_l5_w1\" title=\"bbox 336 338 720 369; x_wconf 99\">Zeile.</span></span></p></div></div>\n  </body>\n</html>\n",
+   "page": "<?xml version='1.0' encoding='UTF-8'?>\n<PcGts xmlns=\"http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15/pagecontent.xsd\">\n  <Metadata>\n    <Creator>linecaster VERSION</Creator>\n    <Created>TIME</Created>\n    <LastChange>TIME</LastChange>\n    <Comments>layout: sample; typography: typography.ratios.v1 (preset ratios); recomposition: recomposition.unicode.v1 (preset unicode-recomposition)</Comments>\n    <MetadataItem type=\"processingStep\" name=\"layout\" value=\"sample\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"sample\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n    </MetadataItem>\n    <MetadataItem type=\"processingStep\" name=\"typography\" value=\"ratios\" date=\"TIME\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"typography.ratios.v1\"/>\n        <Label type=\"engine\" value=\"typography.ratios.v1\"/>\n        <Label type=\"preset\" value=\"ratios\"/>\n        <Label type=\"preset_sha256\" value=\"sha256:#\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n      <Labels externalModel=\"linecaster\" externalId=\"settings\">\n        <Label type=\"page_number_min_conf\" value=\"0.75\"/>\n        <Label type=\"demote\" value=\"1.2\"/>\n        <Label type=\"split\" value=\"1.6\"/>\n        <Label type=\"levels\" value=\"[[2.5,1],[1.7,2],[0.0,3]]\"/>\n        <Label type=\"max_headline_rows\" value=\"3\"/>\n        <Label type=\"heading_labels\" value=\"[&quot;section_header&quot;,&quot;title&quot;]\"/>\n      </Labels>\n    </MetadataItem>\n    <MetadataItem type=\"processingStep\" name=\"recomposition\" value=\"unicode-recomposition\" date=\"TIME\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"recomposition.unicode.v1\"/>\n        <Label type=\"engine\" value=\"recomposition.unicode.v1\"/>\n        <Label type=\"preset\" value=\"unicode-recomposition\"/>\n        <Label type=\"preset_sha256\" value=\"sha256:#\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n      <Labels externalModel=\"linecaster\" externalId=\"settings\">\n        <Label type=\"rtl\" value=\"false\"/>\n        <Label type=\"convention_marks\" value=\"¬\"/>\n        <Label type=\"indent\" value=\"0.8\"/>\n        <Label type=\"gap_leading\" value=\"0.6\"/>\n        <Label type=\"gap_height\" value=\"0.5\"/>\n        <Label type=\"short_row\" value=\"1.5\"/>\n        <Label type=\"short_row_width\" value=\"0.25\"/>\n        <Label type=\"end_margin\" value=\"0.6\"/>\n        <Label type=\"justified_rows\" value=\"3\"/>\n        <Label type=\"justified_share\" value=\"0.6\"/>\n      </Labels>\n    </MetadataItem>\n  </Metadata>\n  <Page imageFilename=\"\" imageWidth=\"800\" imageHeight=\"400\">\n    <ReadingOrder>\n      <OrderedGroup id=\"lc_reading_order\">\n        <RegionRefIndexed index=\"0\" regionRef=\"text_0\"/>\n      </OrderedGroup>\n    </ReadingOrder>\n    <TextRegion id=\"text_0\" custom=\"structure {type:text;}\" type=\"paragraph\">\n      <Coords points=\"80,31 720,31 720,369 80,369\" conf=\"1.0\"/>\n      <TextLine id=\"text_0_l0\">\n        <Coords points=\"80,31 720,31 720,62 80,62\"/>\n        <Baseline points=\"80,56 720,56\"/>\n        <Word id=\"text_0_l0_w0\">\n          <Coords points=\"80,31 208,31 208,62 80,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Die</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l0_w1\">\n          <Coords points=\"251,31 549,31 549,62 251,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Zeitung</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l0_w2\">\n          <Coords points=\"592,31 720,31 720,62 592,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>er-</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>Die Zeitung er-</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l1\">\n        <Coords points=\"80,92 720,92 720,123 80,123\"/>\n        <Baseline points=\"80,117 720,117\"/>\n        <Word id=\"text_0_l1_w0\">\n          <Coords points=\"80,92 316,92 316,123 80,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>scheint</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l1_w1\">\n          <Coords points=\"349,92 585,92 585,123 349,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>täglich</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l1_w2\">\n          <Coords points=\"619,92 720,92 720,123 619,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>und</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>scheint täglich und</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l2\">\n        <Coords points=\"80,154 720,154 720,185 80,185\"/>\n        <Baseline points=\"80,179 720,179\"/>\n        <Word id=\"text_0_l2_w0\">\n          <Coords points=\"80,154 282,154 282,185 80,185\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>koſtet</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l2_w1\">\n          <Coords points=\"316,154 720,154 720,185 316,185\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>vierteljähr-</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>koſtet vierteljähr-</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l3\">\n        <Coords points=\"80,215 720,215 720,246 80,246\"/>\n        <Baseline points=\"80,240 720,240\"/>\n        <Word id=\"text_0_l3_w0\">\n          <Coords points=\"80,215 293,215 293,246 80,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>lich</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l3_w1\">\n          <Coords points=\"347,215 400,215 400,246 347,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>2</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l3_w2\">\n          <Coords points=\"453,215 720,215 720,246 453,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Mark.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>lich 2 Mark.</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l4\">\n        <Coords points=\"80,277 720,277 720,308 80,308\"/>\n        <Baseline points=\"80,302 720,302\"/>\n        <Word id=\"text_0_l4_w0\">\n          <Coords points=\"80,277 421,277 421,308 80,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Anzeigen</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l4_w1\">\n          <Coords points=\"464,277 549,277 549,308 464,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>10</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l4_w2\">\n          <Coords points=\"592,277 720,277 720,308 592,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Pf.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>Anzeigen 10 Pf.</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l5\">\n        <Coords points=\"80,338 720,338 720,369 80,369\"/>\n        <Baseline points=\"80,363 720,363\"/>\n        <Word id=\"text_0_l5_w0\">\n          <Coords points=\"80,338 272,338 272,369 80,369\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>die</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l5_w1\">\n          <Coords points=\"336,338 720,338 720,369 336,369\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Zeile.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>die Zeile.</Unicode>\n        </TextEquiv>\n      </TextLine>\n    </TextRegion>\n  </Page>\n</PcGts>\n",
+   "record": {
+    "annotations": {},
+    "image": {
+     "extra": {},
+     "format": "png",
+     "height": 400,
+     "sha256": "036ca32ac7c2daa79ef5b4a86b399611c6d4221858a79144b817c358f427ae8c",
+     "uri": "/scans/item1_0002.png",
+     "width": 800
+    },
+    "item_id": "item1",
+    "measurements": {},
+    "metadata": {},
+    "page_id": "item1_0002",
+    "sequence": 2,
+    "transcriptions": {
+     "ocr_new": {
+      "annotators": [
+       {
+        "kind": "model",
+        "measurements": {},
+        "name": "sample",
+        "settings": {},
+        "step": "layout"
+       },
+       {
+        "engine": "typography.ratios.v1",
+        "kind": "rule",
+        "measurements": {
+         "body_size": 31.0,
+         "demoted": 0,
+         "drop_capitals": 0,
+         "leveled": 0,
+         "numbers_dropped": 0,
+         "split": 0
+        },
+        "name": "typography.ratios.v1",
+        "preset": "ratios",
+        "settings": {
+         "demote": 1.2,
+         "heading_labels": [
+          "section_header",
+          "title"
+         ],
+         "levels": [
+          [
+           2.5,
+           1
+          ],
+          [
+           1.7,
+           2
+          ],
+          [
+           0.0,
+           3
+          ]
+         ],
+         "max_headline_rows": 3,
+         "page_number_min_conf": 0.75,
+         "split": 1.6
+        },
+        "step": "typography"
+       },
+       {
+        "engine": "recomposition.unicode.v1",
+        "kind": "rule",
+        "measurements": {
+         "continuations": 0,
+         "paragraphs": 1
+        },
+        "name": "recomposition.unicode.v1",
+        "preset": "unicode-recomposition",
+        "settings": {
+         "convention_marks": "¬",
+         "end_margin": 0.6,
+         "gap_height": 0.5,
+         "gap_leading": 0.6,
+         "indent": 0.8,
+         "justified_rows": 3,
+         "justified_share": 0.6,
+         "rtl": false,
+         "short_row": 1.5,
+         "short_row_width": 0.25
+        },
+        "step": "recomposition"
+       }
+      ],
+      "classifications": [
+       {
+        "annotator": 0,
+        "derived_from": [],
+        "scheme": "role",
+        "target": "text_0",
+        "value": "paragraph"
+       }
+      ],
+      "descriptions": [],
+      "edits": [],
+      "formulas": [],
+      "lines": [
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          55.8
+         ],
+         [
+          720.0,
+          55.8
+         ]
+        ],
+        "box": [
+         80.0,
+         31.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l0",
+        "polygon": [
+         [
+          80.0,
+          31.0
+         ],
+         [
+          720.0,
+          31.0
+         ],
+         [
+          720.0,
+          62.0
+         ],
+         [
+          80.0,
+          62.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "Die Zeitung er-",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            31.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Die"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            250.66666666666666,
+            31.0,
+            298.66666666666663,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Zeitung"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            592.0,
+            31.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "er-"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          116.8
+         ],
+         [
+          720.0,
+          116.8
+         ]
+        ],
+        "box": [
+         80.0,
+         92.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l1",
+        "polygon": [
+         [
+          80.0,
+          92.0
+         ],
+         [
+          720.0,
+          92.0
+         ],
+         [
+          720.0,
+          123.0
+         ],
+         [
+          80.0,
+          123.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "scheint täglich und",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            92.0,
+            235.78947368421052,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "scheint"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            349.4736842105263,
+            92.0,
+            235.78947368421052,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "täglich"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            618.9473684210526,
+            92.0,
+            101.05263157894737,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "und"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          178.8
+         ],
+         [
+          720.0,
+          178.8
+         ]
+        ],
+        "box": [
+         80.0,
+         154.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l2",
+        "polygon": [
+         [
+          80.0,
+          154.0
+         ],
+         [
+          720.0,
+          154.0
+         ],
+         [
+          720.0,
+          185.0
+         ],
+         [
+          80.0,
+          185.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "koſtet vierteljähr-",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            154.0,
+            202.10526315789474,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "koſtet"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            315.7894736842105,
+            154.0,
+            404.2105263157895,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "vierteljähr-"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          239.8
+         ],
+         [
+          720.0,
+          239.8
+         ]
+        ],
+        "box": [
+         80.0,
+         215.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l3",
+        "polygon": [
+         [
+          80.0,
+          215.0
+         ],
+         [
+          720.0,
+          215.0
+         ],
+         [
+          720.0,
+          246.0
+         ],
+         [
+          80.0,
+          246.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "lich 2 Mark.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            215.0,
+            213.33333333333334,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "lich"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            346.6666666666667,
+            215.0,
+            53.333333333333336,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "2"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            453.33333333333337,
+            215.0,
+            266.6666666666667,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Mark."
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          301.8
+         ],
+         [
+          720.0,
+          301.8
+         ]
+        ],
+        "box": [
+         80.0,
+         277.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l4",
+        "polygon": [
+         [
+          80.0,
+          277.0
+         ],
+         [
+          720.0,
+          277.0
+         ],
+         [
+          720.0,
+          308.0
+         ],
+         [
+          80.0,
+          308.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "Anzeigen 10 Pf.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            277.0,
+            341.3333333333333,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Anzeigen"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            464.0,
+            277.0,
+            85.33333333333333,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "10"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            592.0,
+            277.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Pf."
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          362.8
+         ],
+         [
+          720.0,
+          362.8
+         ]
+        ],
+        "box": [
+         80.0,
+         338.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l5",
+        "polygon": [
+         [
+          80.0,
+          338.0
+         ],
+         [
+          720.0,
+          338.0
+         ],
+         [
+          720.0,
+          369.0
+         ],
+         [
+          80.0,
+          369.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "die Zeile.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            338.0,
+            192.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "die"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            336.0,
+            338.0,
+            384.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Zeile."
+          }
+         ]
+        },
+        "region": "text_0"
+       }
+      ],
+      "links": [],
+      "orders": [
+       {
+        "annotator": 0,
+        "derived_from": [],
+        "lines": [
+         "text_0_l0",
+         "text_0_l1",
+         "text_0_l2",
+         "text_0_l3",
+         "text_0_l4",
+         "text_0_l5"
+        ],
+        "regions": [
+         "text_0"
+        ],
+        "rows": [
+         0,
+         1,
+         2,
+         3,
+         4,
+         5
+        ]
+       }
+      ],
+      "outputs": [],
+      "ranges": [
+       {
+        "annotator": 2,
+        "decisions": [],
+        "derived_from": [],
+        "id": "text_0_p0",
+        "kind": "paragraph",
+        "parts": [
+         "text_0"
+        ],
+        "rows": [
+         {
+          "lines": [
+           "text_0_l0"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l1"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l2"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l3"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l4"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l5"
+          ]
+         }
+        ]
+       }
+      ],
+      "regions": [
+       {
+        "annotator": 0,
+        "box": [
+         80.0,
+         31.0,
+         640.0,
+         338.0
+        ],
+        "confidence": 1.0,
+        "derived_from": [],
+        "id": "text_0",
+        "label": "text",
+        "polygon": [
+         [
+          80.0,
+          31.0
+         ],
+         [
+          720.0,
+          31.0
+         ],
+         [
+          720.0,
+          369.0
+         ],
+         [
+          80.0,
+          369.0
+         ]
+        ]
+       }
+      ],
+      "source": {
+       "image_height": 400,
+       "image_width": 800,
+       "kind": "produced",
+       "normalized": []
+      },
+      "tables": []
+     }
+    }
+   }
+  },
+  {
+   "alto": "<?xml version='1.0' encoding='UTF-8'?>\n<alto xmlns=\"http://www.loc.gov/standards/alto/ns-v4#\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xsi:schemaLocation=\"http://www.loc.gov/standards/alto/ns-v4# http://www.loc.gov/standards/alto/v4/alto-4-4.xsd\" SCHEMAVERSION=\"4.4\">\n  <Description>\n    <MeasurementUnit>pixel</MeasurementUnit>\n    <Processing ID=\"lc_processing_0\">\n      <processingCategory>contentGeneration</processingCategory>\n      <processingStepDescription>layout</processingStepDescription>\n      <processingStepSettings>{}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>sample</softwareName>\n        <applicationDescription>linecaster VERSION</applicationDescription>\n      </processingSoftware>\n    </Processing>\n    <Processing ID=\"lc_processing_1\">\n      <processingCategory>contentModification</processingCategory>\n      <processingDateTime>TIME</processingDateTime>\n      <processingStepDescription>typography</processingStepDescription>\n      <processingStepSettings>{\"engine\":\"typography.ratios.v1\",\"preset\":\"ratios\",\"preset_sha256\":\"sha256:#\",\"settings\":{\"page_number_min_conf\":0.75,\"demote\":1.2,\"split\":1.6,\"levels\":[[2.5,1],[1.7,2],[0.0,3]],\"max_headline_rows\":3,\"heading_labels\":[\"section_header\",\"title\"]}}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>typography.ratios.v1</softwareName>\n        <applicationDescription>linecaster VERSION; preset ratios</applicationDescription>\n      </processingSoftware>\n    </Processing>\n    <Processing ID=\"lc_processing_2\">\n      <processingCategory>contentModification</processingCategory>\n      <processingDateTime>TIME</processingDateTime>\n      <processingStepDescription>recomposition</processingStepDescription>\n      <processingStepSettings>{\"engine\":\"recomposition.unicode.v1\",\"preset\":\"unicode-recomposition\",\"preset_sha256\":\"sha256:#\",\"settings\":{\"rtl\":false,\"convention_marks\":\"¬\",\"indent\":0.8,\"gap_leading\":0.6,\"gap_height\":0.5,\"short_row\":1.5,\"short_row_width\":0.25,\"end_margin\":0.6,\"justified_rows\":3,\"justified_share\":0.6}}</processingStepSettings>\n      <processingSoftware>\n        <softwareCreator>linecaster</softwareCreator>\n        <softwareName>recomposition.unicode.v1</softwareName>\n        <applicationDescription>linecaster VERSION; preset unicode-recomposition</applicationDescription>\n      </processingSoftware>\n    </Processing>\n  </Description>\n  <Tags>\n    <LayoutTag ID=\"lc_label_text\" TYPE=\"label\" LABEL=\"text\"/>\n    <LayoutTag ID=\"lc_raw_label_text\" TYPE=\"raw_label\" LABEL=\"text\"/>\n    <OtherTag ID=\"lcx_text_0\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;score&quot;:1.0}\"/>\n    <OtherTag ID=\"lcx_text_0_l0\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n    <OtherTag ID=\"lcx_text_0_l1\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n    <OtherTag ID=\"lcx_text_0_l4\" TYPE=\"linecaster\" LABEL=\"linecaster\" DESCRIPTION=\"{&quot;confidence&quot;:0.99}\"/>\n  </Tags>\n  <ReadingOrder>\n    <OrderedGroup ID=\"lc_reading_order\">\n      <ElementRef ID=\"lc_ro_text_0\" REF=\"text_0\"/>\n    </OrderedGroup>\n  </ReadingOrder>\n  <Layout>\n    <Page ID=\"page_1\" PHYSICAL_IMG_NR=\"1\" WIDTH=\"800\" HEIGHT=\"400\" PROCESSINGREFS=\"lc_processing_0 lc_processing_1 lc_processing_2\">\n      <PrintSpace HPOS=\"0\" VPOS=\"0\" WIDTH=\"800\" HEIGHT=\"400\">\n        <TextBlock ID=\"text_0\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"640\" HEIGHT=\"338\" TAGREFS=\"lc_label_text lc_raw_label_text lcx_text_0\">\n          <TextLine ID=\"text_0_l0\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,55.8 720,55.8\" TAGREFS=\"lcx_text_0_l0\">\n            <Shape>\n              <Polygon POINTS=\"80,31 720,31 720,62 80,62\"/>\n            </Shape>\n            <String ID=\"text_0_l0_w0\" CONTENT=\"Die\" HPOS=\"80\" VPOS=\"31\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l0_w1\" CONTENT=\"Zeitung\" HPOS=\"250.66666666666666\" VPOS=\"31\" WIDTH=\"298.66666666666663\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l0_w2\" CONTENT=\"er-\" HPOS=\"592\" VPOS=\"31\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l1\" HPOS=\"80\" VPOS=\"92\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,116.8 720,116.8\" TAGREFS=\"lcx_text_0_l1\">\n            <Shape>\n              <Polygon POINTS=\"80,92 720,92 720,123 80,123\"/>\n            </Shape>\n            <String ID=\"text_0_l1_w0\" CONTENT=\"scheint\" HPOS=\"80\" VPOS=\"92\" WIDTH=\"235.78947368421052\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l1_w1\" CONTENT=\"täglich\" HPOS=\"349.4736842105263\" VPOS=\"92\" WIDTH=\"235.78947368421052\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l1_w2\" CONTENT=\"und\" HPOS=\"618.9473684210526\" VPOS=\"92\" WIDTH=\"101.05263157894737\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l2\" HPOS=\"80\" VPOS=\"154\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,178.8 720,178.8\">\n            <Shape>\n              <Polygon POINTS=\"80,154 720,154 720,185 80,185\"/>\n            </Shape>\n            <String ID=\"text_0_l2_w0\" CONTENT=\"koſtet\" HPOS=\"80\" VPOS=\"154\" WIDTH=\"202.10526315789474\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l2_w1\" CONTENT=\"vierteljähr-\" HPOS=\"315.7894736842105\" VPOS=\"154\" WIDTH=\"404.2105263157895\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l3\" HPOS=\"80\" VPOS=\"215\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,239.8 720,239.8\">\n            <Shape>\n              <Polygon POINTS=\"80,215 720,215 720,246 80,246\"/>\n            </Shape>\n            <String ID=\"text_0_l3_w0\" CONTENT=\"lich\" HPOS=\"80\" VPOS=\"215\" WIDTH=\"213.33333333333334\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l3_w1\" CONTENT=\"2\" HPOS=\"346.6666666666667\" VPOS=\"215\" WIDTH=\"53.333333333333336\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l3_w2\" CONTENT=\"Mark.\" HPOS=\"453.33333333333337\" VPOS=\"215\" WIDTH=\"266.6666666666667\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l4\" HPOS=\"80\" VPOS=\"277\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,301.8 720,301.8\" TAGREFS=\"lcx_text_0_l4\">\n            <Shape>\n              <Polygon POINTS=\"80,277 720,277 720,308 80,308\"/>\n            </Shape>\n            <String ID=\"text_0_l4_w0\" CONTENT=\"Anzeigen\" HPOS=\"80\" VPOS=\"277\" WIDTH=\"341.3333333333333\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l4_w1\" CONTENT=\"10\" HPOS=\"464\" VPOS=\"277\" WIDTH=\"85.33333333333333\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l4_w2\" CONTENT=\"Pf.\" HPOS=\"592\" VPOS=\"277\" WIDTH=\"128\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n          <TextLine ID=\"text_0_l5\" HPOS=\"80\" VPOS=\"338\" WIDTH=\"640\" HEIGHT=\"31\" BASELINE=\"80,362.8 720,362.8\">\n            <Shape>\n              <Polygon POINTS=\"80,338 720,338 720,369 80,369\"/>\n            </Shape>\n            <String ID=\"text_0_l5_w0\" CONTENT=\"die\" HPOS=\"80\" VPOS=\"338\" WIDTH=\"192\" HEIGHT=\"31\" WC=\"0.99\"/>\n            <SP/>\n            <String ID=\"text_0_l5_w1\" CONTENT=\"Zeile.\" HPOS=\"336\" VPOS=\"338\" WIDTH=\"384\" HEIGHT=\"31\" WC=\"0.99\"/>\n          </TextLine>\n        </TextBlock>\n      </PrintSpace>\n    </Page>\n  </Layout>\n</alto>\n",
+   "document": {
+    "html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>item1_0003</title>\n</head>\n<body>\n<p>Die Zeitung er-<br>scheint täglich und<br>koſtet vierteljähr-<br>lich 2 Mark.<br>Anzeigen 10 Pf.<br>die Zeile.</p>\n</body>\n</html>\n",
+    "json": {
+     "blocks": [
+      {
+       "file": null,
+       "grid": null,
+       "id": "b0",
+       "kind": "paragraph",
+       "layer": "body",
+       "level": null,
+       "origins": [
+        {
+         "box": [
+          80.0,
+          31.0,
+          720.0,
+          62.0
+         ],
+         "lines": [
+          "text_0_l0"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          0,
+          15
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          92.0,
+          720.0,
+          123.0
+         ],
+         "lines": [
+          "text_0_l1"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          16,
+          35
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          154.0,
+          720.0,
+          185.0
+         ],
+         "lines": [
+          "text_0_l2"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          36,
+          55
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          215.0,
+          720.0,
+          246.0
+         ],
+         "lines": [
+          "text_0_l3"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          56,
+          68
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          277.0,
+          720.0,
+          308.0
+         ],
+         "lines": [
+          "text_0_l4"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          69,
+          84
+         ]
+        },
+        {
+         "box": [
+          80.0,
+          338.0,
+          720.0,
+          369.0
+         ],
+         "lines": [
+          "text_0_l5"
+         ],
+         "page": 1,
+         "region": "text_0",
+         "span": [
+          85,
+          95
+         ]
+        }
+       ],
+       "role": "paragraph",
+       "section": null,
+       "spans": [],
+       "text": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+       "wraps": [
+        15,
+        35,
+        55,
+        68,
+        84
+       ]
+      }
+     ],
+     "name": "item1_0003",
+     "pages": [
+      {
+       "height": 400,
+       "id": null,
+       "page": 1,
+       "width": 800
+      }
+     ],
+     "schema": "linecaster.document/2",
+     "strategy": "literal"
+    },
+    "latin-historic+flow": "Die Zeitung er-scheint täglich und kostet vierteljähr-lich 2 Mark. Anzeigen 10 Pf. die Zeile.",
+    "literal": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "markdown": "Die Zeitung er-\nscheint täglich und\nkoſtet vierteljähr-\nlich 2 Mark.\nAnzeigen 10 Pf.\ndie Zeile.",
+    "nfc+long-s+unicode-marks+flow": "Die Zeitung erscheint täglich und kostet vierteljährlich 2 Mark. Anzeigen 10 Pf. die Zeile."
+   },
+   "hocr": "<?xml version='1.0' encoding='UTF-8'?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n  <head>\n    <title></title>\n    <meta name=\"ocr-system\" content=\"linecaster VERSION\"/>\n    <meta name=\"ocr-capabilities\" content=\"ocr_page ocr_carea ocr_par ocr_line ocrx_word ocrp_poly ocrp_wconf\"/>\n    <meta name=\"ocr-number-of-pages\" content=\"1\"/>\n    <meta name=\"linecaster-step-0\" content=\"{&quot;step&quot;:&quot;layout&quot;,&quot;name&quot;:&quot;sample&quot;}\"/>\n    <meta name=\"linecaster-step-1\" content=\"{&quot;step&quot;:&quot;typography&quot;,&quot;name&quot;:&quot;typography.ratios.v1&quot;,&quot;engine&quot;:&quot;typography.ratios.v1&quot;,&quot;preset&quot;:&quot;ratios&quot;,&quot;preset_sha256&quot;:&quot;sha256:#&quot;,&quot;settings&quot;:{&quot;page_number_min_conf&quot;:0.75,&quot;demote&quot;:1.2,&quot;split&quot;:1.6,&quot;levels&quot;:[[2.5,1],[1.7,2],[0.0,3]],&quot;max_headline_rows&quot;:3,&quot;heading_labels&quot;:[&quot;section_header&quot;,&quot;title&quot;]}}\"/>\n    <meta name=\"linecaster-step-2\" content=\"{&quot;step&quot;:&quot;recomposition&quot;,&quot;name&quot;:&quot;recomposition.unicode.v1&quot;,&quot;engine&quot;:&quot;recomposition.unicode.v1&quot;,&quot;preset&quot;:&quot;unicode-recomposition&quot;,&quot;preset_sha256&quot;:&quot;sha256:#&quot;,&quot;settings&quot;:{&quot;rtl&quot;:false,&quot;convention_marks&quot;:&quot;¬&quot;,&quot;indent&quot;:0.8,&quot;gap_leading&quot;:0.6,&quot;gap_height&quot;:0.5,&quot;short_row&quot;:1.5,&quot;short_row_width&quot;:0.25,&quot;end_margin&quot;:0.6,&quot;justified_rows&quot;:3,&quot;justified_share&quot;:0.6}}\"/>\n  </head>\n  <body>\n    <div class=\"ocr_page\" id=\"page_1\" title=\"bbox 0 0 800 400; ppageno 0\"><div class=\"ocr_carea\" id=\"text_0\" title=\"bbox 80 31 720 369\" data-linecaster=\"{&quot;raw_label&quot;:&quot;text&quot;,&quot;score&quot;:1.0}\"><p class=\"ocr_par\" id=\"text_0_par\" title=\"bbox 80 31 720 369\"><span class=\"ocr_line\" id=\"text_0_l0\" title=\"bbox 80 31 720 62; baseline 0 -6; poly 80 31 720 31 720 62 80 62; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l0_w0\" title=\"bbox 80 31 208 62; x_wconf 99\">Die</span> <span class=\"ocrx_word\" id=\"text_0_l0_w1\" title=\"bbox 251 31 549 62; x_wconf 99\">Zeitung</span> <span class=\"ocrx_word\" id=\"text_0_l0_w2\" title=\"bbox 592 31 720 62; x_wconf 99\">er-</span></span><span class=\"ocr_line\" id=\"text_0_l1\" title=\"bbox 80 92 720 123; baseline 0 -6; poly 80 92 720 92 720 123 80 123; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l1_w0\" title=\"bbox 80 92 316 123; x_wconf 99\">scheint</span> <span class=\"ocrx_word\" id=\"text_0_l1_w1\" title=\"bbox 349 92 585 123; x_wconf 99\">täglich</span> <span class=\"ocrx_word\" id=\"text_0_l1_w2\" title=\"bbox 619 92 720 123; x_wconf 99\">und</span></span><span class=\"ocr_line\" id=\"text_0_l2\" title=\"bbox 80 154 720 185; baseline 0 -6; poly 80 154 720 154 720 185 80 185; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l2_w0\" title=\"bbox 80 154 282 185; x_wconf 99\">koſtet</span> <span class=\"ocrx_word\" id=\"text_0_l2_w1\" title=\"bbox 316 154 720 185; x_wconf 99\">vierteljähr-</span></span><span class=\"ocr_line\" id=\"text_0_l3\" title=\"bbox 80 215 720 246; baseline 0 -6; poly 80 215 720 215 720 246 80 246; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l3_w0\" title=\"bbox 80 215 293 246; x_wconf 99\">lich</span> <span class=\"ocrx_word\" id=\"text_0_l3_w1\" title=\"bbox 347 215 400 246; x_wconf 99\">2</span> <span class=\"ocrx_word\" id=\"text_0_l3_w2\" title=\"bbox 453 215 720 246; x_wconf 99\">Mark.</span></span><span class=\"ocr_line\" id=\"text_0_l4\" title=\"bbox 80 277 720 308; baseline 0 -6; poly 80 277 720 277 720 308 80 308; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l4_w0\" title=\"bbox 80 277 421 308; x_wconf 99\">Anzeigen</span> <span class=\"ocrx_word\" id=\"text_0_l4_w1\" title=\"bbox 464 277 549 308; x_wconf 99\">10</span> <span class=\"ocrx_word\" id=\"text_0_l4_w2\" title=\"bbox 592 277 720 308; x_wconf 99\">Pf.</span></span><span class=\"ocr_line\" id=\"text_0_l5\" title=\"bbox 80 338 720 369; baseline 0 -6; poly 80 338 720 338 720 369 80 369; x_wconf 99\"><span class=\"ocrx_word\" id=\"text_0_l5_w0\" title=\"bbox 80 338 272 369; x_wconf 99\">die</span> <span class=\"ocrx_word\" id=\"text_0_l5_w1\" title=\"bbox 336 338 720 369; x_wconf 99\">Zeile.</span></span></p></div></div>\n  </body>\n</html>\n",
+   "page": "<?xml version='1.0' encoding='UTF-8'?>\n<PcGts xmlns=\"http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15 http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15/pagecontent.xsd\">\n  <Metadata>\n    <Creator>linecaster VERSION</Creator>\n    <Created>TIME</Created>\n    <LastChange>TIME</LastChange>\n    <Comments>layout: sample; typography: typography.ratios.v1 (preset ratios); recomposition: recomposition.unicode.v1 (preset unicode-recomposition)</Comments>\n    <MetadataItem type=\"processingStep\" name=\"layout\" value=\"sample\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"sample\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n    </MetadataItem>\n    <MetadataItem type=\"processingStep\" name=\"typography\" value=\"ratios\" date=\"TIME\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"typography.ratios.v1\"/>\n        <Label type=\"engine\" value=\"typography.ratios.v1\"/>\n        <Label type=\"preset\" value=\"ratios\"/>\n        <Label type=\"preset_sha256\" value=\"sha256:#\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n      <Labels externalModel=\"linecaster\" externalId=\"settings\">\n        <Label type=\"page_number_min_conf\" value=\"0.75\"/>\n        <Label type=\"demote\" value=\"1.2\"/>\n        <Label type=\"split\" value=\"1.6\"/>\n        <Label type=\"levels\" value=\"[[2.5,1],[1.7,2],[0.0,3]]\"/>\n        <Label type=\"max_headline_rows\" value=\"3\"/>\n        <Label type=\"heading_labels\" value=\"[&quot;section_header&quot;,&quot;title&quot;]\"/>\n      </Labels>\n    </MetadataItem>\n    <MetadataItem type=\"processingStep\" name=\"recomposition\" value=\"unicode-recomposition\" date=\"TIME\">\n      <Labels externalModel=\"linecaster\" externalId=\"model\">\n        <Label type=\"name\" value=\"recomposition.unicode.v1\"/>\n        <Label type=\"engine\" value=\"recomposition.unicode.v1\"/>\n        <Label type=\"preset\" value=\"unicode-recomposition\"/>\n        <Label type=\"preset_sha256\" value=\"sha256:#\"/>\n        <Label type=\"software\" value=\"linecaster VERSION\"/>\n      </Labels>\n      <Labels externalModel=\"linecaster\" externalId=\"settings\">\n        <Label type=\"rtl\" value=\"false\"/>\n        <Label type=\"convention_marks\" value=\"¬\"/>\n        <Label type=\"indent\" value=\"0.8\"/>\n        <Label type=\"gap_leading\" value=\"0.6\"/>\n        <Label type=\"gap_height\" value=\"0.5\"/>\n        <Label type=\"short_row\" value=\"1.5\"/>\n        <Label type=\"short_row_width\" value=\"0.25\"/>\n        <Label type=\"end_margin\" value=\"0.6\"/>\n        <Label type=\"justified_rows\" value=\"3\"/>\n        <Label type=\"justified_share\" value=\"0.6\"/>\n      </Labels>\n    </MetadataItem>\n  </Metadata>\n  <Page imageFilename=\"\" imageWidth=\"800\" imageHeight=\"400\">\n    <ReadingOrder>\n      <OrderedGroup id=\"lc_reading_order\">\n        <RegionRefIndexed index=\"0\" regionRef=\"text_0\"/>\n      </OrderedGroup>\n    </ReadingOrder>\n    <TextRegion id=\"text_0\" custom=\"structure {type:text;}\" type=\"paragraph\">\n      <Coords points=\"80,31 720,31 720,369 80,369\" conf=\"1.0\"/>\n      <TextLine id=\"text_0_l0\">\n        <Coords points=\"80,31 720,31 720,62 80,62\"/>\n        <Baseline points=\"80,56 720,56\"/>\n        <Word id=\"text_0_l0_w0\">\n          <Coords points=\"80,31 208,31 208,62 80,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Die</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l0_w1\">\n          <Coords points=\"251,31 549,31 549,62 251,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Zeitung</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l0_w2\">\n          <Coords points=\"592,31 720,31 720,62 592,62\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>er-</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>Die Zeitung er-</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l1\">\n        <Coords points=\"80,92 720,92 720,123 80,123\"/>\n        <Baseline points=\"80,117 720,117\"/>\n        <Word id=\"text_0_l1_w0\">\n          <Coords points=\"80,92 316,92 316,123 80,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>scheint</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l1_w1\">\n          <Coords points=\"349,92 585,92 585,123 349,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>täglich</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l1_w2\">\n          <Coords points=\"619,92 720,92 720,123 619,123\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>und</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>scheint täglich und</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l2\">\n        <Coords points=\"80,154 720,154 720,185 80,185\"/>\n        <Baseline points=\"80,179 720,179\"/>\n        <Word id=\"text_0_l2_w0\">\n          <Coords points=\"80,154 282,154 282,185 80,185\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>koſtet</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l2_w1\">\n          <Coords points=\"316,154 720,154 720,185 316,185\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>vierteljähr-</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>koſtet vierteljähr-</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l3\">\n        <Coords points=\"80,215 720,215 720,246 80,246\"/>\n        <Baseline points=\"80,240 720,240\"/>\n        <Word id=\"text_0_l3_w0\">\n          <Coords points=\"80,215 293,215 293,246 80,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>lich</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l3_w1\">\n          <Coords points=\"347,215 400,215 400,246 347,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>2</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l3_w2\">\n          <Coords points=\"453,215 720,215 720,246 453,246\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Mark.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>lich 2 Mark.</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l4\">\n        <Coords points=\"80,277 720,277 720,308 80,308\"/>\n        <Baseline points=\"80,302 720,302\"/>\n        <Word id=\"text_0_l4_w0\">\n          <Coords points=\"80,277 421,277 421,308 80,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Anzeigen</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l4_w1\">\n          <Coords points=\"464,277 549,277 549,308 464,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>10</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l4_w2\">\n          <Coords points=\"592,277 720,277 720,308 592,308\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Pf.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>Anzeigen 10 Pf.</Unicode>\n        </TextEquiv>\n      </TextLine>\n      <TextLine id=\"text_0_l5\">\n        <Coords points=\"80,338 720,338 720,369 80,369\"/>\n        <Baseline points=\"80,363 720,363\"/>\n        <Word id=\"text_0_l5_w0\">\n          <Coords points=\"80,338 272,338 272,369 80,369\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>die</Unicode>\n          </TextEquiv>\n        </Word>\n        <Word id=\"text_0_l5_w1\">\n          <Coords points=\"336,338 720,338 720,369 336,369\"/>\n          <TextEquiv conf=\"0.99\">\n            <Unicode>Zeile.</Unicode>\n          </TextEquiv>\n        </Word>\n        <TextEquiv conf=\"0.99\">\n          <Unicode>die Zeile.</Unicode>\n        </TextEquiv>\n      </TextLine>\n    </TextRegion>\n  </Page>\n</PcGts>\n",
+   "record": {
+    "annotations": {},
+    "image": {
+     "extra": {},
+     "format": "png",
+     "height": 400,
+     "sha256": "036ca32ac7c2daa79ef5b4a86b399611c6d4221858a79144b817c358f427ae8c",
+     "uri": "/scans/item1_0003.png",
+     "width": 800
+    },
+    "item_id": "item1",
+    "measurements": {},
+    "metadata": {},
+    "page_id": "item1_0003",
+    "sequence": 3,
+    "transcriptions": {
+     "ocr_new": {
+      "annotators": [
+       {
+        "kind": "model",
+        "measurements": {},
+        "name": "sample",
+        "settings": {},
+        "step": "layout"
+       },
+       {
+        "engine": "typography.ratios.v1",
+        "kind": "rule",
+        "measurements": {
+         "body_size": 31.0,
+         "demoted": 0,
+         "drop_capitals": 0,
+         "leveled": 0,
+         "numbers_dropped": 0,
+         "split": 0
+        },
+        "name": "typography.ratios.v1",
+        "preset": "ratios",
+        "settings": {
+         "demote": 1.2,
+         "heading_labels": [
+          "section_header",
+          "title"
+         ],
+         "levels": [
+          [
+           2.5,
+           1
+          ],
+          [
+           1.7,
+           2
+          ],
+          [
+           0.0,
+           3
+          ]
+         ],
+         "max_headline_rows": 3,
+         "page_number_min_conf": 0.75,
+         "split": 1.6
+        },
+        "step": "typography"
+       },
+       {
+        "engine": "recomposition.unicode.v1",
+        "kind": "rule",
+        "measurements": {
+         "continuations": 0,
+         "paragraphs": 1
+        },
+        "name": "recomposition.unicode.v1",
+        "preset": "unicode-recomposition",
+        "settings": {
+         "convention_marks": "¬",
+         "end_margin": 0.6,
+         "gap_height": 0.5,
+         "gap_leading": 0.6,
+         "indent": 0.8,
+         "justified_rows": 3,
+         "justified_share": 0.6,
+         "rtl": false,
+         "short_row": 1.5,
+         "short_row_width": 0.25
+        },
+        "step": "recomposition"
+       }
+      ],
+      "classifications": [
+       {
+        "annotator": 0,
+        "derived_from": [],
+        "scheme": "role",
+        "target": "text_0",
+        "value": "paragraph"
+       }
+      ],
+      "descriptions": [],
+      "edits": [],
+      "formulas": [],
+      "lines": [
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          55.8
+         ],
+         [
+          720.0,
+          55.8
+         ]
+        ],
+        "box": [
+         80.0,
+         31.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l0",
+        "polygon": [
+         [
+          80.0,
+          31.0
+         ],
+         [
+          720.0,
+          31.0
+         ],
+         [
+          720.0,
+          62.0
+         ],
+         [
+          80.0,
+          62.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "Die Zeitung er-",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            31.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Die"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            250.66666666666666,
+            31.0,
+            298.66666666666663,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Zeitung"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            592.0,
+            31.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "er-"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          116.8
+         ],
+         [
+          720.0,
+          116.8
+         ]
+        ],
+        "box": [
+         80.0,
+         92.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l1",
+        "polygon": [
+         [
+          80.0,
+          92.0
+         ],
+         [
+          720.0,
+          92.0
+         ],
+         [
+          720.0,
+          123.0
+         ],
+         [
+          80.0,
+          123.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "scheint täglich und",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            92.0,
+            235.78947368421052,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "scheint"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            349.4736842105263,
+            92.0,
+            235.78947368421052,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "täglich"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            618.9473684210526,
+            92.0,
+            101.05263157894737,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "und"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          178.8
+         ],
+         [
+          720.0,
+          178.8
+         ]
+        ],
+        "box": [
+         80.0,
+         154.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l2",
+        "polygon": [
+         [
+          80.0,
+          154.0
+         ],
+         [
+          720.0,
+          154.0
+         ],
+         [
+          720.0,
+          185.0
+         ],
+         [
+          80.0,
+          185.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "koſtet vierteljähr-",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            154.0,
+            202.10526315789474,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "koſtet"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            315.7894736842105,
+            154.0,
+            404.2105263157895,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "vierteljähr-"
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          239.8
+         ],
+         [
+          720.0,
+          239.8
+         ]
+        ],
+        "box": [
+         80.0,
+         215.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l3",
+        "polygon": [
+         [
+          80.0,
+          215.0
+         ],
+         [
+          720.0,
+          215.0
+         ],
+         [
+          720.0,
+          246.0
+         ],
+         [
+          80.0,
+          246.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "lich 2 Mark.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            215.0,
+            213.33333333333334,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "lich"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            346.6666666666667,
+            215.0,
+            53.333333333333336,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "2"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            453.33333333333337,
+            215.0,
+            266.6666666666667,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Mark."
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          301.8
+         ],
+         [
+          720.0,
+          301.8
+         ]
+        ],
+        "box": [
+         80.0,
+         277.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l4",
+        "polygon": [
+         [
+          80.0,
+          277.0
+         ],
+         [
+          720.0,
+          277.0
+         ],
+         [
+          720.0,
+          308.0
+         ],
+         [
+          80.0,
+          308.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "Anzeigen 10 Pf.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            277.0,
+            341.3333333333333,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Anzeigen"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            464.0,
+            277.0,
+            85.33333333333333,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "10"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            592.0,
+            277.0,
+            128.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Pf."
+          }
+         ]
+        },
+        "region": "text_0"
+       },
+       {
+        "annotator": 0,
+        "baseline": [
+         [
+          80.0,
+          362.8
+         ],
+         [
+          720.0,
+          362.8
+         ]
+        ],
+        "box": [
+         80.0,
+         338.0,
+         640.0,
+         31.0
+        ],
+        "derived_from": [],
+        "id": "text_0_l5",
+        "polygon": [
+         [
+          80.0,
+          338.0
+         ],
+         [
+          720.0,
+          338.0
+         ],
+         [
+          720.0,
+          369.0
+         ],
+         [
+          80.0,
+          369.0
+         ]
+        ],
+        "reading": {
+         "alternatives": [],
+         "annotator": 0,
+         "confidence": 0.99,
+         "derived_from": [],
+         "formatting": [],
+         "text": "die Zeile.",
+         "words": [
+          {
+           "alternatives": [],
+           "box": [
+            80.0,
+            338.0,
+            192.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "die"
+          },
+          {
+           "alternatives": [],
+           "box": [
+            336.0,
+            338.0,
+            384.0,
+            31.0
+           ],
+           "confidence": 0.99,
+           "glyphs": [],
+           "hyphen": false,
+           "text": "Zeile."
+          }
+         ]
+        },
+        "region": "text_0"
+       }
+      ],
+      "links": [],
+      "orders": [
+       {
+        "annotator": 0,
+        "derived_from": [],
+        "lines": [
+         "text_0_l0",
+         "text_0_l1",
+         "text_0_l2",
+         "text_0_l3",
+         "text_0_l4",
+         "text_0_l5"
+        ],
+        "regions": [
+         "text_0"
+        ],
+        "rows": [
+         0,
+         1,
+         2,
+         3,
+         4,
+         5
+        ]
+       }
+      ],
+      "outputs": [],
+      "ranges": [
+       {
+        "annotator": 2,
+        "decisions": [],
+        "derived_from": [],
+        "id": "text_0_p0",
+        "kind": "paragraph",
+        "parts": [
+         "text_0"
+        ],
+        "rows": [
+         {
+          "lines": [
+           "text_0_l0"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l1"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l2"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l3"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l4"
+          ]
+         },
+         {
+          "lines": [
+           "text_0_l5"
+          ]
+         }
+        ]
+       }
+      ],
+      "regions": [
+       {
+        "annotator": 0,
+        "box": [
+         80.0,
+         31.0,
+         640.0,
+         338.0
+        ],
+        "confidence": 1.0,
+        "derived_from": [],
+        "id": "text_0",
+        "label": "text",
+        "polygon": [
+         [
+          80.0,
+          31.0
+         ],
+         [
+          720.0,
+          31.0
+         ],
+         [
+          720.0,
+          369.0
+         ],
+         [
+          80.0,
+          369.0
+         ]
+        ]
+       }
+      ],
+      "source": {
+       "image_height": 400,
+       "image_width": 800,
+       "kind": "produced",
+       "normalized": []
+      },
+      "tables": []
+     }
+    }
+   }
+  }
+ ]
+}
