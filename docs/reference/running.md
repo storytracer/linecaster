@@ -1,8 +1,111 @@
 # Running at scale
 
-How a run is divided into tasks and workers, which pages it reads, what it shows while it runs, and how it gets its
-credentials and its Jobs. Terms are the [glossary](glossary.md)'s; what a pipeline is made of is in
+Where a run runs, how it is divided into tasks and workers, which pages it reads, what it shows while it runs, and
+how it gets its credentials and its Jobs. Terms are the [glossary](glossary.md)'s; what a pipeline is made of is in
 [pipelines](pipelines.md), fetching over HTTP in [http](http.md).
+
+## Where a run runs
+
+The pipeline is the same everywhere; the command line names the machine.
+
+| Where | Flags |
+|---|---|
+| this machine | none: the models load inside the pipeline |
+| this machine, with a model server | `--backend served`, or `--endpoint URL` for a server that is already up |
+| a Ray cluster | `--on ray --tasks 64` |
+| Hugging Face Jobs | `--on hf-jobs --namespace NS --commit <sha>` |
+| a Slurm cluster | from Python, with datatrove's `SlurmPipelineExecutor` |
+
+On Ray and HF Jobs every task holds one GPU and starts its own model server. A rerun into the same output folder
+runs only the tasks that did not finish. The executors behind `--on` are in
+[architecture](architecture.md#executors-and-jobs).
+
+### A model server that stays up
+
+A pipeline script serves its own models with `serve`, and a run then names the server's address:
+
+```bash
+P="--layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognition paddlex-ppocrv6-medium"
+uv run pipelines/transcribe_modular.py serve $P
+uv run pipelines/transcribe_modular.py scans/ out/ $P --endpoint http://127.0.0.1:8100/v1
+```
+
+A recipe's script serves its models too: `uv run launch.py squiddle serve`, then
+`uv run launch.py squiddle scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1`. For a vision-language
+model, `--recognition-endpoint` points `transcribe_vlm.py` at a running vLLM or SGLang. Servers listen on loopback
+only.
+
+### Ray
+
+`ray` runs Ray's own command line with the pipeline's packages, so every machine has the same versions:
+
+```bash
+uv run pipelines/transcribe_modular.py ray start --head --num-gpus 8
+uv run pipelines/transcribe_modular.py scans/ out/ $P --on ray --tasks 64
+```
+
+Images, output and the logging folder must be on storage every machine can reach, such as an `s3://` bucket.
+
+Each task reserves one GPU, `--cpus-per-task` CPUs (default 12) and memory: `--mem-per-cpu-gb` GiB per CPU
+(default 4, so 48 GiB), or `--mem-per-task-gb` GiB whatever its CPUs. Start every worker with at least that much
+(`ray start --num-cpus`, `--memory`, `--num-gpus`). Before it submits anything, a launch checks that a live node can
+run a task, and stops with what a task needs and what the nodes have. It also logs how many tasks fit at once.
+`--no-fit-check` leaves the check out, for a cluster that adds nodes on demand. Each task sizes its thread pools
+(OpenMP, BLAS, OpenCV, torch) to its CPUs, not to the machine's.
+
+On Kubernetes, one Deployment can run the head and another the workers:
+
+- Start Ray in each pod through the pipeline script (`uv run pipelines/<script>.py ray start …`), so the pods run
+  the script's locked packages.
+- Give each worker pod the CPUs, memory and GPU a task reserves, plus room for `/dev/shm` (Ray's object store),
+  and pass the same amounts to `ray start --num-cpus/--memory/--num-gpus`. A pod with one GPU holds one task.
+- With the data on object storage the pods need only ephemeral storage: the environment, the model weights and
+  Ray's temporary files.
+- Submit the run to the head with `ray job submit`, so it runs inside the cluster and outlives the session that
+  submitted it. A driver outside the cluster must reach every node.
+
+### Hugging Face Jobs
+
+Each Job has one GPU and installs linecaster at a pushed commit with the pipeline's pinned dependencies:
+
+```bash
+uv run pipelines/transcribe_modular.py s3://<bucket>/images hf://buckets/<ns>/<bucket>/<run> $P \
+  --paths-file hf://buckets/<ns>/<bucket>/pages.txt --env FSSPEC_S3_ANON=true \
+  --on hf-jobs --namespace NS --commit <sha> --tasks 4000 --workers 64
+```
+
+`--workers` Jobs run at once. `--flavor l4x4 --gpus 4` runs four tasks per Job. `--dry-run` launches nothing.
+How a Job gets its dependencies is in [HF Jobs helpers](#hf-jobs-helpers).
+
+### Slurm
+
+A `Pipeline`'s components run on a Slurm cluster through datatrove's Slurm executor: one array job, one GPU per
+task, in an environment that has the engines (`venv_path`):
+
+```python
+from datatrove.executor import SlurmPipelineExecutor
+
+SlurmPipelineExecutor(
+    pipeline.steps(), tasks=64, time="04:00:00", partition="gpu",
+    gpus_per_task=1, venv_path="/path/to/venv",
+    logging_dir="out/logs").run()
+```
+
+## Large collections
+
+For a large collection, fetch the images once, then transcribe them, then bind the pages into items. Each
+pipeline reads the page records the one before it wrote:
+
+```bash
+uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --rate-limit 5/1
+uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --layout pp-doclayoutv3 \
+  --lines pp-ocrv6-medium-det --recognition paddlex-ppocrv6-medium --item-shards 64
+uv run pipelines/bind.py OUT2/pages OUT3 --paragraphs unicode-paragraphs --document linked-document \
+  --text literal:txt --text latin-historic+flow:md
+```
+
+The harvest writes each item's images into a folder of its own and one page record per page. `--item-shards`
+writes each item whole into one shard, which `bind.py` reads ([the item stage](pipelines.md#the-item-stage)).
 
 ## Samples
 
