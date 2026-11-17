@@ -6,315 +6,259 @@
   <img src="docs/linecaster.png" alt="Line drawing of an Intertype C4 linecaster, a hot-metal typesetting machine" width="353">
 </p>
 <p align="center"><sub>An Intertype C4 linecaster (1961), after a photograph in the Science Museum Group
-Collection, CC BY-NC-SA 4.0. <a href="#-license">Credit</a></sub></p>
+Collection, CC BY-NC-SA 4.0. <a href="#license">Credit</a></sub></p>
 
-Linecaster turns page images into text. You build an OCR pipeline from interchangeable steps (a model that
-reads the text, layout, tables, formulas, post-processing) and run it unchanged on a laptop, a GPU server, a
-Ray or Slurm cluster or [Hugging Face Jobs][HF Jobs].
+Linecaster turns page images into text. A pipeline is a chain of steps, and for every step you pick a model:
 
-- 🧩 **Any step is replaceable.** A vision-language model or a line recognizer reads the text; layout, table
-  and formula models and rule-based post-processing are separate steps.
-- 🌍 **Any machine.** Only the command line changes, never the pipeline.
-- 🎯 **The same result everywhere.** A page's text depends only on that page and the pinned models.
-- 🔁 **Built for long runs.** Interrupted runs resume; failed pages are set aside with the reason.
-- 🏛️ **Built on standards, not on one collection.** Folders, buckets, IIIF and METS manifests, OAI-PMH; ALTO,
-  PAGE-XML, hOCR, Parquet and JSON Lines out. Project-specific code belongs in projects built on it.
+```mermaid
+flowchart LR
+    I[page images] --> L[layout] --> D[lines] --> R[recognition] --> P[headings and paragraphs] --> O[page records and files]
+```
 
-📖 **Docs:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/): the reference, a page
-for every component and catalog entry, and [`llms.txt`](https://storytracer.github.io/linecaster/latest/llms.txt) for
-coding agents.
+Any model can be swapped for another without touching the rest. The same pipeline runs on a laptop, a GPU
+server, a Ray or Slurm cluster or [Hugging Face Jobs][HF Jobs].
 
-## 🚀 Quick start
+- **Combine models freely.** Layout, line, text, table and formula models from [PaddleX], [kraken] and
+  [Tesseract], and vision-language models that read a whole page, all behind the same few options.
+- **Run anywhere.** Only the command line changes, never the pipeline. A page's text depends only on that page
+  and on models pinned to an exact revision.
+- **Built for long runs.** An interrupted run resumes. A page that fails is set aside with the reason.
+- **Nothing is lost or changed silently.** Each page has one record that holds what every step found and which
+  model found it. The text is stored exactly as read.
+- **Standards in and out.** Folders, buckets, Parquet, PDF, IIIF and METS manifests in; [ALTO], [PAGE-XML],
+  [hOCR], Markdown, HTML, [Parquet] and [JSON Lines] out.
+- **Measurable.** Linecaster reads ground truth in the same formats and scores a run against it.
 
-You need Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer.
+**Documentation:** [storytracer.github.io/linecaster](https://storytracer.github.io/linecaster/)
+
+## Quick start
+
+You need Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.13.6 or newer. An NVIDIA GPU is recommended.
 
 ```bash
 git clone https://github.com/storytracer/linecaster
 cd linecaster
-uv run launch.py                               # list the recipes and models
-uv run pipelines/transcribe_modular.py scans/ out/ --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
-  --recognition paddlex-ppocrv6-medium         # the modular pipeline, a preset per step
-uv run launch.py lightonocr-2-1b scans/ out/   # run a vision-language model (needs vLLM and a GPU)
+uv run pipelines/transcribe_modular.py scans/ out/ \
+  --layout pp-doclayoutv3 \
+  --lines pp-ocrv6-medium-det \
+  --recognition paddlex-ppocrv6-medium \
+  --files out/files --formats txt,alto
 ```
 
-You get one page record per page in `out/pages/`. Add `--files out/files --formats md,alto` for per-page files.
+This reads the images in `scans/` and writes:
+
+| In `out/` | What it is |
+|---|---|
+| `pages/` | one page record per page: everything that was found, with who found it |
+| `files/` | a text file and an ALTO file per page |
+| `rejects/` | pages that failed, each with the reason |
+| `run.yaml` | the run record: what ran, with which models and versions |
 
 > [!NOTE]
-> Every pipeline is a self-contained [uv script][uv scripts] with pinned dependencies and a lock file next to it.
-> `uv run` installs what it needs on the first run; models download on first use.
+> There is nothing to install. Every pipeline is a [uv script][uv scripts] with pinned dependencies, which
+> `uv run` installs on the first run. Models download on first use.
 
-## 🧭 Three ways to transcribe
+## Combine models
 
-**1. A recipe**: a tested combination of presets, one per step, and the texts it writes. Each recipe has a script
-of its own in `recipes/`, which brings exactly the engines it needs:
-
-```bash
-uv run launch.py squiddle scans/ out/
-```
-
-The same without a checkout, from the script's URL:
+Each option names a **preset**: a model at a pinned revision with its settings. `linecaster presets` lists them
+by step:
 
 ```bash
-uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/
+uv run linecaster presets --step recognition
 ```
 
-**2. A vision-language model** reads each page, or each layout region. It runs behind [vLLM] or [SGLang], so it
-needs an NVIDIA GPU and the `vllm` command on the PATH.
-
-```bash
-uv run launch.py lightonocr-2-1b scans/ out/
-uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
-```
-
-**3. The modular pipeline**: layout, lines and a line recognizer, then post-processing. You choose a preset for
-every step; `linecaster presets` lists them.
+To swap a model, change one option. This run keeps the layout and the lines and reads the text with Tesseract:
 
 ```bash
 uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
-  --recognition paddlex-ppocrv6-medium \
-  --hierarchy ratios --paragraphs unicode-paragraphs --document linked-document
+  --recognition tesseract-best-latin
 ```
 
-| Flag | Effect |
+More steps are more options:
+
+| Option | Step |
 |---|---|
-| `--layout single-region` | the whole page as one region, no layout model |
-| `--tables`, `--formulas` | add table and formula recognition |
+| `--layout` | the regions of a page and their order (`single-region`: the whole page, no layout model) |
+| `--lines` | the lines |
+| `--recognition` | the text of each line |
+| `--tables` | table cells |
+| `--formulas` | formulas as LaTeX (its model needs torch: run it in a script that installs torch, as a recipe's does) |
 | `--hierarchy` | headings and their levels |
-| `--paragraphs` | running text in paragraphs (without it, the page stays as laid out) |
-| `--document` | the page's document, for Markdown, HTML and JSON |
-| `--set recognition.batch_size=4` | change one option of a preset |
-| `--files DIR --formats md,alto` | per-page files: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, JSON |
-| `--dry-run` | print the plan and its graph, run nothing |
+| `--paragraphs` | lines joined into paragraphs |
+| `--document` | the page as a document, for Markdown, HTML and JSON |
 
-Options after a recipe's name override single steps; the run record lists them.
+No step has a default, so a run always names what it ran. `--set recognition.batch_size=4` changes one setting
+of a preset, `--dry-run` prints the plan and runs nothing, and `--help` lists everything else.
 
-## 📥 Input
+Tutorial: [Your first pipeline](docs/start/first-run.md).
 
-| Pages from | Flags |
-|---|---|
-| a folder of images | `IMAGES` (`--item-from-parent`: each subfolder is an item) |
-| a list of images | `IMAGES --paths-file pages.txt` |
-| Parquet with an image column | `--parquet PATH` (`--image-key`, `--item-key`, `--sequence-key`) |
-| IIIF or METS manifests | `--manifests FOLDER`, `--manifests list.txt`, or `--manifests items.parquet --manifest-key url` |
-| an earlier run | `--pages OUT/pages` |
+## The same in Python
 
-Any fsspec path works: local, `s3://`, `hf://`, `http(s)://`. linecaster reads IIIF Presentation and METS/MODS
-manifests itself; `--existing-ocr` also keeps the library's own OCR as `ocr_original`. PDF files are read by the `PdfReader` component (extra `pypdfium2`).
-`--sample 10000 --sample-per-item 8` reads a fixed sample of the input instead, chosen by hashes of its ids before
-any image is read and the same whatever the setup (`OUT/sample.parquet`; `linecaster sample` without a run).
-
-For large collections, fetch the images once, then transcribe, then bind the pages into items:
-
-```bash
-uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --rate-limit 5/1
-uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
-  --recognition paddlex-ppocrv6-medium --item-shards 64
-uv run pipelines/bind.py OUT2/pages OUT3 --paragraphs unicode-paragraphs --document linked-document \
-  --text literal:txt --text latin-historic+flow:md
-```
-
-## 📦 Output
-
-| Output | For |
-|---|---|
-| 🗂️ Page records ([JSON Lines], [Parquet]) | later pipelines: every intermediate result |
-| 🏛️ [ALTO], [PAGE-XML], [hOCR] | libraries and viewers: every word with its position |
-| 📝 Markdown, HTML, JSON (linecaster's document) | documents with headings, notes, tables, figures and formulas |
-| 📜 Texts per item (`--text STRATEGY:FORMAT`) | `literal:txt`, the text exactly as read, for checking against a transcription; a strategy you name for reading and training: `latin-historic+flow:md` folds historic letterforms and flows the paragraphs |
-| 🖼️ Page images as JPEG, JPEG 2000, PNG or WebP (`pipelines/convert.py`) | publishing and downloads: decoded and encoded on NVIDIA GPUs where the machine has them |
-
-The text as read is always kept, exactly; nothing is normalized, joined or dehyphenated unless a text names a
-transcription strategy that does it (`nfc`, `long-s`, `flow`, `unicode-marks`, ... in the catalog), and spelling is
-never modernized. Rejected pages go to `rejects/` with the reason. Every run is traced with [OpenTelemetry] into
-`OUT/traces/` (nothing is sent anywhere unless you set the `OTEL_*` variables), and `linecaster traces OUT` shows
-where the time went.
-
-## 🌍 Run anywhere
-
-| Where | Flags |
-|---|---|
-| 💻 this machine | none: models load inside the pipeline |
-| 🖥️ this machine, with a model server | `--backend served` |
-| 🧮 a Ray cluster | `--on ray --tasks 64` |
-| ☁️ Hugging Face Jobs | `--on hf-jobs --namespace NS --commit <sha>` |
-| 🏛️ a Slurm cluster | from Python, with datatrove's `SlurmPipelineExecutor` ([below](#%EF%B8%8F-your-own-pipeline)) |
-
-On Ray and HF Jobs every task gets one GPU and starts its own model server. A rerun into the same output folder
-runs only the tasks that didn't finish.
-
-<details>
-<summary><b>A model server that stays up</b></summary>
-
-```bash
-P="--layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognition paddlex-ppocrv6-medium"
-uv run pipelines/transcribe_modular.py serve $P
-uv run pipelines/transcribe_modular.py scans/ out/ $P --endpoint http://127.0.0.1:8100/v1
-```
-
-A recipe's script serves its models too: `uv run launch.py squiddle serve`, then `uv run launch.py squiddle scans/
-out/ --backend served --endpoint http://127.0.0.1:8100/v1`.
-
-For a vision-language model, `--recognition-endpoint` points `transcribe_vlm.py` at a running vLLM or SGLang.
-Servers listen on loopback only.
-
-</details>
-
-<details>
-<summary><b>Ray</b></summary>
-
-`ray` runs Ray's own command line with the pipeline's packages, so every machine has the same versions:
-
-```bash
-uv run pipelines/transcribe_modular.py ray start --head --num-gpus 8
-uv run pipelines/transcribe_modular.py scans/ out/ $P --on ray --tasks 64
-```
-
-Images, output and the logging folder must be on storage every machine can reach, such as an `s3://` bucket.
-
-Each task reserves `--cpus-per-task` CPUs (default 12), `--mem-per-cpu-gb` GiB of memory per CPU (default 4, so
-48 GiB), or `--mem-per-task-gb` GiB whatever its CPUs, and one GPU. Start every worker with at least that much:
-`ray start --num-cpus`, `--memory` and `--num-gpus`. Before it submits anything, a launch checks that a live node can
-run a task, and stops with what a task needs and what the nodes have. It also logs how many tasks fit at once.
-`--no-fit-check` leaves the check out, for a cluster that adds nodes on demand. Each task sizes its thread pools
-(OpenMP, BLAS, OpenCV, torch) to its CPUs, not to the machine's.
-
-**On Kubernetes**, one Deployment can run the head and another the workers:
-
-- Start Ray in each pod through the pipeline script (`uv run pipelines/<script>.py ray start …`), so the pods run the
-  script's locked packages.
-- Give each worker pod the CPUs, memory and GPU a task reserves, plus room for `/dev/shm` (Ray's object store),
-  and pass the same amounts to `ray start --num-cpus/--memory/--num-gpus`. A pod with one GPU holds one task.
-- With the data on object storage the pods need only ephemeral storage: the environment, the model weights and
-  Ray's temporary files.
-- Submit the run to the head with `ray job submit`, so it runs inside the cluster and outlives the session that
-  submitted it. A driver outside the cluster must reach every node.
-
-</details>
-
-<details>
-<summary><b>Hugging Face Jobs</b></summary>
-
-One GPU per Job; each Job installs Linecaster at a pushed commit with the pipeline's pinned dependencies.
-
-```bash
-uv run pipelines/transcribe_modular.py s3://<bucket>/images hf://buckets/<ns>/<bucket>/<run> $P \
-  --paths-file hf://buckets/<ns>/<bucket>/pages.txt --env FSSPEC_S3_ANON=true \
-  --on hf-jobs --namespace NS --commit <sha> --tasks 4000 --workers 64
-```
-
-`--workers` Jobs run at once. `--flavor l4x4 --gpus 4` runs four tasks per Job. `--dry-run` launches nothing.
-
-</details>
-
-## ✍️ Your own pipeline
-
-A `Pipeline` is a list of components; [datatrove] runs it. This is the modular pipeline, cut down:
+A `Pipeline` is a list of components, one for each thing that happens to a page. Save this as a script and run
+it with `uv run`:
 
 ```python
+# /// script
+# requires-python = ">=3.12,<3.13"
+# dependencies = ["linecaster", "linecaster-paddlex"]
+#
+# [tool.uv.sources]
+# linecaster = { git = "https://github.com/storytracer/linecaster", branch = "main" }
+# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", branch = "main", subdirectory = "engines/paddlex" }
+# ///
 from linecaster import Pipeline
-from linecaster.backends import InProcess as P
 from linecaster.components.document import DocumentComposer
 from linecaster.components.hierarchy import HierarchyDetector
-from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.layout import LayoutDetector
-from linecaster.components.lines import (
-    LineAssigner, LineDetector)
+from linecaster.components.lines import LineAssigner, LineDetector
+from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.readers import ImageFolderReader
 from linecaster.components.recognition import LineRecognizer
-from linecaster.components.writers import PageFileWriter
+from linecaster.components.writers import PageFileWriter, PageJsonlWriter
 
 pipeline = Pipeline([
     ImageFolderReader("scans/"),
-    LayoutDetector(P("linecaster_paddlex:PaddleLayoutEngine")),
-    LineDetector(P("linecaster_paddlex:PaddleLineEngine")),
+    LayoutDetector("pp-doclayoutv3"),
+    LineDetector("pp-ocrv6-medium-det"),
     LineAssigner(),
-    LineRecognizer(
-        P("linecaster_paddlex:PaddleRecognitionEngine")),
+    LineRecognizer("paddlex-ppocrv6-medium"),
     HierarchyDetector("ratios"),
     ParagraphBuilder("unicode-paragraphs"),
     DocumentComposer("linked-document"),
-    PageFileWriter("out/", formats=("md", "alto"),
-                   strategy="latin-historic+flow"),
+    PageJsonlWriter("out/pages"),
+    PageFileWriter("out/files", formats=("md", "alto")),
 ])
 pipeline.run("out")
 ```
 
-The same list runs on a Slurm cluster through [datatrove]'s Slurm executor: one array job, one GPU per task, in an
-environment that has the engines (`venv_path`):
+Every component declares what it reads and what it adds. `run` checks these declarations first, so a pipeline
+that cannot work stops before it starts: a recognizer without a line detector fails at once, with the reason.
+`pipeline.draw()` gives the pipeline's graph, and `pipeline.to_dict()` the pipeline as plain data.
 
-```python
-from datatrove.executor import SlurmPipelineExecutor
+Tutorial: [A pipeline in Python](docs/start/python.md).
 
-SlurmPipelineExecutor(
-    pipeline.steps(), tasks=64, time="04:00:00", partition="gpu",
-    gpus_per_task=1, venv_path="/path/to/venv",
-    logging_dir="out/logs").run()
+## Vision-language models
+
+A vision-language model reads a whole page in one request, so its pipeline has one step to fill. The model runs
+behind [vLLM] or [SGLang], which needs an NVIDIA GPU and the `vllm` command on the `PATH`:
+
+```bash
+uv run pipelines/transcribe_vlm.py scans/ out/ --recognition lightonocr-2-1b
 ```
 
-Every component declares what it reads and adds, so `pipeline.check()` (which `run` calls first) finds a pipeline
-that cannot work before it starts: a recognizer without lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` block of
-`pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.execution.run.main` to get
-the pipelines' command line on every machine. The [pipelines reference](docs/reference/pipelines.md) covers
-backends, partial runs (`--until`, `--after`) and the builder.
+With a layout preset, the model reads one region at a time:
 
-## 🧩 How it works
+```bash
+uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --recognition minicpm-ocr-1.0
+```
 
-1. **One record per page.** Every step reads the page's `Transcription` and adds its annotations under its own
-   annotator: regions, lines, readings, tables, classifications, edits. Nothing is overwritten, and documents, files
-   and texts are rendered from the record under a rendering policy. Steps share the data model and nothing else.
-2. **Contracts.** Each component declares what it reads, adds, replaces or removes; the builder checks the pipeline
-   and draws its graph from them.
-3. **Backends.** A model step runs `InProcess`, `Served` (a model server reached through [saturate], which keeps
-   the GPU busy) or `Chat` (a vision-language model behind an OpenAI-compatible server).
-4. **Executors.** [datatrove] splits the pages into tasks, runs them locally, on [Ray], on Slurm or on HF Jobs, and
-   resumes where a run stopped.
+Tutorial: [Run a vision-language model](docs/start/vlm.md).
 
-Models batch only the lines of one page, and model revisions and numerically relevant libraries are pinned, so
-a page's output never depends on the machine or on what else runs. Different GPU types can still differ in rare
-single characters.
+## Recipes
 
-## 🧰 Models and components
+A **recipe** is a tested combination kept under a name: one preset for each step, and the texts to write. A
+recipe has a script of its own with exactly the engines it needs, and `launch.py` runs it by name:
 
-Every configuration is a **preset** in Linecaster's catalog: an engine, a model at a pinned revision with its
-original model card, and settings. The release versions the catalog: each entry's hash is in `catalog.index`, and a
-run record names every entry it used with its hash. Vision-language models run behind vLLM or
-SGLang; the other models run inside the pipeline or behind `linecaster serve`, one package per engine:
-`linecaster-kraken` ([kraken]), `linecaster-paddlex` ([PaddleX]) and `linecaster-tesseract` ([Tesseract]).
+```bash
+uv run launch.py                          # list the recipes
+uv run launch.py squiddle scans/ out/     # run one
+```
 
-Every preset and recipe, with its model and settings: [the catalog](https://storytracer.github.io/linecaster/latest/catalog/).
+Options after the name replace single steps, and the run record lists what was changed. A recipe's script also
+runs from its URL, without a checkout:
 
-Every component by step, with its contract, backends and options: [the components](https://storytracer.github.io/linecaster/latest/components/).
+```bash
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/
+```
 
-## 📚 Reference
+## Input and output
 
-| Page | What it covers |
+| Pages from | Options |
 |---|---|
-| [glossary](docs/reference/glossary.md) | every term linecaster uses, one meaning each |
-| [architecture](docs/reference/architecture.md) | the packages, how a run fits together, the tests |
-| [pipelines](docs/reference/pipelines.md) | components and their contracts, the builder, partial runs, failed pages, the run record |
-| [data model](docs/reference/data-model.md) | what a page record holds: `Item`, `Page`, annotation sets and their annotators, raw outputs and annotations, rendering policies, documents and transcription strategies |
-| [evaluation](docs/reference/evaluation.md) | scoring transcriptions against ground truths: benchmarks, lanes, score records, evidence |
-| [serialization](docs/reference/serialization.md) | how pages are written to and read from ALTO, PAGE-XML and hOCR, the IIIF annotation page and the importers |
-| [catalog](docs/reference/catalog.md) | models, presets, recipes, policies, conventions, normalizations and strategies, release versioning, and where measurements live |
-| [http](docs/reference/http.md) | how readers fetch over http(s): the defaults, components, retries, unexpected HTML and the HTTP policy |
-| [broker](docs/reference/broker.md) | how workers share proxies and other resources across tasks, runs and machines |
-| [tracing](docs/reference/tracing.md) | where a run's time went: OpenTelemetry traces per task and for a trace sample of pages |
-| [compatibility](docs/reference/compatibility.md) | what counts as a breaking change and how one is announced |
-| [conventions](docs/reference/conventions.md) | the repository's rules: names, spelling, YAML and Markdown, docstrings, logging, errors, secrets |
-| [components](https://storytracer.github.io/linecaster/latest/components/), [catalog](https://storytracer.github.io/linecaster/latest/catalog/) | every component, engine, model, preset and recipe, generated from the code |
+| a folder of images | `IMAGES` (with `--item-from-parent`, each subfolder is an item) |
+| a list of images | `IMAGES --paths-file pages.txt` |
+| Parquet with an image column | `--parquet PATH` |
+| IIIF or METS manifests | `--manifests FOLDER`, or a list or a Parquet table of their URLs |
+| an earlier run | `--pages OUT/pages` |
 
-## 🏷️ Versions
+Paths can be local or remote: `s3://`, `hf://`, `http(s)://` and every other [fsspec] protocol.
 
-The current release is `v0.13.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
-While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
-version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
-periods yet. The
-[docs site](https://storytracer.github.io/linecaster/) keeps a version per release, `latest` for the newest.
-For `main`, run `uv run linecaster docs` and then `uv run --group docs zensical serve` in a checkout.
+| Output | Option |
+|---|---|
+| page records, as JSON Lines or Parquet | always, in `OUT/pages/` |
+| ALTO, PAGE-XML and hOCR, with every word's position | `--files DIR --formats alto,page,hocr` |
+| plain text, Markdown, HTML and JSON per page | `--files DIR --formats txt,md,html,json` |
+| one text per book or issue | `--item-texts DIR --text literal:txt`, with `--document` |
 
-## 📄 License
+The stored text is exactly what the model read. Joining divided words, folding historic letterforms and similar
+changes are made only in a text you ask for, by rules you name: `--text latin-historic+flow:md`.
+[Text and normalization](docs/concepts/text.md) explains why.
+
+## Run anywhere
+
+| Where | Options |
+|---|---|
+| this machine | none: the models load inside the pipeline |
+| this machine, with a model server | `--backend served` |
+| a Ray cluster | `--on ray --tasks 64` |
+| Hugging Face Jobs | `--on hf-jobs --namespace NS --commit <sha>` |
+| a Slurm cluster | from Python, with [datatrove]'s Slurm executor |
+
+Linecaster builds on [datatrove], which divides the pages into tasks and resumes a run where it stopped.
+[Running at scale](docs/reference/running.md) has the setup for each of these, and for collections that are
+fetched first and transcribed later.
+
+## Score a run
+
+Ground truth is read into the same page records as a run's output, so the two can be compared:
+
+```bash
+uv run pipelines/import_transcriptions.py truth/ --parquet ocr.parquet --data-key alto --importer alto-import
+uv run linecaster benchmark init truth/pages benchmark.yaml
+uv run linecaster score out/ truth/pages --benchmark benchmark.yaml
+```
+
+The result is an evidence record: error rates with their confidence intervals, and exactly how they were
+measured. Tutorial: [Score a run against ground truth](docs/start/score.md).
+
+## How it works
+
+| Term | Meaning |
+|---|---|
+| component | does one thing to a page: finds the lines, reads them, writes a file |
+| step | one kind of work: `layout`, `lines`, `recognition`, `tables`, `formulas`, `hierarchy`, `paragraphs`, `document` |
+| engine | the code that runs a model: one package per OCR library (`linecaster-paddlex`, `linecaster-kraken`, `linecaster-tesseract`, ...) |
+| preset | an engine, a model at a pinned revision and settings, under one name; what you pick for a step |
+| recipe | a tested set of presets, one for each step |
+| page record | everything the components found on one page, each finding with the model that made it |
+| run record | what a run ran: every preset with its hash, and the versions |
+
+A component adds to the page record and never overwrites what is there. Files and texts are written from the
+record, so one run can serve ALTO to a library and Markdown to a reader. The
+[overview](docs/concepts/overview.md) explains these ideas in a few minutes.
+
+## Documentation
+
+| | |
+|---|---|
+| Get started | [Your first pipeline](docs/start/first-run.md), [A pipeline in Python](docs/start/python.md), [Run a vision-language model](docs/start/vlm.md), [Score a run](docs/start/score.md) |
+| Concepts | [Overview](docs/concepts/overview.md), [components and pipelines](docs/concepts/pipelines.md), [models, engines and presets](docs/concepts/models.md), [page records](docs/concepts/page-records.md), [text and normalization](docs/concepts/text.md), [evaluation](docs/concepts/evaluation.md) |
+| Look up | [every component](https://storytracer.github.io/linecaster/latest/components/), [every preset, model and recipe](https://storytracer.github.io/linecaster/latest/catalog/), the [glossary](docs/reference/glossary.md) |
+| Reference | [architecture](docs/reference/architecture.md), [pipelines](docs/reference/pipelines.md), [data model](docs/reference/data-model.md), [serialization](docs/reference/serialization.md), [catalog files](docs/reference/catalog.md), [evaluation](docs/reference/evaluation.md) |
+| Operations | [running at scale](docs/reference/running.md), [fetching over HTTP](docs/reference/http.md), [broker](docs/reference/broker.md), [tracing](docs/reference/tracing.md) |
+| Contributing | [conventions](docs/reference/conventions.md), [compatibility and releases](docs/reference/compatibility.md) |
+
+For coding agents, the site has an [`llms.txt`](https://storytracer.github.io/linecaster/latest/llms.txt).
+
+## Versions
+
+The current release is `v0.13.1`. [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes
+first. While the version is 0.x, a release that breaks something raises the minor version and names what to
+change ([versions and releases](docs/reference/compatibility.md#versions-and-releases)).
+
+## License
 
 The code is Apache-2.0, see [LICENSE](LICENSE).
 
@@ -340,9 +284,7 @@ purposes. The Apache-2.0 license of the code does not apply to it. The same cred
 [PaddleX]: https://github.com/PaddlePaddle/PaddleX
 [Tesseract]: https://github.com/tesseract-ocr/tesseract
 [datatrove]: https://github.com/huggingface/datatrove
-[saturate]: https://github.com/davanstrien/saturate
-[OpenTelemetry]: https://opentelemetry.io/
-[Ray]: https://www.ray.io/
+[fsspec]: https://filesystem-spec.readthedocs.io/
 [HF Jobs]: https://huggingface.co/docs/huggingface_hub/guides/jobs
 [vLLM]: https://github.com/vllm-project/vllm
 [SGLang]: https://github.com/sgl-project/sglang
