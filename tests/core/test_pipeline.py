@@ -12,7 +12,7 @@ from linecaster.components.servers import EngineServer
 from linecaster.components.writers import PageJsonlWriter
 from linecaster.core.page import page_of
 from linecaster.errors import PipelineConfigError
-from linecaster.execution.secrets import EnvVar
+from linecaster.secrets import EnvVar
 from linecaster.testing import sample_documents
 
 LINES, TEXT = "linecaster.testing:FakeLineEngine", "linecaster.testing:FakeRecognitionEngine"

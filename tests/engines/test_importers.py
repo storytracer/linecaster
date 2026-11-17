@@ -7,7 +7,7 @@ from linecaster.data import SourceFile
 from linecaster.engines.importers import IMPORTERS
 from linecaster.formats import to_alto, to_hocr, to_page
 from linecaster.formats.iiif import to_annotation_page
-from linecaster.formats.omnidocbench import truth_page
+from linecaster.evaluation.omnidocbench import truth_page
 from linecaster.testing import check_engine, sample_transcription
 
 

@@ -62,8 +62,8 @@ def test_options_default_to_todays_constants():
     from linecaster.engines import (LinkedDocumentEngine, RatiosHierarchyEngine, UnicodeParagraphsEngine,
                                     WebpLosslessImageEngine)
     from linecaster.images.convert import to_working_webp
-    from linecaster.engines.paragraphs import rules as R
-    from linecaster.engines.hierarchy import rules as T
+    from linecaster.text import paragraphs as R
+    from linecaster.text import hierarchy as T
 
     o = RatiosHierarchyEngine.Options()
     assert (o.page_number_min_conf, o.demote, o.split, o.max_headline_rows) == (
@@ -113,7 +113,7 @@ def _typography_page():
 
 def test_typography_is_the_retyper_and_records_its_step():
     from linecaster.engines import RatiosHierarchyEngine
-    from linecaster.engines.hierarchy.rules import retype
+    from linecaster.text.hierarchy import retype
 
     want, got = _typography_page(), _typography_page()
     n = len(want.annotators)

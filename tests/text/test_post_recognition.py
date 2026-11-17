@@ -10,7 +10,7 @@ from linecaster.components.writers.files import PageFileWriter
 from linecaster.data.page import Page
 from linecaster.document import build_document, to_markdown, to_text
 from linecaster.document.strategy import apply
-from linecaster.engines.hierarchy.rules import retype
+from linecaster.text.hierarchy import retype
 
 from conftest import body_region, line, page_to_compose, page_with, recomposed, region
 

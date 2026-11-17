@@ -64,7 +64,7 @@ A page is one datatrove `Document`: `id` is the page id, `text` the primary tran
 **A page's time in the run** is on its record, `Page.measurements`: `seconds`, the wall time from when the reader
 handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
 between, waiting in served windows and queues included), and `datetime`, when the reader handed it over (ISO 8601,
-UTC). `linecaster.execution.observers.PageTiming` sets them on every page stage that writes pages; a record read from
+UTC). `linecaster.core.observers.PageTiming` sets them on every page stage that writes pages; a record read from
 an earlier run adds the new run's time to the one it carries and keeps the first `datetime`. Each annotator's own
 time is in its `measurements`.
 

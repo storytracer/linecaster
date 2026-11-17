@@ -200,7 +200,7 @@ a run would when there are problems; a run with problems exits with code 2 befor
 
 ## Observers
 
-`linecaster.execution.observers.Observer` has `on_task_start(rank, world_size)`, `on_warm_up(component, seconds)`,
+`linecaster.core.observers.Observer` has `on_task_start(rank, world_size)`, `on_warm_up(component, seconds)`,
 `on_enter(component, doc)`, `on_exit(component, doc, error=None)`, `on_unit(component, doc, event, **attributes)` (from stream
 components' `notify`: `prepare` and `request` in saturate's prepare threads, `request` with a `carrier` dict for the
 trace context, `done` with `error`, tokens and `finish_reason`; `region` for a request per region),
@@ -547,7 +547,7 @@ lists the completion markers once instead of looking them up task by task.
 
 ## Secrets
 
-`linecaster.execution.secrets.EnvVar("NAME")` names an environment variable; the value is read in the task
+`linecaster.secrets.EnvVar("NAME")` names an environment variable; the value is read in the task
 (`resolve()`), never stored: an `EnvVar` pickles by name, `to_dict()` writes `{"env": "NAME"}`.
 `Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})` (and
 `Chat(preset, endpoint, api_key=..., headers=...)` alike) sends `Authorization: Bearer <key>` and the headers with

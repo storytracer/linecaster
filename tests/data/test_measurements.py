@@ -12,7 +12,7 @@ from linecaster.data.measurements import unknown_measurements
 REPO = Path(__file__).resolve().parents[2]
 SOURCES = [REPO / "src" / "linecaster", *sorted((REPO / "engines").glob("*/src"))]
 #: places whose keys are computed (file relative to the repository, the expression), each checked below
-COMPUTED = {("src/linecaster/engines/hierarchy/engine.py", "stats.counts()"),
+COMPUTED = {("src/linecaster/engines/hierarchy.py", "stats.counts()"),
             ("src/linecaster/engines/importers.py", "reading.coverage.measurements()"),
             ("src/linecaster/engines/tagging.py", "tally.measurements()"),
             ("engines/mediawiki/src/linecaster_mediawiki/reader.py", "reading.coverage.measurements()")}
@@ -116,7 +116,7 @@ def test_linecaster_writes_only_known_measurements():
 
 def test_computed_measurements_are_known():
     from linecaster.conventions import Coverage
-    from linecaster.engines.hierarchy.rules import RetypeStats
+    from linecaster.text.hierarchy import RetypeStats
 
     assert unknown_measurements(RetypeStats().counts()) == []
     assert unknown_measurements(Coverage().measurements()) == []

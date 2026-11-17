@@ -20,7 +20,7 @@ from linecaster.components.writers import PageJsonlWriter
 from linecaster.data import Annotator
 from linecaster.errors import PageError
 from linecaster.execution.builder import build, run_pages, run_plan
-from linecaster.execution.observers import Observer
+from linecaster.core.observers import Observer
 
 #: what the fake engines did, in order (reset per test)
 EVENTS: list = []
@@ -228,7 +228,7 @@ def test_an_env_var_is_never_pickled_with_its_value(monkeypatch):
 
     from linecaster.backends import Served
     from linecaster.errors import PipelineConfigError
-    from linecaster.execution.secrets import EnvVar
+    from linecaster.secrets import EnvVar
 
     monkeypatch.setenv("LC_TEST_KEY", "s3cret-value")
     monkeypatch.setenv("LC_TEST_TOKEN", "t0ken-value")

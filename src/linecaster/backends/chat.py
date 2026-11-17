@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from linecaster.execution.secrets import EnvVar
+from linecaster.secrets import EnvVar
 from linecaster.backends.served import check_secrets, request_headers
 
 #: the port ``VLMServer`` starts its server on by default; ``Chat`` without an endpoint asks there

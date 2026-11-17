@@ -92,7 +92,7 @@ def revive(value: Any) -> Any:
 
             return backend_from_dict(value)
         if set(value) == {"env"}:
-            from linecaster.execution.secrets import EnvVar
+            from linecaster.secrets import EnvVar
 
             return EnvVar(value["env"])
         return {k: revive(v) for k, v in value.items()}
@@ -133,7 +133,7 @@ def _capturing(init):
 class Component:
     """The base of every linecaster component (through ``Contracted``) and of composites."""
 
-    #: the observers the builder installed (``linecaster.execution.observers.Observers``); None: none
+    #: the observers the builder installed (``linecaster.core.observers.Observers``); None: none
     _observers = None
     #: parameters ``to_dict()`` reads from the same-named attribute (the builder may change them after construction)
     live_params: tuple[str, ...] = ()

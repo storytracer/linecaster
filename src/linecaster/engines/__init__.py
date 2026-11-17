@@ -12,9 +12,9 @@ from linecaster.engines.importers import (
     OmniDocBenchImporter, PageXmlImporter, TeiImporter, TextImporter,
 )
 from linecaster.engines.layout import SingleRegionLayoutEngine
-from linecaster.engines.paragraphs.engine import ByScriptParagraphsEngine, UnicodeParagraphsEngine
+from linecaster.engines.paragraphs import ByScriptParagraphsEngine, UnicodeParagraphsEngine
 from linecaster.engines.tagging import ChatTaggingEngine, GeometryTaggingEngine
-from linecaster.engines.hierarchy.engine import RatiosHierarchyEngine
+from linecaster.engines.hierarchy import RatiosHierarchyEngine
 
 __all__ = [
     "AltoImporter", "AutoImporter", "DoclingImporter", "HocrImporter", "HtmlImporter", "IiifImporter", "Importer",

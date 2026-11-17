@@ -1,7 +1,7 @@
 """The generated documentation: ``linecaster docs`` writes every generated file, when the site is built (they are
 not in git).
 
-* ``docs/catalog/``: the catalog's pages (``linecaster.catalog.docs``);
+* ``docs/catalog/``: the catalog's pages (``linecaster.docs.catalog``);
 * ``docs/components/``: the component pages (``linecaster.docs.components``);
 * ``docs/index.md`` (the README for the site), ``docs/changelog.md``, ``docs/llms.txt`` and ``docs/llms-full.txt``
   (``linecaster.docs.site``).
@@ -20,7 +20,7 @@ __all__ = ["GITHUB", "HEADER", "SITE", "Links", "generate", "write"]
 
 
 def _folders(out: Path) -> list[Path]:
-    from linecaster.catalog.docs import KINDS
+    from linecaster.docs.catalog import KINDS
 
     return [*(out / "catalog" / k for k in KINDS), out / "components"]
 
@@ -37,7 +37,7 @@ def generate(out: str | Path = "docs", readme: str | Path | None = "README.md", 
         repo: the repository checkout: engines', pipelines' and components' sources, ``CHANGELOG.md``, GitHub links.
         catalog: the catalog (default: linecaster's).
     """
-    from linecaster.catalog import docs as catalog_docs
+    from linecaster.docs import catalog as catalog_docs
     from linecaster.catalog.registry import Catalog
     from linecaster.docs import components, site
 

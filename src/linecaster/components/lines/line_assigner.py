@@ -23,7 +23,7 @@ from linecaster.data.geometry.order import place_unordered
 from linecaster.data.page import Page
 from linecaster.data.transcription import Annotator, Line, Region, Transcription
 from linecaster.data.writing import check
-from linecaster.engines.hierarchy.rules import hidden, line_bbox, union, zone_bbox
+from linecaster.text.hierarchy import hidden, line_bbox, union, zone_bbox
 from linecaster.core.page import PageComponent
 
 SKIP_LABELS = frozenset({"picture", "chart"})

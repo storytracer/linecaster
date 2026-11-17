@@ -21,7 +21,7 @@ whose regions are its paragraphs, such as an imported ground truth) is appended 
 which is a wrap (``Block.wraps``) unless either part has several rows (verse, a stanza across a page break) and the
 first does not end in a division mark (a word that goes on is a wrap in verse too).
 
-**With paragraphs** (a recomposition ran: its latest recomposition's, ``linecaster.engines.paragraphs.rules.paragraphs``):
+**With paragraphs** (a recomposition ran: its latest recomposition's, ``linecaster.text.paragraphs.paragraphs``):
 one block per paragraph of a text region, its rows on rows of the text, every break between them a wrap, an origin
 per row (its box and character span), a paragraph that continues another (its ``continues`` link by the same
 annotator, in an earlier region or on an earlier page) appended to that one's block on a new row, a wrap. The
@@ -51,8 +51,8 @@ from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
 from linecaster.data.refs import parse
 from linecaster.data.transcription import Cell, Line, Region, Table, Transcription
 from linecaster.formats._xml import heading_level, hidden_line
-from linecaster.engines.paragraphs.rules import continuation, ends_with_mark, paragraphs as paragraphs_of
-from linecaster.engines.hierarchy.rules import line_bbox, zone_bbox
+from linecaster.text.paragraphs import continuation, ends_with_mark, paragraphs as paragraphs_of
+from linecaster.text.hierarchy import line_bbox, zone_bbox
 from linecaster.document.model import Block, Document, Grid, Origin, Page, Span
 
 #: content role -> block kind (roles not listed: paragraph); page numbers are placed (``block_kind``)

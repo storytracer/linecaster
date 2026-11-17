@@ -547,7 +547,7 @@ def _sample_source(fmt: str):
 
 def _omnidocbench_entry(t) -> dict:
     """The sample transcription as an entry of OmniDocBench's ground-truth JSON (``truth_page``)."""
-    from linecaster.formats.omnidocbench import truth_page
+    from linecaster.evaluation.omnidocbench import truth_page
 
     return truth_page("sample", t)
 

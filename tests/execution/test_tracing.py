@@ -283,7 +283,7 @@ def test_no_otlp_without_the_variables(tmp_path: Path, monkeypatch):
     run_plan(build([ImageFolderReader(src), PageJsonlWriter(str(out / "pages"))], run_folder=str(out)))
     assert made == [] and [p.name for p in (out / "traces").iterdir()] == ["00000.jsonl.gz"]
     # no tracing without a run folder or OTLP: only the pages' timing observes
-    from linecaster.execution.observers import PageTiming
+    from linecaster.core.observers import PageTiming
 
     p = build([ImageFolderReader(src), PageJsonlWriter(str(out / "p2"))])
     assert [type(o) for o in p.stages[0].observers.observers] == [PageTiming]

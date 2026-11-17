@@ -30,7 +30,7 @@ def backend_from_dict(data: dict):
         backend = backend_from_dict(InProcess("pkg:Engine", size=3).to_dict())
     """
     from linecaster.errors import PipelineConfigError
-    from linecaster.execution.secrets import EnvVar
+    from linecaster.secrets import EnvVar
 
     def secret(v):
         return EnvVar(v["env"]) if isinstance(v, dict) and set(v) == {"env"} else v

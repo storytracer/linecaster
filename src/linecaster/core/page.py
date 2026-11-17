@@ -152,7 +152,7 @@ class PageComponent(Contracted, PipelineStep):
       done, possibly out of order (served model components with their window). They report what happens to each page
       inside the component through ``notify`` (the observers' ``on_unit``).
 
-    The builder installs the observers (``linecaster.execution.observers``): its boundary steps between components call
+    The builder installs the observers (``linecaster.core.observers``): its boundary steps between components call
     ``on_enter`` and ``on_exit`` for every page; ``notify`` reaches them from inside a component. Neither shape sees
     tasks: ``rank`` and ``world_size`` are for readers and writers. The contract (``contract()``) comes from the
     class attributes of ``Contracted`` unless a component computes it.

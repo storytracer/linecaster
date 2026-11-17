@@ -369,7 +369,7 @@ One annotator made all of it: people (kind `human`) with `ground_truth`, which a
 else the file (kind `file`), named `name`, step `transcription`. The source has `format` `docling`, `dataset` and
 `record` as given, and the image size of the page.
 
-## OmniDocBench import (`linecaster.formats.omnidocbench`)
+## OmniDocBench import (`linecaster.evaluation.omnidocbench`)
 
 `from_omnidocbench(entry, ground_truth=True, uri=None)` reads one page of OmniDocBench's ground truth (an entry of its
 JSON list: `layout_dets`, `page_info`, `extra`; or the entry's JSON) into a transcription; the importer

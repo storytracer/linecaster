@@ -6,14 +6,14 @@ from typing import ClassVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.data.transcription import Transcription
-from linecaster.engines.hierarchy import rules as T
+from linecaster.text import hierarchy as T
 from linecaster.engines.base import RuleEngine
 
 
 class RatiosHierarchyEngine(RuleEngine):
     """Determines a page's hierarchy from its type sizes, every rule a ratio to the page's own body type.
 
-    The rules of ``linecaster.engines.hierarchy.rules``. Heading levels from the type size, section headers in body
+    The rules of ``linecaster.text.hierarchy``. Heading levels from the type size, section headers in body
     type made text, headlines split off the text region they were merged into, drop capitals joined to their line,
     uncertain page numbers removed; each decision an annotation by the call's annotator (role and heading-level
     classifications, a headline region with ``part_of`` links, a ``joined`` edit, ``status`` ``removed``, a new

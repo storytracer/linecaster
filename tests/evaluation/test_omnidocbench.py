@@ -6,7 +6,7 @@ import json
 
 from linecaster.data import Annotator, Source, Transcription
 from linecaster.data.transcription import Cell, Formula, Table
-from linecaster.formats.omnidocbench import export, prediction_markdown, table_html, truth_page
+from linecaster.evaluation.omnidocbench import export, prediction_markdown, table_html, truth_page
 
 
 def _page(blocks: list[tuple[str, list[str]]]) -> Transcription:
@@ -95,7 +95,7 @@ def test_an_export_is_the_truth_json_one_prediction_per_page_and_what_made_them(
 
 
 def test_only_data_tables_are_tables_on_both_sides_the_rest_is_their_text():
-    from linecaster.formats.omnidocbench import table_text
+    from linecaster.evaluation.omnidocbench import table_text
 
     t = _page([("table", ["x"]), ("table", ["y"])])
     t.tables.append(Table(**{**_grid().model_dump(), "target": "r0"}))

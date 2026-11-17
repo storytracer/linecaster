@@ -240,7 +240,7 @@ def _one_of_each(tmp_path) -> list:
     """One component of every class in ``linecaster.components``, with what its constructor needs."""
     from linecaster.engines.chat import chat_model
     from linecaster.backends import Chat
-    from linecaster.execution.secrets import EnvVar
+    from linecaster.secrets import EnvVar
 
     served = Served("https://api.example.org/v1", model="m", api_key=EnvVar("LC_TEST_KEY"), headers={"X-Team": "ocr"})
     needs = {

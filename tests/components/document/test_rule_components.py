@@ -15,7 +15,7 @@ from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.writers import ItemDocumentWriter
 from linecaster.catalog.registry import catalog
 from linecaster.errors import PipelineConfigError
-from linecaster.engines.paragraphs.rules import paragraphs
+from linecaster.text.paragraphs import paragraphs
 
 
 def run(blocks, docs):

@@ -12,7 +12,7 @@ from linecaster.data.geometry.order import xy_cut_order
 from linecaster.evaluation import score_page, tokens
 from linecaster.testing.scripts import SCRIPT_SAMPLES, script_page
 from linecaster.text.scripts import dominant_script, first_strong_direction
-from linecaster.engines.hierarchy.rules import zone_bbox
+from linecaster.text.hierarchy import zone_bbox
 
 SAMPLES = sorted(SCRIPT_SAMPLES)
 # the script ``dominant_script`` reads from a sample's characters (Fraktur is Latin to Unicode)

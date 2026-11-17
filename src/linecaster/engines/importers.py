@@ -303,10 +303,10 @@ class AutoImporter(Importer):
 class OmniDocBenchImporter(Importer):
     """One page of OmniDocBench's ground truth, an entry of its JSON list as JSON.
 
-    ``linecaster.formats.omnidocbench.from_omnidocbench`` reads it: its elements as regions with roles, lines,
+    ``linecaster.evaluation.omnidocbench.from_omnidocbench`` reads it: its elements as regions with roles, lines,
     tables, formulas and reading order, its page attributes on the source. It is scaled to the page image by the size
     it states, except where that size is the image's transposed (width for height: the entry's coordinates are the
-    image's; the stated size kept as ``omnidocbench__stated_size``). ``linecaster.formats.omnidocbench.entries``
+    image's; the stated size kept as ``omnidocbench__stated_size``). ``linecaster.evaluation.omnidocbench.entries``
     splits the JSON's list into its pages.
 
     Args:
@@ -321,7 +321,7 @@ class OmniDocBenchImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
     def read(self, source, options):
-        from linecaster.formats.omnidocbench import from_omnidocbench
+        from linecaster.evaluation.omnidocbench import from_omnidocbench
 
         t = from_omnidocbench(source.as_text(), ground_truth=options.ground_truth, uri=source.uri)
         w, h = t.source.image_width, t.source.image_height

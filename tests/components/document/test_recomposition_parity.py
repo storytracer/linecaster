@@ -19,7 +19,7 @@ from linecaster.data import Transcription  # noqa: E402
 from linecaster.data.upgrade import upgrade_transcription  # noqa: E402
 from linecaster.document.strategy import apply  # noqa: E402
 from linecaster.engines import LinkedDocumentEngine, UnicodeParagraphsEngine  # noqa: E402
-from linecaster.engines.paragraphs.rules import paragraphs, split_ref  # noqa: E402
+from linecaster.text.paragraphs import paragraphs, split_ref  # noqa: E402
 
 #: the legacy builder's Docling labels -> the document's block kinds
 KIND = {"text": "paragraph", "section_header": "heading", "document_index": "toc_entry"}

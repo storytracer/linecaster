@@ -30,7 +30,7 @@ from linecaster.data import Line
 from linecaster.errors import PipelineConfigError
 from linecaster.execution import run
 from linecaster.execution.builder import OTHERWISE, MetadataEquals, branch, build, run_pages, run_plan
-from linecaster.execution.observers import Observer
+from linecaster.core.observers import Observer
 
 
 # ------------------------------------------------------------------------------------------------ fake engines
@@ -618,7 +618,7 @@ def test_every_page_record_carries_its_time_in_the_run(tmp_path: Path):
     import time
 
     from linecaster.components.writers.records import PageJsonlWriter
-    from linecaster.execution.observers import PageTiming
+    from linecaster.core.observers import PageTiming
 
     class Slow(Mark):
         def process_page(self, doc, page):

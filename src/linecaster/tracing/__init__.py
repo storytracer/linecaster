@@ -39,7 +39,7 @@ from opentelemetry.sdk.trace.sampling import Decision, Sampler, SamplingResult
 from opentelemetry.trace import SpanContext, StatusCode, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from linecaster.execution.observers import Observer
+from linecaster.core.observers import Observer
 from linecaster.tracing.export import JsonlFileExporter, PageBuffer
 
 #: where a document carries its trace context: ``doc.metadata["trace"] = {"traceparent": ...}``

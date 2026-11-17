@@ -8,8 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecaster.data.geometry.frames import HORIZONTAL_LR, to_frame
 from linecaster.data.transcription import DECISIONS, Decision, Line, Link, Paragraph, ParagraphRow, Transcription
 from linecaster.data.policy import TEXT_LABELS
-from linecaster.engines.paragraphs import rules as R
-from linecaster.engines.hierarchy.rules import hidden
+from linecaster.text import paragraphs as R
+from linecaster.text.hierarchy import hidden
 from linecaster.engines.base import RuleEngine, ScriptDispatch, Strategy
 
 #: the region labels whose regions are recomposed into one paragraph: headings
@@ -25,7 +25,7 @@ def geometric(lines: list[Line]) -> bool:
 
 
 def rows_of(t: Transcription, lines: list[Line]) -> tuple[list[R.Row], list[list[str]]]:
-    """A region's visual rows and the ids of the lines on each: with geometry ``linecaster.engines.paragraphs.rules.
+    """A region's visual rows and the ids of the lines on each: with geometry ``linecaster.text.paragraphs.
     region_rows`` (the lines of one visual row side by side), without each line a row of its own, in reading
     order."""
     if geometric(lines):
@@ -61,7 +61,7 @@ class _Open:
 class UnicodeParagraphsEngine(RuleEngine):
     """Recomposes the rows of each text region into paragraphs from geometry and Unicode's character properties.
 
-    ``linecaster.engines.paragraphs.rules``: the rows of each text region joined into
+    ``linecaster.text.paragraphs``: the rows of each text region joined into
     paragraphs, the typesetter's division marks removed, from geometry and Unicode's character properties (line,
     word and sentence breaks), never from a language name; the document's own words decide the one ambiguous case
     (a hyphen that may belong to the word). A paragraph left open at the end of a text region continues in the next

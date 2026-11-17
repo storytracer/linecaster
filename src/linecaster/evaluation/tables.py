@@ -3,7 +3,7 @@ rows and two columns of cells, whatever they hold, text or numbers), ``contents`
 numbers laid out as a table: a table of contents, an index, a list of illustrations) or ``layout`` (table markup that
 arranges a page: one row, one column or one cell; a brace grouping lines). A source like Wikisource lays out far more
 than it tabulates (on English Wikisource's ground truth, 2026-11-16: 16,005 of 21,418 tables have one row, one column
-or one cell), so a table metric is meaningful only on its ``data`` tables (``linecaster.formats.omnidocbench``, the
+or one cell), so a table metric is meaningful only on its ``data`` tables (``linecaster.evaluation.omnidocbench``, the
 page slices). The kind is computed, never stored: the ground truth keeps every table as it is.
 
 ``contents``: at least three rows; in at least 60 % of the rows with an entry the last cell is a reference (a page,

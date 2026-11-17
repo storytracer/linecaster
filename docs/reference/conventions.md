@@ -155,7 +155,7 @@ linecaster can catch what went wrong, and a run's exit code says whether anythin
 
 ## Secrets
 
-A credential is never a value in a pipeline: it is an `EnvVar("NAME")` (`linecaster.execution.secrets`), read in the
+A credential is never a value in a pipeline: it is an `EnvVar("NAME")` (`linecaster.secrets`), read in the
 task. Reason: datatrove pickles the pipeline for every executor, and the run record lists every component's parameters.
 
 ## Changes

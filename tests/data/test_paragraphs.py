@@ -31,9 +31,9 @@ def page() -> Transcription:
 
 
 def paragraphs_of(t: Transcription) -> list[Paragraph]:
-    """Paragraphs as a recomposition makes them from ``linecaster.engines.paragraphs.rules`` (the rows of a region with
+    """Paragraphs as a recomposition makes them from ``linecaster.text.paragraphs`` (the rows of a region with
     the lines on each row), by a recomposition annotator."""
-    from linecaster.engines.paragraphs.rules import Lexicon, reflow_rows, region_rows, row_lines
+    from linecaster.text.paragraphs import Lexicon, reflow_rows, region_rows, row_lines
 
     a = t.add_annotator(Annotator(kind="rule", step="paragraphs", name="test"))
     lines = t.lines_of("text_0")
@@ -47,7 +47,7 @@ def paragraphs_of(t: Transcription) -> list[Paragraph]:
 
 def test_paragraph_rows_give_the_documents_provenance():
     from linecaster.document import build_document
-    from linecaster.engines.hierarchy.rules import line_bbox
+    from linecaster.text.hierarchy import line_bbox
 
     t = page()
     t.ranges.extend(paragraphs_of(t))

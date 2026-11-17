@@ -27,7 +27,7 @@ from collections import deque
 
 from loguru import logger
 
-from linecaster.execution.observers import Observer
+from linecaster.core.observers import Observer
 
 #: how often a progress log line is written where there is no live progress line
 EVERY_SECONDS = 30

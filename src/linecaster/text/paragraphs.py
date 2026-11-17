@@ -1,6 +1,6 @@
 """Recomposition: running text from the visual rows of a region (the reading transcription).
 
-The engine ``paragraphs.unicode.v1`` (``linecaster.engines.paragraphs.engine``) runs it, the ``DocumentComposer`` builds
+The engine ``paragraphs.unicode.v1`` (``linecaster.engines.paragraphs``) runs it, the ``DocumentComposer`` builds
 documents from what it makes. It records structure only (paragraphs, their rows, breaks and continuations); a
 transcription strategy writes the text (``linecaster.document.strategy``). Every threshold below is a field of
 ``Thresholds`` (today's values its defaults), the engine's options.
@@ -62,7 +62,7 @@ from uniseg.wordbreak import words
 from linecaster.data.geometry import BBox
 from linecaster.data.transcription import Decision, Line, Transcription
 from linecaster.data.transcription import Paragraph as ParagraphRange
-from linecaster.engines.hierarchy.rules import line_bbox, union
+from linecaster.text.hierarchy import line_bbox, union
 
 #: Marks by convention, unknown to Unicode as hyphens: the not sign, which some transcription
 #: conventions (and kraken models trained on them) write for a line-end hyphen.
@@ -392,7 +392,7 @@ class Rules:
     """The decisions at a row end that depend on the characters around it: ``resolve_mark``, ``kept_reason`` and
     ``separator``, this module's Unicode rules. ``reflow_rows`` takes another object with the same methods
     (``kept_reason`` optional), e.g. an engine that routes each decision to a strategy by script
-    (``linecaster.engines.paragraphs.engine``)."""
+    (``linecaster.engines.paragraphs``)."""
 
     resolve_mark = staticmethod(resolve_mark)
     kept_reason = staticmethod(kept_reason)

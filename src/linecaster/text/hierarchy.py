@@ -1,6 +1,6 @@
 """Typography: what the typesetter's sizes and initials say about a page's regions, on a ``Transcription``.
 
-The engine ``hierarchy.ratios.v1`` (``linecaster.engines.hierarchy.engine``) runs it, every threshold a field of
+The engine ``hierarchy.ratios.v1`` (``linecaster.engines.hierarchy``) runs it, every threshold a field of
 ``Ratios`` (the constants below are their defaults). It runs after recognition (and tables), before page composition. All rules
 are ratios to the page's own body type, measured from the row heights the line step delivered (a row = the lines
 of one region on the same visual row, ``Transcription.rows``; its box = the union of their boxes, derived from the

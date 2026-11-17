@@ -294,7 +294,7 @@ its end-to-end evaluation):
 on: an empty prediction), `export.yaml` (what was exported and with what) and a `README.md` naming OmniDocBench's own
 command; OmniDocBench runs in an environment of its own (Python before 3.12).
 
-**The formats** (`linecaster.formats.omnidocbench`): the ground truth's regions in reading order become its
+**The formats** (`linecaster.evaluation.omnidocbench`): the ground truth's regions in reading order become its
 elements, their roles its categories (paragraphs `text_component`, headings `title`, running heads and feet `header`
 and `footer`, page numbers `page_number`, footnotes `page_footnote`, captions `figure_caption`, tables `table` with
 their HTML, formula regions `equation_isolated`); a line a formula fills (an equation number may follow) is its own

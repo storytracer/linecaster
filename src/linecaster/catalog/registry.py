@@ -705,7 +705,7 @@ PROSE_REQUIRED = ("core",)
 
 def schema_problems(folder: Path = SCHEMA_DIR) -> list[str]:
     """The committed JSON Schemas against fresh ones from the models."""
-    from linecaster.catalog.formats import json_schemas
+    from linecaster.schemas import json_schemas
 
     fresh = json_schemas()
     problems = [f"schema {name} differs from the models: run `linecaster catalog schemas`"

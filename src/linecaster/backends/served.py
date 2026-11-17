@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from linecaster.errors import PipelineConfigError, ServerError
-from linecaster.execution.secrets import EnvVar, resolve
+from linecaster.secrets import EnvVar, resolve
 
 #: seconds the protocol check waits for a server's ``/health``
 HEALTH_TIMEOUT = 10.0

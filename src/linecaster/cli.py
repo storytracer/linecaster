@@ -303,7 +303,7 @@ def _catalog(a) -> None:
         for path in registry.Catalog().write_index():
             print(path)
     elif a.action == "schemas":
-        from linecaster.catalog import formats
+        from linecaster import schemas as formats
 
         for path in formats.write_schemas(*([a.out] if a.out else [])):
             print(path)
@@ -626,7 +626,7 @@ def main(argv: list[str] | None = None) -> None:
 def _export(a) -> None:
     from pathlib import Path
 
-    from linecaster.formats.omnidocbench import export
+    from linecaster.evaluation.omnidocbench import export
     from linecaster.evaluation.run import read_truth, truth_ids
 
     ids = set(Path(a.ids).read_text().split()) if a.ids else truth_ids(a.truth)

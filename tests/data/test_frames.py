@@ -12,8 +12,8 @@ from linecaster.data.geometry.frames import framed, from_frame, to_frame
 from linecaster.data.geometry.order import place_unordered, xy_cut_order
 from linecaster.data.geometry.xy_cut_plus_plus import xy_cut_plus_plus_order
 from linecaster.data.writing import DIRECTIONS
-from linecaster.engines.paragraphs.engine import in_direction
-from linecaster.engines.paragraphs.rules import Row
+from linecaster.engines.paragraphs import in_direction
+from linecaster.text.paragraphs import Row
 
 # a page of two columns, two blocks each, not aligned across the columns
 TWO_COLUMNS = [BBox(0, 0, 480, 400), BBox(520, 0, 1000, 600), BBox(0, 450, 480, 900), BBox(520, 650, 1000, 900)]

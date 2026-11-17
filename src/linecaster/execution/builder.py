@@ -43,7 +43,7 @@ from urllib.parse import urlsplit
 from linecaster.core.composite import Composite
 from linecaster.core.contract import Contract, Part, contract_of
 from linecaster.errors import PipelineConfigError
-from linecaster.execution.observers import Boundary, Observer, Observers, Tap
+from linecaster.core.observers import Boundary, Observer, Observers, Tap
 
 #: where a page records which alternative of a group took it (removed after the group)
 BRANCH_KEY = "linecaster_branch"
@@ -767,7 +767,7 @@ def _build(components: list, *, tasks: int = 1, until=None, after=None, taps=Non
 def _timing(entries: list[_Entry]):
     """A page stage's ``PageTiming``: from its first component to the first that writes pages, binds or serves (where the
     stream still carries pages, as for ``_rejects``); none for a stage of items or one that writes no page."""
-    from linecaster.execution.observers import PageTiming
+    from linecaster.core.observers import PageTiming
 
     if not entries or entries[0].contract.unit not in ("page", "any") or entries[0].contract.output_unit == "item":
         return None

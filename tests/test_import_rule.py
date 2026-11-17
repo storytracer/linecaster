@@ -65,3 +65,36 @@ def test_the_rule_finds_an_internal_import(tmp_path):
     f.write_text("from linecaster.catalog.fetch import hf_file\nimport linecaster.data\n"
                  "def g():\n    from linecaster import execution\n")
     assert linecaster_imports(f) == [(1, "linecaster.catalog.fetch"), (2, "linecaster.data"), (4, "linecaster.execution")]
+
+
+#: linecaster's packages from the bottom up: a module imports, at its top, only packages of its own layer or below
+#: (an import inside a function may reach up: the builder puts writers into a pipeline, the catalog asks the
+#: installed engines)
+LAYERS = (("errors", "secrets"), ("data",), ("text", "normalization", "conventions", "images"), ("formats",),
+          ("document",), ("engines",), ("catalog",), ("evaluation",), ("net", "backends"), ("core",), ("tracing",),
+          ("components",), ("serving",), ("execution", "pipeline"), ("templates",), ("schemas", "docs", "testing", "cli"))
+
+
+def test_packages_import_downward():
+    """The layers (docs/reference/architecture.md): the data model at the bottom, the engines over the formats, the
+    components over the core, the templates and the command line on top. A new package must be given its layer."""
+    import ast
+
+    root = ROOT / "src" / "linecaster"
+    level = {name: i for i, names in enumerate(LAYERS) for name in names}
+    upward, unlisted = [], set()
+    for path in sorted(root.rglob("*.py")):
+        package = path.relative_to(root).parts[0].removesuffix(".py")
+        if package == "__init__":
+            continue
+        if package not in level:
+            unlisted.add(package)
+            continue
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            modules = ([node.module] if isinstance(node, ast.ImportFrom) and node.module else
+                       [a.name for a in node.names] if isinstance(node, ast.Import) else [])
+            for module in modules:
+                parts = module.split(".")
+                if parts[0] == "linecaster" and len(parts) > 1 and level.get(parts[1], -1) > level[package]:
+                    upward.append(f"{path.relative_to(root).as_posix()}: {module}")
+    assert unlisted == set() and upward == []

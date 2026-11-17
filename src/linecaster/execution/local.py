@@ -113,7 +113,7 @@ def size_before(logging_dir, ranks) -> int:
 
 def components(pipeline) -> list[str]:
     """The pipeline's components by name, without the builder's boundaries."""
-    from linecaster.execution.observers import Boundary
+    from linecaster.core.observers import Boundary
 
     return [component_label(getattr(step, "component", step)) for step in pipeline if not isinstance(step, Boundary)]
 
@@ -266,7 +266,7 @@ class LocalExecutor(LocalPipelineExecutor):
             import multiprocess
 
             from linecaster.execution.console import Progress
-            from linecaster.execution.observers import Boundary
+            from linecaster.core.observers import Boundary
 
             manager = multiprocess.Manager()
             shared = manager.dict()

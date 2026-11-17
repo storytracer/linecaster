@@ -116,7 +116,7 @@ def test_the_catalog_is_consistent():
     assert set(index["recipes"]) == set(c.recipes) and set(index["policies"]) == set(c.policies)
 
 def test_docs_from_the_catalog(tmp_path):
-    from linecaster.catalog import docs
+    from linecaster.docs import catalog as docs
 
     root = tmp_path / "cat"
     make(root)
@@ -260,7 +260,7 @@ def test_recipe_stamp_names_the_recipe_on_every_step():
 def test_committed_schemas_are_the_models():
     """``schemas/`` holds what the Pydantic models generate (`linecaster catalog schemas` rewrites it)."""
     from linecaster.catalog.registry import schema_problems
-    from linecaster.catalog.formats import json_schemas
+    from linecaster.schemas import json_schemas
     from linecaster.catalog.schema import SCHEMA_DIR
 
     assert schema_problems() == []

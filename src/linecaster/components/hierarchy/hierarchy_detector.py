@@ -1,5 +1,5 @@
 """``HierarchyDetector``: the typographic hierarchy of a page (``typography.*`` engines; ``hierarchy.ratios.v1``:
-heading levels from type-size ratios, ``linecaster.engines.hierarchy.rules``)."""
+heading levels from type-size ratios, ``linecaster.text.hierarchy``)."""
 from __future__ import annotations
 
 from linecaster.core.rule import RuleComponent
@@ -9,7 +9,7 @@ class HierarchyDetector(RuleComponent):
     """Determines the typographic hierarchy of every page by a typography engine.
 
     Heading levels from type size, headline splits, drop capitals, uncertain page numbers removed (see
-    ``linecaster.engines.hierarchy.rules``), each an annotation by the engine's annotator: roles and heading levels, a
+    ``linecaster.text.hierarchy``), each an annotation by the engine's annotator: roles and heading levels, a
     headline region with its lines linked to it, a drop capital joined to its line, ``status`` ``removed``, a new
     reading order. Reads ``regions`` and ``lines``; adds ``hierarchy``; replaces ``regions`` and ``lines`` (what
     they are and how they are read). Stats: ``leveled``, ``demoted``, ``split``, ``drop_capitals``,

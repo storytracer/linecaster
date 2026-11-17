@@ -1,4 +1,4 @@
-"""OmniDocBench's ground truth read into page records (``linecaster.formats.omnidocbench.from_omnidocbench``,
+"""OmniDocBench's ground truth read into page records (``linecaster.evaluation.omnidocbench.from_omnidocbench``,
 ``import.omnidocbench.v1``): a ground truth written as OmniDocBench's entry and read back keeps its texts, roles (as far
 as the categories tell them apart), order, tables and formulas; an entry's spans give lines with boxes, divided words
 and inline formulas; a real entry of OmniDocBench's demo data, where a checkout has it (its data stays there)."""
@@ -11,7 +11,7 @@ import pytest
 
 from linecaster.data import Annotator, Source, SourceFile, Transcription
 from linecaster.data.transcription import Cell, Formula, Table
-from linecaster.formats.omnidocbench import (
+from linecaster.evaluation.omnidocbench import (
     entries,
     from_omnidocbench,
     page_id,
