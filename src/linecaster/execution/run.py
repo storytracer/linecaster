@@ -67,8 +67,8 @@ RAY_UV = "RAY_ENABLE_UV_RUN_RUNTIME_ENV"
 
 def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str | None = None,
           slots: dict[str, str] | None = None) -> None:
-    """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
-    names others. The pipeline's slots (``--layout``, ``--recognition``, ...) pick them; presets of built-in engines
+    """``linecaster serve`` in the pipeline's environment, with its models unless ``--preset``, ``--model`` or
+    ``--config`` names others (a task that starts the server names every model itself). The pipeline's slots (``--layout``, ``--recognition``, ...) pick them; presets of built-in engines
     (in the pipeline's process only) are left out."""
     from linecaster.cli import main as cli
 
@@ -79,7 +79,7 @@ def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str
     a, rest = ap.parse_known_args(argv)
     if pipeline_id:
         apply_recipe(ap, a, pipeline_id, slots or {}, argv)
-    if not any(x in rest for x in ("--model", "--config", "-h", "--help")):
+    if not any(x in rest for x in ("--preset", "--model", "--config", "-h", "--help")):
         from linecaster.catalog.registry import in_process_only
 
         hosted = [m for m in models(a) if not (m.get("preset") and in_process_only(m["preset"]))]

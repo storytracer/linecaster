@@ -171,7 +171,7 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
 
     async def start(app_):
         loop = asyncio.get_running_loop()
-        for h in hosted:   # load one after another (the GPU is shared), then serve
+        for h in by_name.values():   # one per name, loaded one after another (the GPU is shared), then serve
             await loop.run_in_executor(None, h.load)
             threading.Thread(target=h.work, args=(loop, tracer), name=f"model-{h.name}", daemon=True).start()
         ready["ok"] = True

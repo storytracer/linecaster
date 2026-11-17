@@ -79,3 +79,23 @@ def test_bind_takes_its_presets_and_texts():
         run.describe(BIND, ["P", "OUT", *PRESETS, "--text", "no-such:md"])
     with pytest.raises(PipelineConfigError, match="<strategy>:<format>"):
         run.describe(BIND, ["P", "OUT", *PRESETS, "--text", "literal"])
+
+
+def test_a_recipes_server_started_by_a_task_hosts_each_model_once(monkeypatch):
+    """A task names every model of its server (``--preset NAME=REF``); a recipe's script then adds none of its own,
+    which would load each model a second time."""
+    import linecaster.cli as cli
+    from linecaster.templates import transcribe_modular as T
+
+    seen = []
+    monkeypatch.setattr(cli, "main", seen.append)
+
+    def options(ap):
+        T.options(ap)
+        ap.set_defaults(recipe="squiddle")
+
+    given = ["--port", "8100", "--preset", "layout=pp-doclayoutv3", "--preset", "recognition=kraken-ppocrv6-medium"]
+    run.serve(given, options, T.models, T.PIPELINE, T.SLOTS)
+    assert seen == [["serve", *given]]
+    run.serve(["--port", "8100"], options, T.models, T.PIPELINE, T.SLOTS)        # by hand: the recipe's models
+    assert seen[1].count("--preset") == 5 and seen[1][-2:] == ["--port", "8100"]
