@@ -158,7 +158,7 @@ pointed at one path share the proxies and their blocks. A run's default worker c
 (`linecaster.execution.run.allocate`): from the proxies available at launch (the proxies in the file, less those with
 a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
 `linecaster.net.broker.survey_kind`), one per available proxy and at most one per CPU sharing them fairly, divided by N
-with `per_worker` 1 or N, and at most 64 with OUT on object storage ([pipelines](pipelines.md#tasks-workers-and-rate-limits));
+with `per_worker` 1 or N, and at most 64 with OUT on object storage ([pipelines](running.md#tasks-workers-and-rate-limits));
 on local and Ray runs only (on HF Jobs each worker is a Job, so a proxy list never sets their number).
 
 ## The command

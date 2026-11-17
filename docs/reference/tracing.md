@@ -54,7 +54,7 @@ Log records carry `trace_id` and `span_id` in `extra` (JSON lines on Jobs show t
 
 `--trace-share SHARE` (`build(..., trace_share=)`, default 0.01): a page is in the trace sample when a hash of its
 id (BLAKE2b, 64 bits) is below `SHARE`, so the same pages on every rerun and machine, and a larger trace sample
-contains a smaller one. It is not the sample a run reads (`--sample`, [pipelines](pipelines.md#samples)). `0`
+contains a smaller one. It is not the sample a run reads (`--sample`, [pipelines](running.md#samples)). `0`
 traces only failed pages and the task spans; `1` traces every page. A sampled page's record
 carries its trace id (`page.metadata.trace_id`), so the page records lead to the trace.
 

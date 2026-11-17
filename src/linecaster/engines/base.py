@@ -1,7 +1,7 @@
-"""The engine protocol of the rule-based steps (image, typography, recomposition, composition), and
+"""The engine protocol of the rule-based steps (image, hierarchy, paragraphs, document), and
 the dispatch of their decisions by script.
 
-A rule-based engine (a **strategy**) is a class like a model engine, without weights:
+A rule-based engine is a class like a model engine, without weights:
 
 * ``engine_id`` (its code id, e.g. ``hierarchy.ratios.v1``), ``step``, ``capabilities`` (``unit``, ``produces``),
   ``scripts`` (the ISO 15924 scripts it covers, ``("*",)`` for all) and ``Options`` (a Pydantic model whose fields

@@ -14,7 +14,7 @@ from linecaster.docs.common import GITHUB, HEADER, SITE, Links
 #: the raw Markdown of the repository's files, for llms.txt
 RAW = "https://raw.githubusercontent.com/storytracer/linecaster/main"
 #: the hand-written reference pages in the order the site and llms-full.txt give them; others follow by name
-REFERENCE = ("glossary", "conventions", "architecture", "pipelines", "data-model", "serialization", "catalog",
+REFERENCE = ("glossary", "conventions", "architecture", "pipelines", "running", "data-model", "serialization", "catalog",
              "tracing", "compatibility")
 #: the hand-written tutorials and concept pages, by folder, in the site's order
 GUIDES = (("start", ("first-run", "vlm", "score")),

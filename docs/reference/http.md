@@ -4,7 +4,7 @@ How linecaster's readers fetch over http(s) (`linecaster.net.http`, `linecaster.
 `linecaster.net.policy`): the defaults, what a block is and how each path answers it, unexpected HTML, retries, and
 the HTTP policy file that changes all of it per host. Terms are the [glossary](glossary.md)'s; how workers share the
 proxies is in the [broker](broker.md), how runs choose their workers in
-[pipelines](pipelines.md#tasks-workers-and-rate-limits).
+[pipelines](running.md#tasks-workers-and-rate-limits).
 
 **The principle:** the defaults follow the HTTP standards (a 429 with its `Retry-After`, the retryable statuses,
 `Retry-After` as seconds or an HTTP-date); anything learned from one site or CDN (a block page served with 200, a 403

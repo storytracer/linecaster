@@ -81,6 +81,7 @@ nav:
       - Evaluation: reference/evaluation.md
       - Glossary: reference/glossary.md
   - Operations:
+      - Running at scale: reference/running.md
       - Fetching over HTTP: reference/http.md
       - Broker: reference/broker.md
       - Tracing: reference/tracing.md

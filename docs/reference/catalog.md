@@ -407,7 +407,7 @@ pipeline's process only. `pipelines/transcribe_modular.py --layout single-region
 
 ### Rule-based engines
 
-The engines of the rule-based steps (**strategies**) live in `linecaster.engines`, are pure Python and run in the
+The engines of the rule-based steps live in `linecaster.engines`, are pure Python and run in the
 pipeline's process only (`IN_PROCESS_ONLY`; `linecaster serve` refuses them): `image.webp-lossless.v1`,
 `hierarchy.ratios.v1`, `paragraphs.unicode.v1`, `document.linked.v1` and the by-script engine
 `paragraphs.by-script.v1`. None of them changes a text: they add structure (headings, paragraphs, links), and a
@@ -482,8 +482,8 @@ end (a division mark, the separator between two rows) the script of the last cha
 one, else of the first after it (characters of the scripts Common and Inherited, such as spaces, hyphens, digits and
 combining marks, have none). A script without a strategy of its own goes to `"*"`. Scripts are
 Unicode's `Script` property, matched with the `regex` package's `\p{Script=...}`. `verify` checks that every
-strategy is a preset of the same step and covers its script. (These by-script strategies are presets of a step;
-transcription strategies, the catalog kind, are another thing.)
+one is a preset of the same step and covers its script. The option's name `strategies` is the engine's own: its
+values are presets of the step, not strategies of the catalog.
 
 ## Pipelines, recipes and `launch.py`
 

@@ -238,7 +238,7 @@ Jobs run the same Python minor version (3.12). `uv run` outside a project drops 
 `linecaster.execution.jobs.dependencies(commit, script)` spells out a pipeline's dependencies and sources as URLs, the
 installed packages' own sources from the script's lock (the commit must be pushed), and pins every other package at
 the lock's version; each Job runs a uv script that carries the pins and the script's overrides, which `uv run --with`
-would ignore ([pipelines](pipelines.md#hf-jobs-helpers)).
+would ignore ([pipelines](running.md#hf-jobs-helpers)).
 
 Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
 does) agree through the [broker](broker.md), a folder any executor's workers can reach, on any storage datatrove
@@ -258,7 +258,7 @@ pipeline reads the previous folder and writes complete page records with one mor
 | `OUT/logs/` | datatrove's completion markers, logs and stats; `OUT/logs/broker/`, the [broker](broker.md) by default |
 | `OUT/traces/` | the traces ([tracing](tracing.md)) |
 | `OUT/run.yaml` | the run record ([pipelines](pipelines.md#the-run-record)) |
-| `OUT/sample.parquet` | the sample a run read, one row per page in sample order ([pipelines](pipelines.md#samples)) |
+| `OUT/sample.parquet` | the sample a run read, one row per page in sample order ([pipelines](running.md#samples)) |
 | `OUT/manifests/` | the manifests a sample read (with `sample.jsonl`), or a harvest saved |
 
 `PageRecordReader` reads page records of linecaster's writers, fetching images again by URI (`uri_map` for local
@@ -276,7 +276,7 @@ pypdfium2, extra `[pypdfium2]`) and `PageRecordReader`. Readers that fetch over 
 that grows while no request waits for the rate limits (`linecaster.net.http.prefetched`), through one fetcher per
 process and configuration, so the limits hold across a worker's tasks; `ImageParquetReader` and `ManifestReader`
 suggest a task count from their input (`auto_tasks`), which a pipeline without engines runs with
-([pipelines](pipelines.md#tasks-workers-and-rate-limits)).
+([pipelines](running.md#tasks-workers-and-rate-limits)).
 
 **The workflow** is harvest → transcribe → bind: `pipelines/harvest.py` downloads images (and OCR, manifests) once
 into item folders plus page records, the transcribe pipelines read those with `--pages`, `pipelines/bind.py` makes

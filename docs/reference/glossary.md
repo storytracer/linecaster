@@ -96,6 +96,7 @@ one subject each and link to the page that explains it.
 | **layer** | Where a rendering puts content: `body`, `furniture` (running heads, page numbers), `notes`, `background`, `invisible`, `metadata` or `none`. |
 | **normalization** | One named change of a text, as a catalog entry: `nfc`, `long-s`, `flow`. Nothing is normalized unless a strategy says so. |
 | **strategy** | A named, ordered list of normalizations, as a catalog entry (`latin-historic`). It is applied when a text is written (`--text latin-historic:md`), never to what is stored. Several joined by `+` make an unnamed one (`nfc+long-s+flow`). |
+| **per-script engine** | The engine that a by-script engine sends a script's decisions to: a preset of the same step (`by_script`). Its option is named `strategies`; a bare "strategy" is the catalog's. |
 | **literal** | The strategy that changes nothing: the readings exactly as given. |
 | **text** | A written text of a page or an item: a strategy and a format (`literal:txt`). |
 | **flow** | The normalization that joins the rows of a block into running text. A division mark that nothing resolved is kept. |

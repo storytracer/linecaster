@@ -134,3 +134,19 @@ Still open, for a later minor:
 - `catalog/registry.py`, `cli.py` and `tracing/__init__.py` in smaller modules.
 - The long reference pages (`pipelines.md`, `data-model.md`, `evaluation.md`) divided into how-to and reference;
   `NOTES.md` as dated decision records.
+
+## Phase 4, looked at again after 0.13
+
+The plan's third minor was to merge VLM adapters into engines, to name strategies and lanes "normalization
+profiles", and to fold slices into strata. Reading the code for it changed the judgment:
+
+- **Lanes and slices are fields of data that evaluations keep** (`lanes` in benchmarks, evidence records and score
+  records; `slices` in evidence records). Renaming them means three new format versions for files in other
+  repositories, for a gain in wording only: since 0.12 each word has one meaning (a lane is a strategy both sides of
+  a comparison go through; a slice is a fixed set of pages). They keep their names.
+- **Adapters as engines** would give every VLM family an engine id of its own and drop the word "adapter". It
+  changes the id every VLM annotator records, the hash of every VLM preset and the run record's backend entry, and
+  it cannot be validated without a vLLM server (none on the machine at hand). It waits for a session with one, with
+  two adapters first.
+- **The by-script engine's `strategies` option** is the last third meaning of "strategy". It is an engine option,
+  so renaming it is a new engine id; no preset uses the engine yet. The docs say "per-script engine".

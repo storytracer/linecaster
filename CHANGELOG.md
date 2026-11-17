@@ -4,6 +4,16 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Changed
+
+- The reference has a page [Running at scale](docs/reference/running.md): samples, tasks, workers and rate limits,
+  the console, secrets and the HF Jobs helpers, which were sections of the pipelines page. Links to those sections
+  point to the new page.
+- The docs call the engine a by-script engine sends a script's decisions to a per-script engine, not a strategy; a
+  strategy is the catalog's.
+
 ## 0.13.0 (2026-11-17)
 
 A pipeline is a thing of its own, and the packages are layers. `Pipeline` checks, draws, runs and records a list of
