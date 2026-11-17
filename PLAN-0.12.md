@@ -91,15 +91,25 @@ Contributing.
   aarch64 and an x86_64 machine with GPUs.
 - Page records and run records written by 0.11 still load.
 
-## Progress on 0.12
+## What 0.12 did, and what it decided otherwise
 
-Done: absolute imports; `blocks` → `components` and `core` (modules, base classes, prose, generated pages).
+Done in 0.12: components and `linecaster.core`; component packages by step; the descriptive names and step ids;
+server component names; the package moves; `Contract.kind`; the command and option renames; `SourceFile`;
+`text_block`; page/6 and run-record/2; the golden test and the vocabulary test; tutorials, concept pages and the
+navigation; the glossary.
 
-Open:
-- formats: run record (`component` keys) and page record (`errors[].component`, `Annotator.role`) versions and upgrades;
-  trace attributes `linecaster.component*`
-- roles: `step` → `role`, role ids, class renames (print shop, servers), engine ids, preset ids, flags
-- `Contract.role` → `kind`
-- package moves: `runtime`, `pipelines`, `markup`, `scoring`, `adapters`, `broker`, `text`
-- HTTP config and refusals; CLI renames; `SourceFile`; `text_block`
-- large files split; vocabulary test; docs; migration guide; engine packages' linecaster range; locks; release
+Decided otherwise while doing it:
+
+- **"step" stays.** Replacing the catalog's "step" by "role" read badly in prose ("the line role found ..."), and
+  with "block" gone "step" has one meaning: a kind of work. Families and block roles fold into it; a contract's
+  role is its `kind`.
+- **`DocumentComposer`, not `DocumentBuilder`**: `linecaster.document.DocumentBuilder` is the class that builds a
+  document, and two builders of one name would be the next collision.
+- **HTTP policy and HTTP block keep their names.** `HTTPConfig` already names a fetcher's settings, and "blocked" is
+  the web's own word; both are always written with "HTTP".
+- **`linecaster.text` stays** for helpers that are neither normalizations nor a step's rules (scripts, offsets, a
+  page's literal text).
+
+Moved to 0.13: splitting the large files (`execution/run.py`, `catalog/registry.py`, `catalog/schema.py`, `cli.py`,
+`tracing/__init__.py`), which the pipeline API rewrites anyway; the layer test over every package; dividing the
+long reference pages into how-to and reference; `NOTES.md` as decision records.

@@ -2,6 +2,26 @@
 
 Measurements, decisions and open questions, newest first.
 
+## One vocabulary: what 0.12.0 renamed and how it was checked (2026-11-17, decided by the maintainer)
+
+The maintainer asked for a review of the whole code base and its docs for clarity, with Haystack as the model, and
+approved a redesign over several minors (`PLAN-0.12.md`): 0.12 the words, 0.13 a pipeline API, 0.14 engines and
+evaluation.
+
+- **Decisions**: a pipeline's unit is a component; the print-shop components and their steps have descriptive names;
+  HTTP fetching and the broker stay in the core, with docs of their own. "Step" stays the word for a kind of work:
+  "role" read badly in prose, and "block" was what made "step" ambiguous.
+- **Checked**: the golden test (`tests/golden/`) holds the sample pages' records, ALTO, PAGE-XML, hOCR, documents and
+  texts to what 0.11.0 wrote, the renamed ids apart. Two newspaper pages through `transcribe_modular.v1` (PaddleX
+  layout, line detection and recognition, then hierarchy, paragraphs and the document) on an aarch64 machine with a
+  GB10 GPU gave byte-identical Markdown and text files under 0.11.0 and 0.12.0; their ALTO files differ only in the
+  renamed engine and preset ids. The engine packages' tests pass in their environments.
+- **Not checked**: an x86_64 machine (none at hand; the locks' wheels for it are checked by `tests/test_scripts.py`),
+  a VLM preset, the kraken recipe on real pages, Ray and HF Jobs. The renames touch no engine code, but a pickled
+  pipeline names the new module paths, so a first Jobs or Ray run of 0.12 should be a smoke run.
+- `tests/test_engines_catalog.py` and `tests/test_page_engines_catalog.py` had failed since 0.10 (they read a
+  preset's edition; CI does not run them). They pass again.
+
 ## Scoring for any script, and benchmarks as exports (2026-11-16, decided by the maintainer)
 
 What 0.11.0 decides, after reading OmniDocBench (at 7ddb8df) and Omni Parse Bench (at 4bfb3f6) closely:

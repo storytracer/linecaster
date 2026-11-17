@@ -826,7 +826,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.11.0"
+version = "0.12.0"
 source = { editable = "../" }
 dependencies = [
     { name = "aiohttp" },
@@ -887,7 +887,7 @@ docs = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.2.3"
+version = "0.2.4"
 source = { editable = "../engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
@@ -909,7 +909,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.11,<0.12" },
+    { name = "linecaster", specifier = ">=0.12,<0.13" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
@@ -926,7 +926,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-tesseract"
-version = "0.2.3"
+version = "0.2.4"
 source = { editable = "../engines/tesseract" }
 dependencies = [
     { name = "linecaster" },
@@ -938,7 +938,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "linecaster", specifier = ">=0.11,<0.12" },
+    { name = "linecaster", specifier = ">=0.12,<0.13" },
     { name = "numpy" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },

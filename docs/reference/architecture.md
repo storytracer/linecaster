@@ -24,14 +24,17 @@ built on top of it.
 |---|---|
 | `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, annotation sets (`AnnotationSet`, `Transcription`) with their annotators (`Annotator`), raw outputs (`RawOutput`) and annotations, `Text`, rendering policies (`RenderingPolicy`), the measurements vocabulary |
 | `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; HTML in (`HtmlConverter`, by HTML's semantics and a source's conventions); plain text in; DoclingDocuments in (the `docling` extra); the IIIF annotation page |
-| `linecaster.document` | a page's or an item's document (`Document`, its components and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
+| `linecaster.document` | a page's or an item's document (`Document`, its blocks and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
 | `linecaster.conventions` | conventions: their format (`linecaster.conventions`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
-| `linecaster.text` | the text transforms: typography, recomposition, the normalizations' rules on characters, offsets through a change of text, a page's literal text |
+| `linecaster.normalization` | the normalizations' rules on characters, LaTeX as text |
+| `linecaster.text` | helpers on text: scripts and writing directions, offsets through a change of text, a page's literal text |
 | `linecaster.images` | the working image, plots |
-| `linecaster.engines` | the built-in engines: the rule-based steps and the single-region layout |
-| `linecaster.components` | the components by family ([components](../components/README.md)) |
+| `linecaster.engines` | the engine API (`linecaster.engines.api`) and the built-in engines: the rule-based steps (`hierarchy`, `paragraphs`, `document`, `image`), the importers, the taggers and the single-region layout |
+| `linecaster.core` | what every component builds on: `Component`, `PageComponent`, `ModelComponent`, `RuleComponent`, contracts, composites |
+| `linecaster.components` | the components, one package per step or kind ([components](../components/README.md)) |
 | `linecaster.backends` | `InProcess`, `Served`, `Chat` |
 | `linecaster.engines.chat` | one adapter per VLM family, `ADAPTERS` |
+| `linecaster.evaluation` | the scorer: lanes, metrics, elements, benchmarks, evidence records, ground-truth tools |
 | `linecaster.serving` | `linecaster serve` |
 | `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools ([http](http.md)) |
 | `linecaster.net.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
@@ -42,7 +45,8 @@ built on top of it.
 | `linecaster.docs` | `linecaster docs`: the generated pages |
 | `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_component`, the pytest markers |
 
-The first five load neither datatrove nor saturate, nor linecaster's components or runtime (`tests/test_import_rule.py`),
+`linecaster.data`, `formats`, `document`, `conventions`, `normalization`, `text`, `images`, `engines` and
+`evaluation` load neither datatrove nor saturate, nor linecaster's components or runtime (`tests/test_import_rule.py`),
 so downstream projects can use the data model and the formats without the pipeline machinery. datatrove and saturate are
 required dependencies, datatrove with its `io` and `s3` extras (`s3://` paths work everywhere), and so is httpx
 (`http(s)://` through `linecaster.net`); engines, Ray and PDFium are not (engine packages and extras).
@@ -50,7 +54,7 @@ required dependencies, datatrove with its `io` and `s3` extras (`s3://` paths wo
 ## Components and backends
 
 A component is a datatrove `PipelineStep` with a contract; a pipeline is a list of components run by a datatrove executor.
-Each family is a subpackage of `linecaster.components` ([components](../components/README.md) has a page per component).
+Each step or kind of component has a subpackage of `linecaster.components` ([components](../components/README.md) has a page per component).
 
 **Model components** (`ModelComponent`: `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`,
 `FormulaRecognizer`, `PageRecognizer`, `RegionRecognizer`) each have a backend:

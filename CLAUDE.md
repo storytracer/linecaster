@@ -59,17 +59,19 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   the docs and the downstream projects readable together.
 - **Follow the conventions** (names, American spelling, YAML and Markdown, contracts, docstrings, tracing,
   logging, errors, secrets). They are what makes names guessable and pipelines checkable.
-- **Data model classes are plain nouns** (`Item`, `Page`, `PageImage`, `Transcription`, `Text`): no "Class"
-  suffixes, and never `Document`. `Document` is datatrove's.
+- **Data model classes are plain nouns** (`Item`, `Page`, `PageImage`, `Transcription`): no "Class" suffixes. The
+  bare word "document" means linecaster's output document (`linecaster.document.Document`); datatrove's class is
+  always written "datatrove `Document`". A word used for two things has to be qualified every time.
 
 ## Dependencies
 
 - **datatrove and saturate are the integration and required dependencies**: `datatrove[io,s3]>=0.10.1,<0.11` (it has
   `JobsPipelineExecutor`; its `s3` extra is s3fs, so `s3://` paths need no extra of linecaster's) and `saturate==0.3.0` (0.x changes without deprecation). linecaster adds only what they
   lack.
-- **The data model, the formats, the text transforms, the image helpers, the built-in engines and the scorer**
-  (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines`,
-  `linecaster.evaluation`) **import neither datatrove nor saturate, nor linecaster's components or runtime**
+- **The data model, the formats, the document, the conventions, the normalizations, the text and image helpers,
+  the engines and the scorer** (`linecaster.data`, `linecaster.formats`, `linecaster.document`,
+  `linecaster.conventions`, `linecaster.normalization`, `linecaster.text`, `linecaster.images`, `linecaster.engines`,
+  `linecaster.evaluation`) **import neither datatrove nor saturate, nor linecaster's components or execution**
   (`tests/test_import_rule.py`). Downstream projects and evaluations use them without the pipeline machinery.
 - **A light core**: no kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as an extra, and no
   LiteLLM anywhere. The one exception to few core dependencies is OpenTelemetry (`opentelemetry-api`, `-sdk`,

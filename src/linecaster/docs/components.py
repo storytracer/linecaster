@@ -279,7 +279,7 @@ def component_page(b: ComponentDoc, components: dict[str, ComponentDoc], positio
         rows.append(("Backends", "in-process only (a built-in engine)"))
     step = getattr(b.cls, "step", None)
     if step in STEPS:
-        rows.append(("Catalog step", f"`{step}`"))
+        rows.append(("Step", f"`{step}`"))
         if presets := _presets(b, catalog, links, here, catalog_dir):
             rows.append(("Presets", ", ".join(presets)))
     after, before = position

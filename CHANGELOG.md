@@ -4,15 +4,95 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
-## Unreleased
+## 0.12.0 (2026-11-17)
+
+One vocabulary. linecaster's words had grown several meanings each ("block" five, "step" four), and its packages no
+longer said what they held. This release renames; it changes no output: a golden test holds the page records, page
+files, documents and texts of the sample pages to what 0.11.0 wrote, apart from the names below. The docs have
+tutorials and concept pages, and a glossary half the size. Engine packages need `linecaster>=0.12,<0.13` (kraken,
+paddlex, tesseract, surya, indra, services 0.2.4; mediawiki 0.2.2).
+
+### Upgrade notes
+
+`python tools/codemod_0_12.py PATH` rewrites code, scripts, YAML and Markdown written for 0.11 (imports, class
+names, step ids, flags); `--dry-run` lists the files. Read its diff: it renames whole words, and prose that used a
+word in another sense needs a look.
+
+- **Blocks are components.** A pipeline's unit was a "block", which in OCR is a text block and in linecaster also a
+  document's `Block`. `linecaster.blocks` is `linecaster.components`, its base classes are in `linecaster.core`
+  (`Block` is `Component`, `PageBlock` `PageComponent`, `ModelBlock` `ModelComponent`, `RuleBlock`
+  `RuleComponent`), `linecaster.testing.check_block` is `check_component`. A document's `Block` keeps its name.
+  *Who:* everyone who imports components or writes one. *What to do:* run the codemod.
+- **Component packages follow the steps, one class per module.** `blocks.composition`, `blocks.conversion`,
+  `blocks.binding` and `blocks.recognition.recognizers` are divided: `components.hierarchy`, `components.paragraphs`,
+  `components.document`, `components.images`, `components.importers`, `components.items`, `components.tables`,
+  `components.formulas`. *Who:* imports from those packages. *What to do:* run the codemod; it splits the imports.
+- **Descriptive names for the print-shop components and their steps.** `Typographer` is `HierarchyDetector`,
+  `Recomposer` `ParagraphBuilder`, `Composer` `DocumentComposer`, `Binder` `ItemAssembler`, `Splitter`
+  `ItemSplitter`. Their steps are `hierarchy`, `paragraphs` and `document` (were `typography`, `recomposition`,
+  `composition`): the flags `--hierarchy`, `--paragraphs`, `--document`, the `--set paragraphs.OPTION=VALUE` keys,
+  a recipe's `presets:` keys and a preset's `step:`. The engines are `hierarchy.ratios.v1`, `paragraphs.unicode.v1`,
+  `paragraphs.by-script.v1` and `document.linked.v1`; the presets `unicode-recomposition` and `linked-composition`
+  are `unicode-paragraphs` and `linked-document` (the old ids resolve with a warning). The normalization
+  `typography` keeps its name. *Who:* command lines, recipes and presets that name these steps. *What to do:* run
+  the codemod over scripts and YAML; change command lines by hand.
+- **Server components say what they start.** `ModelServer` is `EngineServer`, `ChatModelServer` `VLMServer`,
+  `ServiceServer` `VendorServer`. *Who:* pipelines that list them. *What to do:* run the codemod.
+- **Packages say what they hold.** `linecaster.runtime` is `linecaster.execution`, `linecaster.pipelines`
+  `linecaster.templates` (a "pipeline shape" is a pipeline template; `shapes()` and `shape(id)` are `templates()` and
+  `template(id)`), `linecaster.markup` `linecaster.conventions`, `linecaster.scoring` `linecaster.evaluation`,
+  `linecaster.adapters` `linecaster.engines.chat`, `linecaster.broker` `linecaster.net.broker`, `linecaster.serve`
+  `linecaster.serving`; `linecaster.text.normalize`, `latex` and `formulas` are in `linecaster.normalization`
+  (`normalize` is `rules`), and the rules of the hierarchy and paragraphs steps are with their engines
+  (`linecaster.engines.hierarchy`, `linecaster.engines.paragraphs`). *Who:* every import of these. *What to do:* run
+  the codemod.
+- **A contract's role is its kind.** `Contract.role` and a component's class attribute `role` (`"reader"`,
+  `"writer"`, `"model"`, ...) are `kind`. "Role" now only means a content role. *Who:* components that set `role`,
+  and code that reads `contract().role`. *What to do:* rename the attribute.
+- **Commands and options.** `linecaster models` is `linecaster presets`; `linecaster truth` is `linecaster
+  ground-truth`; `--truth` is `--ground-truth` (`linecaster export`, `pipelines/score.py`) and
+  `--truth-transcription` `--ground-truth-transcription`; `--trace-sample` is `--trace-share`. *Who:* command
+  lines. *What to do:* change them.
+- **`SourceDocument` is `SourceFile`**, and the conventions decision `block` is `text_block` (its class
+  `TextBlock`). *Who:* importers, and conventions entries that decide `block`. *What to do:* run the codemod; change
+  `decision: block` to `decision: text_block`.
+- **Page records are `linecaster.page/6`, run records `linecaster.run-record/2`.** page/6 names the annotators of
+  the renamed steps by their new ids; page/5 and earlier are upgraded on load. A page's error entries name their
+  `component` (was `block`). A run record's entries have `component` (was `block`), a contract's `kind` (was `role`)
+  and a composite's `components`. Trace attributes are `linecaster.component*`; `linecaster traces` reads traces
+  written by 0.12. *Who:* code that reads these files itself. *What to do:* read the new keys; for traces of earlier
+  runs, use the linecaster that wrote them.
+- **Hashes change, outputs do not.** Every recipe's pipeline hash and the hashes of the renamed presets and of the
+  conventions entry differ from 0.11's, because they hold the names. A run started with 0.11 is not resumed by 0.12.
+  *Who:* evaluations comparing hashes across the two releases. *What to do:* compare by output, or score again.
+- **The docs' addresses.** The generated component pages are under `components/` (were `blocks/`), by the new
+  package names.
+
+### Added
+
+- Tutorials (`docs/start/`): run a recipe, run a vision-language model, score a run against ground truth. Concept
+  pages (`docs/concepts/`): an overview with diagrams, components and pipelines, models, engines and presets, page
+  records, text and normalization, evaluation. The site's navigation is by purpose: Get started, Concepts, Reference,
+  Operations, Contributing.
+- `tests/test_vocabulary.py`: retired terms stay out of code, catalog and docs, and the glossary defines each term
+  once. `tests/golden/`: the sample pages' outputs are held to a stored copy.
+- Conventions for words and prose ([conventions](docs/reference/conventions.md)).
+
+### Changed
+
+- The glossary has one meaning per word and no "not" column; the terms of fetching, tracing, vision-language
+  models, ground-truth sources and contributing have sections of their own.
+- Imports inside the package are absolute.
 
 ### Fixed
 
 - The generated pages of `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`, `FormulaRecognizer`
   and `ModularTranscriber` show their contract again. They said "not built" since catalog references lost their
-  edition in 0.10; a test now fails when a block's page does not build.
+  edition in 0.10; a test now fails when a component's page does not build.
 - Help texts and docstrings no longer speak of preset, recipe and policy editions or of `id@edition`.
-- `linecaster serve`'s docs name its protocol, `linecaster.page/5`.
+- The engine packages' catalog tests (`tests/test_engines_catalog.py`, `tests/test_page_engines_catalog.py`) pass
+  again: they read a preset's edition, which 0.10 removed.
+- `linecaster serve`'s docs name the protocol it speaks, the current page record format.
 - `aiohttp`, which `linecaster serve` imports, is a declared dependency (it was installed through saturate).
 - The reference lists every pipeline script (`import_transcriptions.py` and `score.py` were missing).
 

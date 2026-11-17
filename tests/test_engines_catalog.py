@@ -40,9 +40,10 @@ ENGINES = {
     "paddlex.formulas.v1": "linecaster_paddlex:PaddleFormulaEngine",
     "tesseract.recognition.v1": "linecaster_tesseract:TesseractRecognitionEngine",
 }
-#: options added to an engine after some of its presets were released: (options, the last edition without them)
+#: options added to an engine after some of its presets were released: (options, 1)
 #: (paddlex.layout.v1's reading_order came after pp-doclayoutv3, which PP-DocLayoutV3's own order makes indifferent)
-ADDED_LATER = {"kraken.recognition.v1": ({"compile_backbone"}, 1), "paddlex.layout.v1": ({"reading_order"}, 1)}
+ADDED_LATER = {"kraken.recognition.v1": ({"compile_backbone"}, 1), "paddlex.layout.v1": ({"reading_order", "direction"}, 1),
+               "tesseract.recognition.v1": ({"preserve_interword_spaces"}, 1)}
 ENGINE_PRESETS = sorted(pid for pid, (_, p) in catalog().presets.items() if p.engine in ENGINES)
 
 
@@ -77,7 +78,7 @@ def test_capabilities_use_the_vocabulary(engine):
 
 def test_the_catalog_verifies_with_the_engines_installed():
     """With the engines installed, verify also checks that every preset's engine is registered."""
-    assert len(ENGINE_PRESETS) == 18
+    assert len(ENGINE_PRESETS) == 31
     assert Catalog().verify() == []
 
 
@@ -85,18 +86,18 @@ def test_the_catalog_verifies_with_the_engines_installed():
 def test_preset_constructs_its_engine(pid):
     b = InProcess.from_preset(pid)
     p = catalog().preset(pid)
-    assert b.preset == f"{pid}@{p.edition}" and b.preset_sha256.startswith("sha256:")
+    assert b.preset == pid and b.preset_sha256.startswith("sha256:")
     assert b.kwargs["weights"]["model"] == p.model.id and b.kwargs["weights"]["revision"] == p.model.revision
     cls = resolve(b.spec)
     assert cls.engine_id == p.engine and cls.step == p.step
     model = cls(**b.kwargs)                         # constructed, not loaded
     assert model.weights == b.kwargs["weights"]
-    # the preset states every option but the device (and what its submodels replace), so an edition does not
-    # depend on code defaults; editions released before an option was added leave it out (its default keeps
+    # the preset states every option but the device (and what its submodels replace), so it does not
+    # depend on code defaults; presets from before an option was added leave it out (its default keeps
     # the old behavior)
     replaced = {"submodel_revisions"} if p.submodels else set()
     later, upto = ADDED_LATER.get(p.engine, (set(), 0))
-    unstated = later if p.edition <= upto else set()
+    unstated = later - set(p.options)          # a preset from before the option leaves it out
     assert set(p.options) == set(cls.Options.model_fields) - {"device"} - replaced - unstated
     assert model.options.model_dump(exclude={"device"}) == cls.Options(**p.options).model_dump(exclude={"device"})
     assert Capabilities.model_validate(cls.capabilities).produces == p.capabilities.produces

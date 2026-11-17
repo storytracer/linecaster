@@ -286,7 +286,7 @@ SGLang; the other models run inside the pipeline or behind `linecaster serve`, o
 
 Every preset and recipe, with its model and settings: [the catalog](https://storytracer.github.io/linecaster/latest/catalog/).
 
-Every component by family, with its contract, backends and options: [the components](https://storytracer.github.io/linecaster/latest/components/).
+Every component by step, with its contract, backends and options: [the components](https://storytracer.github.io/linecaster/latest/components/).
 
 ## 📚 Reference
 
@@ -308,7 +308,7 @@ Every component by family, with its contract, backends and options: [the compone
 
 ## 🏷️ Versions
 
-The current release is `v0.11.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
+The current release is `v0.12.0`; [CHANGELOG.md](CHANGELOG.md) lists each release's changes, upgrade notes first.
 While the version is 0.x, a breaking release raises the minor version (0.3 → 0.4) and every other release the patch
 version ([versions and releases](docs/reference/compatibility.md#versions-and-releases)); there are no deprecation
 periods yet. The

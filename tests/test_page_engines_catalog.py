@@ -85,12 +85,12 @@ def test_the_catalog_verifies_with_the_engines_installed():
 def test_preset_constructs_its_engine(pid):
     b = InProcess.from_preset(pid)
     p = catalog().preset(pid)
-    assert b.preset == f"{pid}@{p.edition}" and b.kwargs["weights"]["revision"] == p.model.revision
+    assert b.preset == pid and b.kwargs["weights"]["revision"] == p.model.revision
     cls = resolve(b.spec)
     assert cls.engine_id == p.engine and cls.step == p.step
     model = cls(**b.kwargs)                         # constructed, not loaded
     assert model.weights == b.kwargs["weights"]
-    # the preset states every option but where its service is, so an edition does not depend on code defaults
+    # the preset states every option but where its service is, so it does not depend on code defaults
     assert set(p.options) == set(cls.Options.model_fields) - OPERATIONAL
     assert Capabilities.model_validate(cls.capabilities).produces == p.capabilities.produces
 
