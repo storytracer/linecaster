@@ -274,6 +274,8 @@
       
         
       
+        
+      
     
     
     
@@ -332,7 +334,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -963,6 +992,8 @@
       
         
       
+        
+      
     
     
     
@@ -1006,6 +1037,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -1335,7 +1393,7 @@ each a preset.</p>
 ... --text literal:txt --text latin-historic+flow+unicode-marks:md    # texts by named strategies
 uv run pipelines/transcribe_modular.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
 uv run pipelines/bind.py OUT1/pages OUT2 ... --tasks 64
-... --set composition.sections=true          # an option over the preset's
+... --set document.sections=true          # an option over the preset's
 ... --jsonl                                  # the texts as JSON Lines too
 ... --on hf-jobs --namespace NS --commit &lt;sha&gt; --flavor cpu-upgrade --tasks 64
 </code></pre></div>
@@ -1379,19 +1437,19 @@ is the page records folder here).</p>
 <td><code>--paragraphs</code></td>
 <td></td>
 <td></td>
-<td>recomposition preset: the item's pages as running text, paragraphs continued across page breaks (e.g. unicode-paragraphs)</td>
+<td>paragraphs preset: the item's pages as running text, paragraphs continued across page breaks (e.g. unicode-paragraphs)</td>
 </tr>
 <tr>
 <td><code>--document</code></td>
 <td></td>
 <td></td>
-<td>composition preset: the item's document (e.g. linked-document)</td>
+<td>document preset: the item's document (e.g. linked-document)</td>
 </tr>
 <tr>
 <td><code>--set</code></td>
 <td></td>
 <td><code>[]</code></td>
-<td>an engine option over the preset's, e.g. composition.sections=true; repeatable</td>
+<td>an engine option over the preset's, e.g. document.sections=true; repeatable</td>
 </tr>
 <tr>
 <td><code>--text</code></td>

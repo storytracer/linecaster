@@ -14,7 +14,7 @@
       
       
       
-        <link rel="prev" href="../glossary/">
+        <link rel="prev" href="../running/">
       
       
         <link rel="next" href="../broker/">
@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -969,6 +998,8 @@
       
         
       
+        
+      
     
     
     
@@ -1012,6 +1043,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -1581,7 +1639,7 @@
 <code>linecaster.net.policy</code>): the defaults, what a block is and how each path answers it, unexpected HTML, retries, and
 the HTTP policy file that changes all of it per host. Terms are the <a href="../glossary/">glossary</a>'s; how workers share the
 proxies is in the <a href="../broker/">broker</a>, how runs choose their workers in
-<a href="../pipelines/#tasks-workers-and-rate-limits">pipelines</a>.</p>
+<a href="../running/#tasks-workers-and-rate-limits">pipelines</a>.</p>
 <p><strong>The principle:</strong> the defaults follow the HTTP standards (a 429 with its <code>Retry-After</code>, the retryable statuses,
 <code>Retry-After</code> as seconds or an HTTP-date); anything learned from one site or CDN (a block page served with 200, a 403
 that means "this IP", a block that lasts three days) is opted into per host in an HTTP policy.</p>

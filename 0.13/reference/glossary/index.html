@@ -17,7 +17,7 @@
         <link rel="prev" href="../evaluation/">
       
       
-        <link rel="next" href="../http/">
+        <link rel="next" href="../running/">
       
       
         
@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -1165,6 +1194,8 @@
       
         
       
+        
+      
     
     
     
@@ -1208,6 +1239,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -1979,6 +2037,10 @@ one subject each and link to the page that explains it.</p>
 <tr>
 <td><strong>strategy</strong></td>
 <td>A named, ordered list of normalizations, as a catalog entry (<code>latin-historic</code>). It is applied when a text is written (<code>--text latin-historic:md</code>), never to what is stored. Several joined by <code>+</code> make an unnamed one (<code>nfc+long-s+flow</code>).</td>
+</tr>
+<tr>
+<td><strong>per-script engine</strong></td>
+<td>The engine that a by-script engine sends a script's decisions to: a preset of the same step (<code>by_script</code>). Its option is named <code>strategies</code>; a bare "strategy" is the catalog's.</td>
 </tr>
 <tr>
 <td><strong>literal</strong></td>

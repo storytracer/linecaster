@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -1137,6 +1166,8 @@
       
         
       
+        
+      
     
     
     
@@ -1180,6 +1211,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -1602,8 +1660,8 @@ builder, failures and the run record are in <a href="../pipelines/">pipelines</a
 <a href="../catalog/">catalog</a>, the page record in the <a href="../data-model/">data model</a>.</p>
 <h2 id="what-linecaster-is">What linecaster is<a class="headerlink" href="#what-linecaster-is" title="Permanent link">&para;</a></h2>
 <p>An open, modular text-recognition suite for print and handwriting (OCR and HTR, old and new documents). It
-combines layout, line, text, table and formula recognizers with rule-based steps (typography, recomposition,
-composition) into reproducible datatrove pipelines that turn page images into text: the text as read, texts written
+combines layout, line, text, table and formula recognizers with rule-based steps (hierarchy, paragraphs,
+document) into reproducible datatrove pipelines that turn page images into text: the text as read, texts written
 by the transcription strategies a run names (normalized, flowed, dehyphenated only where a strategy says so), ALTO,
 PAGE-XML and hOCR on request. It also reads ground truth in any format into the same
 data model, writes it as page records and scores runs against it. It is a generalist tool: built on protocols (HTTP,
@@ -1969,7 +2027,7 @@ Jobs run the same Python minor version (3.12). <code>uv run</code> outside a pro
 <code>linecaster.execution.jobs.dependencies(commit, script)</code> spells out a pipeline's dependencies and sources as URLs, the
 installed packages' own sources from the script's lock (the commit must be pushed), and pins every other package at
 the lock's version; each Job runs a uv script that carries the pins and the script's overrides, which <code>uv run --with</code>
-would ignore (<a href="../pipelines/#hf-jobs-helpers">pipelines</a>).</p>
+would ignore (<a href="../running/#hf-jobs-helpers">pipelines</a>).</p>
 <p>Workers that share something beyond their tasks (a proxy list, whose proxies each worker may use only while no other
 does) agree through the <a href="../broker/">broker</a>, a folder any executor's workers can reach, on any storage datatrove
 supports: leases say who holds what, marks what is unavailable until when, and a worker is a slot of its machine that
@@ -2011,7 +2069,7 @@ pipeline reads the previous folder and writes complete page records with one mor
 </tr>
 <tr>
 <td><code>OUT/sample.parquet</code></td>
-<td>the sample a run read, one row per page in sample order (<a href="../pipelines/#samples">pipelines</a>)</td>
+<td>the sample a run read, one row per page in sample order (<a href="../running/#samples">pipelines</a>)</td>
 </tr>
 <tr>
 <td><code>OUT/manifests/</code></td>
@@ -2033,7 +2091,7 @@ pypdfium2, extra <code>[pypdfium2]</code>) and <code>PageRecordReader</code>. Re
 that grows while no request waits for the rate limits (<code>linecaster.net.http.prefetched</code>), through one fetcher per
 process and configuration, so the limits hold across a worker's tasks; <code>ImageParquetReader</code> and <code>ManifestReader</code>
 suggest a task count from their input (<code>auto_tasks</code>), which a pipeline without engines runs with
-(<a href="../pipelines/#tasks-workers-and-rate-limits">pipelines</a>).</p>
+(<a href="../running/#tasks-workers-and-rate-limits">pipelines</a>).</p>
 <p><strong>The workflow</strong> is harvest → transcribe → bind: <code>pipelines/harvest.py</code> downloads images (and OCR, manifests) once
 into item folders plus page records, the transcribe pipelines read those with <code>--pages</code>, <code>pipelines/bind.py</code> makes
 item texts and documents. An item's pages can land in different tasks; item-level steps are a second stage over item

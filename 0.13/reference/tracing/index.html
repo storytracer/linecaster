@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -969,6 +998,8 @@
       
         
       
+        
+      
     
     
     
@@ -1012,6 +1043,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -1547,7 +1605,7 @@ run folder's name, or <code>LINECASTER_RUN</code>), <code>linecaster.task</code>
 <h2 id="the-trace-sample">The trace sample<a class="headerlink" href="#the-trace-sample" title="Permanent link">&para;</a></h2>
 <p><code>--trace-share SHARE</code> (<code>build(..., trace_share=)</code>, default 0.01): a page is in the trace sample when a hash of its
 id (BLAKE2b, 64 bits) is below <code>SHARE</code>, so the same pages on every rerun and machine, and a larger trace sample
-contains a smaller one. It is not the sample a run reads (<code>--sample</code>, <a href="../pipelines/#samples">pipelines</a>). <code>0</code>
+contains a smaller one. It is not the sample a run reads (<code>--sample</code>, <a href="../running/#samples">pipelines</a>). <code>0</code>
 traces only failed pages and the task spans; <code>1</code> traces every page. A sampled page's record
 carries its trace id (<code>page.metadata.trace_id</code>), so the page records lead to the trace.</p>
 <p>Every page gets a trace context (<code>doc.metadata["trace"]["traceparent"]</code>, W3C, flags <code>01</code> for a sampled page, <code>00</code>

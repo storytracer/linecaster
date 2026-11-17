@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -1354,6 +1383,8 @@
       
         
       
+        
+      
     
     
     
@@ -1397,6 +1428,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -2135,7 +2193,7 @@ master), <code>decoder</code>, <code>extra</code>.</p>
 <p>A page is one datatrove <code>Document</code>: <code>id</code> is the page id, <code>text</code> the primary transcription's text
 (<code>Transcription.text</code>, under the default policy), <code>media[0]</code> the image bytes, <code>metadata["page"]</code> the page record.</p>
 <p><strong>A page's time in the run</strong> is on its record, <code>Page.measurements</code>: <code>seconds</code>, the wall time from when the reader
-handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
+handed the page over to when it reached the first component that writes pages, binds or serves (the components' times
 between, waiting in served windows and queues included), and <code>datetime</code>, when the reader handed it over (ISO 8601,
 UTC). <code>linecaster.core.observers.PageTiming</code> sets them on every page stage that writes pages; a record read from
 an earlier run adds the new run's time to the one it carries and keeps the first <code>datetime</code>. Each annotator's own
@@ -2431,11 +2489,11 @@ meaning; linecaster code writes no other key. Values vary from run to run.</p>
 </tr>
 <tr>
 <td><code>body_size</code>, <code>leveled</code>, <code>demoted</code>, <code>split</code>, <code>drop_capitals</code>, <code>numbers_dropped</code></td>
-<td>typography: the body type size in pixels, headings given a level, section headers classified as text, headlines split off, drop capitals joined, page numbers classified removed</td>
+<td>the hierarchy step: the body type size in pixels, headings given a level, section headers classified as text, headlines split off, drop capitals joined, page numbers classified removed</td>
 </tr>
 <tr>
 <td><code>paragraphs</code>, <code>continuations</code>, <code>marks_removed</code>, <code>marks_kept</code></td>
-<td>recomposition: paragraphs made, continued, division marks removed, hyphens kept</td>
+<td>the paragraphs step: paragraphs made, continued, division marks removed, hyphens kept</td>
 </tr>
 </tbody>
 </table>
@@ -2614,7 +2672,7 @@ an annotator of its own (a word, a glyph, a cell) is a <strong>shape</strong> (<
 </table>
 <p>Lines are found across the whole page and assigned to regions later; zones are therefore flat lists with stable ids,
 and a line names its region, set once by the step that assigned it. A later step that moves a line into another
-region (typography splitting a headline off) adds a <code>part_of</code> link; the line's region is the latest <code>part_of</code>
+region (the hierarchy step splitting a headline off) adds a <code>part_of</code> link; the line's region is the latest <code>part_of</code>
 target, else <code>Line.region</code> (<code>Transcription.region_of</code>). A line's <code>confidence</code> is its detection score; its
 reading's is the recognizer's.</p>
 <h3 id="readings-words-and-glyphs">Readings, words and glyphs<a class="headerlink" href="#readings-words-and-glyphs" title="Permanent link">&para;</a></h3>
@@ -2634,7 +2692,7 @@ from the offsets). A chart's data, when a model gives it, is a <code>Table</code
 differs (a wiki's formula as its software normalizes it).</p>
 <h3 id="classifications">Classifications<a class="headerlink" href="#classifications" title="Permanent link">&para;</a></h3>
 <p>A <code>Classification</code> gives one <code>target</code> one <code>value</code> in one <code>scheme</code>. Several annotators may classify the same target
-in the same scheme (the layout model and the typography rules); none overwrites another.</p>
+in the same scheme (the layout model and the hierarchy rules); none overwrites another.</p>
 <table>
 <thead>
 <tr>
@@ -2647,7 +2705,7 @@ in the same scheme (the layout model and the typography rules); none overwrites 
 <tr>
 <td><code>role</code></td>
 <td>what the content is (<a href="#content-roles">content roles</a>)</td>
-<td>layout, typography, a grounding VLM, a ground truth</td>
+<td>layout, hierarchy, a grounding VLM, a ground truth</td>
 </tr>
 <tr>
 <td><code>production</code></td>
@@ -2657,7 +2715,7 @@ in the same scheme (the layout model and the typography rules); none overwrites 
 <tr>
 <td><code>heading_level</code></td>
 <td><code>1</code>, <code>2</code>, ... (1 the highest below the title)</td>
-<td>typography</td>
+<td>hierarchy</td>
 </tr>
 <tr>
 <td><code>language</code></td>
@@ -2677,7 +2735,7 @@ in the same scheme (the layout model and the typography rules); none overwrites 
 <tr>
 <td><code>status</code></td>
 <td><code>illegible</code>, <code>gap</code> (text left out), <code>suppressed</code>, <code>duplicate</code>, <code>removed</code>; a status may say why (<code>reason</code>, below)</td>
-<td>a ground truth, typography, an importer</td>
+<td>a ground truth, hierarchy, an importer</td>
 </tr>
 <tr>
 <td><code>picture_class</code></td>
@@ -2742,7 +2800,7 @@ else on the page (<code>""</code>); <code>None</code> where nothing records one.
 records it, and <code>linecaster.text.scripts</code> infers a text's script (<code>dominant_script</code>, with ISO 15924's <code>Jpan</code> and
 <code>Kore</code> for the combinations) or direction (<code>first_strong_direction</code>, the Unicode bidirectional algorithm's paragraph
 level) where a caller asks. What orders zones follows the direction (<code>linecaster.data.geometry.frames</code>: XY-cut,
-XY-Cut++, the line assigner's rows, unordered regions slotted in, the recomposition's margins, drop capitals): boxes
+XY-Cut++, the line assigner's rows, unordered regions slotted in, the paragraphs step's margins, drop capitals): boxes
 are seen in the direction's frame, mirrored for <code>horizontal-rl</code> and turned for the vertical directions, so that
 right-to-left text reads from the right and vertical text by columns, from the right for <code>vertical-rl</code> and from the
 left for <code>vertical-lr</code>. The direction is a block's or engine's option where it has one, else the one recorded for
@@ -2795,7 +2853,7 @@ writes its letter at that line's start).</p>
 <h3 id="reading-orders">Reading orders<a class="headerlink" href="#reading-orders" title="Permanent link">&para;</a></h3>
 <p>A <code>ReadingOrder</code> orders the page: <code>regions</code> (region ids in reading order), <code>lines</code> (line ids in reading order) and
 <code>rows</code> (parallel to <code>lines</code>: each line's visual row within its region). An order of regions alone leaves <code>lines</code>
-empty. A layout model that learned an order, the line assigner, typography, XY-Cut++ and a ground truth each add
+empty. A layout model that learned an order, the line assigner, the hierarchy step, XY-Cut++ and a ground truth each add
 their own; the latest counts unless the policy's <code>precedence</code> says otherwise.</p>
 <p><strong>Processing order</strong> is separate: the list order of <code>lines</code> (regions in the layout step's order, orphan rows last,
 rows within each region), in which a recognizer processes and batches lines.</p>
@@ -3142,7 +3200,7 @@ annotations go into which <strong>layer</strong> of a rendering: <code>body</cod
 </tr>
 <tr>
 <td><code>precedence</code></td>
-<td>whose annotations count where several annotators gave one of a kind: an ordered list of steps or annotator names, per scheme (<code>role: [typography, layout]</code>), for reading orders (<code>order: [layout, ordering]</code>) and ranges</td>
+<td>whose annotations count where several annotators gave one of a kind: an ordered list of steps or annotator names, per scheme (<code>role: [hierarchy, layout]</code>), for reading orders (<code>order: [layout, ordering]</code>) and ranges</td>
 </tr>
 <tr>
 <td><code>tables</code>, <code>markdown</code></td>
@@ -3152,7 +3210,7 @@ annotations go into which <strong>layer</strong> of a rendering: <code>body</cod
 </table>
 <p>The default policy, <code>page-layers</code>, gives every role its default layer, <code>status</code> <code>suppressed</code>, <code>duplicate</code> and
 <code>removed</code> → <code>none</code>, descriptions → <code>metadata</code>; without <code>precedence</code> the latest annotator's classifications count
-(typography's over the layout's). <code>page-layers-described</code> puts descriptions (<code>motivation</code> <code>describing</code>) in the
+(the hierarchy step's over the layout's). <code>page-layers-described</code> puts descriptions (<code>motivation</code> <code>describing</code>) in the
 <code>body</code> instead: the texts, the elements and the document then have each one after its region (a picture without lines
 in its place in the reading order; the page's last), a document as a <code>paragraph</code> block with the role <code>description</code>
 (<code>RenderingPolicy.described</code>). A policy decides layers, never text. A run names its policy (<code>--policy</code>); without one
@@ -3173,9 +3231,9 @@ the page, the region and lines it comes from, its box on the page image (clamped
 and the characters of the block's text it gives. The document's <code>language</code> and <code>direction</code> are its pages' where
 every page records the same one; like a block's, they are only what the transcriptions record
 (<code>Transcription.language</code>, <code>.direction</code>), never inferred, and absent from the JSON where nothing records one.</p>
-<p><code>DocumentBuilder</code> makes it (<a href="#steps-and-what-they-add">composition</a>), literal (<code>strategy: literal</code>): one block per
+<p><code>DocumentBuilder</code> makes it (<a href="#steps-and-what-they-add">the document step</a>), literal (<code>strategy: literal</code>): one block per
 region as laid out (one row per visual row: lines share a row when the order says so and their boxes overlap), or
-per paragraph of a recomposition (every break between its rows a wrap); a paragraph or region that continues another
+per paragraph where the paragraphs step ran (every break between its rows a wrap); a paragraph or region that continues another
 (its <code>continues</code> link, on the same or an earlier page of the item) is one block with it, on a new row (a wrap, unless
 a part has several rows and the first does not end in a division mark: verse). A drop capital (<code>part_of</code> its line) is
 written at its line's start. <code>linecaster.document.strategy.apply(document, strategy)</code> writes a strategy's document
@@ -3224,8 +3282,8 @@ the document as JSON, literal. The scope (full page or body only) is the layer c
 <td>tables, formulas</td>
 </tr>
 <tr>
-<td>typography</td>
-<td><code>role</code> and <code>heading_level</code> classifications (a demoted heading is classified <code>paragraph</code> again, by typography), <code>status</code> <code>removed</code> for what it drops, a <code>part_of</code> link from a drop capital's region to the line it begins, a split-off headline as a region with <code>parent</code> and <code>part_of</code> links, a new reading order</td>
+<td>hierarchy</td>
+<td><code>role</code> and <code>heading_level</code> classifications (a demoted heading is classified <code>paragraph</code> again), <code>status</code> <code>removed</code> for what it drops, a <code>part_of</code> link from a drop capital's region to the line it begins, a split-off headline as a region with <code>parent</code> and <code>part_of</code> links, a new reading order</td>
 </tr>
 <tr>
 <td>ordering</td>
@@ -3236,7 +3294,7 @@ the document as JSON, literal. The scope (full page or body only) is the layer c
 <td>classifications in property schemes (and other closed schemes), each naming the raw output that holds its evidence: the geometry tagger's measurements, or every panel member's answer</td>
 </tr>
 <tr>
-<td>recomposition</td>
+<td>paragraphs</td>
 <td>paragraphs (rows and decisions, no text) and their <code>runs_into</code> and <code>continues</code> links</td>
 </tr>
 <tr>
@@ -3399,7 +3457,7 @@ transcription, with the text granularity extension's <code>textGranularity</code
 (<code>creator</code> for people). It is validated against the IIIF Presentation 3 JSON Schema in the tests.</p>
 <h2 id="from-linecasterpage2">From <code>linecaster.page/2</code><a class="headerlink" href="#from-linecasterpage2" title="Permanent link">&para;</a></h2>
 <p><code>PageRecordReader</code> upgrades a page/2 record when it reads one (<code>linecaster.data.upgrade.page_2_to_3</code>). What page/2
-had already lost cannot come back: text before the <code>unicode</code> step, labels before typography, regions typography
+had already lost cannot come back: text before the <code>unicode</code> step, labels before the hierarchy step, regions that step
 dropped beyond <code>extra["retyper_dropped"]</code>. Every field:</p>
 <table>
 <thead>
@@ -3431,7 +3489,7 @@ dropped beyond <code>extra["retyper_dropped"]</code>. Every field:</p>
 </tr>
 <tr>
 <td><code>Region.label</code></td>
-<td>a <code>role</code> classification (region label → role), by the layout annotator; by typography where its step changed it</td>
+<td>a <code>role</code> classification (region label → role), by the layout annotator; by the hierarchy step where it changed it</td>
 </tr>
 <tr>
 <td><code>Region.raw_label</code></td>
@@ -3607,7 +3665,7 @@ dropped beyond <code>extra["retyper_dropped"]</code>. Every field:</p>
 </tr>
 <tr>
 <td><code>Transcription.extra["retyper_dropped"]</code></td>
-<td>the regions again, with one line holding their text, classified <code>status</code> <code>removed</code> by typography</td>
+<td>the regions again, with one line holding their text, classified <code>status</code> <code>removed</code> by the hierarchy step</td>
 </tr>
 <tr>
 <td><code>Transcription.extra</code> (other keys)</td>
@@ -3619,8 +3677,8 @@ dropped beyond <code>extra["retyper_dropped"]</code>. Every field:</p>
 <p>A page/4 record is upgraded when it is read (<code>linecaster.data.upgrade.page_4_to_5</code>), and so is every older one,
 through page/4: the derived text goes, the source's stays. Dropped: the <code>nfc</code> and <code>normalized</code> edits, <code>Paragraph.text</code>,
 <code>ParagraphRow.charspan</code>, the decisions on division marks (<code>mark_removed</code>, <code>hyphen_kept</code>) and <code>Decision.separator</code>. A
-drop capital's whole-line <code>joined</code> edit (typography's) becomes a <code>part_of</code> link from its region to the line, and the
-<code>removed</code> status typography gave the region goes. The source's edits (<code>corrected</code>, <code>expanded</code>, <code>regularized</code>, a
+drop capital's whole-line <code>joined</code> edit (the hierarchy step's) becomes a <code>part_of</code> link from its region to the line, and the
+<code>removed</code> status the hierarchy step gave the region goes. The source's edits (<code>corrected</code>, <code>expanded</code>, <code>regularized</code>, a
 divided word's halves) stay as they were.</p>
 
 

@@ -6,16 +6,17 @@ Every model configuration is a catalog preset at a pinned revision; tested combi
 
 ## Start
 
-- [README](https://raw.githubusercontent.com/storytracer/linecaster/main/README.md): why, quick start, how it works, running anywhere, outputs
-- [Run a recipe](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/first-run.md): This tutorial transcribes a folder of page images with a recipe.
+- [README](https://raw.githubusercontent.com/storytracer/linecaster/main/README.md): what it does, quick start, combining models, a pipeline in Python, input and output, running anywhere
+- [Your first pipeline](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/first-run.md): This tutorial transcribes a folder of page images.
+- [A pipeline in Python](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/python.md): This tutorial builds the pipeline of Your first pipeline in Python.
 - [Run a vision-language model](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/vlm.md): A vision-language model (VLM) reads a whole page in one request and returns its text, often with layout and tables.
 - [Score a run against ground truth](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/score.md): This tutorial measures how well a run read its pages.
 - [Overview](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/overview.md): Linecaster turns page images into text.
 - [Components and pipelines](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/pipelines.md): A component does one thing to a page.
-- [Models, engines and presets](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/models.md): You only ever pick a preset.
-- [Page records](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/page-records.md): An **item** is an ordered set of pages.
+- [Models, engines and presets](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/models.md): A preset names the model that does a step's work, and the catalog lists the presets you can pick.
+- [Page records](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/page-records.md): A page record holds everything a pipeline found on one page, and which component found it.
 - [Text and normalization](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/text.md): A page record stores each line's text exactly as the model or the source gave it.
-- [Evaluation](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/evaluation.md): flowchart LR G[ground truth files] -->|importer| GR[page records] I[page images] -->|pipeline| RR[page records] GR --> S[score] RR --> S B[benchmark] --> S S --> E[evidence record].
+- [Evaluation](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/evaluation.md): Linecaster measures how well a run read its pages by comparing it with ground truth.
 
 ## Reference
 
@@ -23,6 +24,7 @@ Every model configuration is a catalog preset at a pinned revision; tested combi
 - [Conventions](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/conventions.md): Rules that hold across the repository.
 - [Architecture](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/architecture.md): What linecaster is made of and how a run fits together.
 - [Pipelines: contracts and the builder](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/pipelines.md): A pipeline is a list of components (datatrove `PipelineStep`s) and composites.
+- [Running at scale](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/running.md): Where a run runs, how it is divided into tasks and workers, which pages it reads, what it shows while it runs, and how it gets its credentials and its Jobs.
 - [The data model](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/data-model.md): `linecaster.data` holds what is read from a page and how it is rendered; `linecaster.data.page` the page record it travels in.
 - [Serialization and working images](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/serialization.md): `linecaster.formats.{alto,pagexml,hocr}` write and read the three XML formats on lxml, `linecaster.formats.iiif` writes an annotation set as an IIIF annotation page and reads one, `linecaster.document` writes a page's or an item's document as HTML, Markdown, text and JSON, `linecaster.formats.docling` reads a DoclingDocument (the `docling` extra), `linecaster.formats.tei` a page of a TEI P5 document and `linecaster.formats.text` plain text (a line per line, or the text of a line image); `linecaster.images.convert` turns any page image into the working image.
 - [The catalog: models, presets, recipes, policies, conventions, normalizations, strategies, vocabularies](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/reference/catalog.md): The catalog describes every model Linecaster can run, how it runs it, and the tested combinations.

@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -938,50 +967,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#samples" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Samples
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Tasks, workers and rate limits
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-console" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        The console
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#secrets" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Secrets
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#pipeline-templates" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1030,17 +1015,6 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         Rendering policy
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#hf-jobs-helpers" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        HF Jobs helpers
       </span>
     </span>
   </a>
@@ -1214,6 +1188,8 @@
       
         
       
+        
+      
     
     
     
@@ -1257,6 +1233,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -1621,50 +1624,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#samples" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Samples
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tasks-workers-and-rate-limits" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Tasks, workers and rate limits
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-console" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        The console
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#secrets" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Secrets
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#pipeline-templates" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1719,17 +1678,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#hf-jobs-helpers" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        HF Jobs helpers
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -1770,7 +1718,7 @@ stages. Every pipeline script goes through it (<code>linecaster.execution.run</c
     <span class="n">adds</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Part</span><span class="p">]</span>
     <span class="n">replaces</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Part</span><span class="p">]</span>
     <span class="n">removes</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">Part</span><span class="p">]</span>   <span class="c1"># parts the component does not pass on (gone for every later component)</span>
-    <span class="n">role</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># reader, writer, server, model, transform, binder, splitter, validator, composite</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span>                  <span class="c1"># reader, writer, server, model, transform, binder, splitter, validator, composite</span>
 </code></pre></div>
 <ul>
 <li><strong>The vocabulary</strong> is <code>PARTS</code> in <code>linecaster.catalog.schema</code>: <code>image</code>, <code>metadata</code> and <code>transcription_file</code> (a
@@ -1960,7 +1908,7 @@ pipeline, unless the reader already gives each task whole items (<code>ManifestR
 True)</code>). The first stage writes its page records in item shards into <code>&lt;run_folder&gt;/pages/</code> (the pipeline's own
 <code>PageJsonlWriter</code> there, now with <code>item_shards=N</code>, N = <code>tasks</code> unless it set its own); the second starts with
 <code>PageRecordReader(item_shards=True, fetch_images=False)</code> declaring the parts the first stage added, runs the binder
-and what follows, as N tasks. A <code>ItemSplitter</code> after the binder needs no cut of its own: the items are whole in the
+and what follows, as N tasks. An <code>ItemSplitter</code> after the binder needs no cut of its own: the items are whole in the
 task, so its pages are too. One stage logs to <code>OUT/logs/</code>, two to <code>OUT/logs/pages/</code> and <code>OUT/logs/items/</code>; the run
 record lists the stages. Each stage gets its own executor, and the later one <code>depends=</code> on the earlier one:</p>
 <table>
@@ -2130,7 +2078,7 @@ has another.</p>
 <code>run-&lt;time&gt;.yaml</code>): another <code>pipeline_sha256</code> is refused with a <code>PipelineConfigError</code> (finished tasks would be
 skipped and the folder would mix two pipelines' outputs) unless <code>--new-pipeline</code> (the new record is written next
 to the earlier one and is the one the next resume is checked against); another <code>--tasks</code> is always refused (each
-task would read other input), and so is another sample (the record's <code>sample.selected.sha256</code>, <a href="#samples">samples</a>).
+task would read other input), and so is another sample (the record's <code>sample.selected.sha256</code>, <a href="../running/#samples">samples</a>).
 The same hash, tasks and sample: a resume, as datatrove's completion markers make it.
 <code>--dry-run</code> reports the same problems.</p>
 <p><strong>Describe mode.</strong> <code>linecaster.execution.run.describe(template, argv)</code> builds a pipeline template's plan in the current
@@ -2138,296 +2086,6 @@ process without its engines: its options parsed, presets resolved without checki
 installed, nothing loaded or started. <code>describe_recipe(ref)</code> describes a recipe that way (the template of the
 recipe's pipeline id, <code>linecaster.templates.template(id)</code>, with <code>--recipe REF</code> and placeholder folders): what
 <code>linecaster catalog index</code> records as the recipe's <code>pipeline_sha256</code> and <code>verify</code> compares (<a href="../catalog/">catalog</a>).</p>
-<h2 id="samples">Samples<a class="headerlink" href="#samples" title="Permanent link">&para;</a></h2>
-<p>A run reads a <strong>sample</strong> of its input with a sample rule: <code>--sample N</code> (at most N pages in all), <code>--sample-per-item K</code>
-(at most K pages of each item), <code>--sample-items M</code> (at most M items), <code>--sample-seed S</code> (default 0); any of the first
-three alone or together. The sample is chosen by the ids of the input's listing alone, before any image is read or
-fetched, and is the same whatever <code>--tasks</code>, executor or machine: an evaluation then scores every system on the same
-pages, and others can recompute them from the list of ids without linecaster.</p>
-<p>The rule (<code>linecaster.data.sample</code>, <code>linecaster.sample/1</code>), with <code>H(s)</code> the first 8 bytes of <code>sha256(s)</code> (UTF-8) as
-an unsigned big-endian integer:</p>
-<ol>
-<li>The listing is the input's distinct <code>(item_id, page_id)</code> pairs; a page without item has the item id <code>""</code>. An id
-   with a tab is an error.</li>
-<li>Items are ordered by <code>(H(f"{seed}\t{item_id}"), item_id)</code> (the <strong>item rank</strong>), and only the first M are kept.
-   An item without pages takes no rank.</li>
-<li>Within an item, pages are ordered by <code>(H(f"{seed}\t{item_id}\t{page_id}"), page_id)</code> (the <strong>page rank</strong>), and
-   only the first K are kept; an item with fewer pages gives them all.</li>
-<li>The pages, in the order (item rank, page rank), are cut after the first N.</li>
-</ol>
-<p>The page hash includes the item, so items whose pages are named alike (<code>0001.png</code> in every item folder) do not all
-give the same positions. A rank depends only on its ids and the seed: an item added to the input moves no other
-item's pages, and a sample of N is the first N pages of a sample of 2N. With K the first N pages come from about N/K
-items. In Python:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">h</span><span class="p">(</span><span class="o">*</span><span class="n">ids</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">ids</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">digest</span><span class="p">()[:</span><span class="mi">8</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">)</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="n">items</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">pairs</span><span class="p">):</span> <span class="n">items</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
-    <span class="n">order</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="p">(</span><span class="n">h</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span> <span class="n">i</span><span class="p">))[:</span><span class="n">m</span><span class="p">]</span>
-    <span class="k">return</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">order</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">items</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="p">(</span><span class="n">h</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">),</span> <span class="n">p</span><span class="p">))[:</span><span class="n">k</span><span class="p">]][:</span><span class="n">n</span><span class="p">]</span>
-</code></pre></div>
-<p>The first 16 hex digits of the SHA-256 sort as <code>H</code> does, so SQL can order by them. A stratum is a separate run over
-a filtered input.</p>
-<p><strong>Per input</strong> (the readers' <code>sample</code>, <code>linecaster.components.readers.sampling</code>):</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Ids</th>
-<th>Read before the sample</th>
-<th>The tasks</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>IMAGES (<code>--item-from-parent</code> for items)</td>
-<td>the parent folder, the file name without extension</td>
-<td>the file listing</td>
-<td>the sample's files in turn</td>
-</tr>
-<tr>
-<td><code>--parquet</code> (<code>--item-key</code> for items)</td>
-<td><code>--id-key</code>, or <code>&lt;item&gt;_&lt;0001&gt;</code> from <code>--item-key</code> and <code>--sequence-key</code></td>
-<td>the id columns only</td>
-<td>the sample's rows in equal shards (by item with <code>task_per_item</code>); a row's image is read with the other sample rows of its row group</td>
-</tr>
-<tr>
-<td><code>--manifests</code></td>
-<td>the item id of each entry, <code>&lt;item&gt;_&lt;0001&gt;</code> for its pages</td>
-<td>the item ids; then the manifests of the items in rank order, as far as the rule reaches (every one with <code>--sample-per-item</code> alone)</td>
-<td>the sample's items as the entries would be; only their sample pages' images are requested</td>
-</tr>
-<tr>
-<td><code>--pages</code></td>
-<td><code>page.item_id</code>, <code>id</code></td>
-<td>every record (no image)</td>
-<td>their files as without a sample, passing on the sample's records alone</td>
-</tr>
-</tbody>
-</table>
-<p><code>--sample-per-item</code> and <code>--sample-items</code> need items. An id listed twice is read once (its first entry), counted in
-the record's <code>duplicates</code>. With <code>--manifests</code> the manifests the sample reads are saved to <code>OUT/manifests/</code> with an
-index (<code>sample.jsonl</code>: item id, entry, the URL it was read from, the copy's file, its pages); the tasks read those
-copies instead of fetching them again, and so does a resume when it computes the sample again. A manifest that
-cannot be read, or a IIIF Collection entry, stops the launch: the sample would depend on it. <code>--max-pages</code> and a
-sample exclude each other; <code>--limit</code> and <code>--skip</code> still count per task, over the task's share.</p>
-<p>The launch computes the sample once, before the tasks (<code>linecaster.execution.run.sampled</code>); it travels with the pickled
-pipeline, and each task takes its share. It is recorded in the run record's <code>sample</code> section:</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Holds</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>rule</code>, <code>hash</code></td>
-<td><code>linecaster.sample/1</code> and the hashes in words</td>
-</tr>
-<tr>
-<td><code>pages</code>, <code>items</code>, <code>per_item</code>, <code>seed</code></td>
-<td>N, M, K and S</td>
-</tr>
-<tr>
-<td><code>listing</code></td>
-<td><code>scope</code> (<code>pages</code>, or <code>items</code> for manifests, whose pages are known once read), <code>items</code>, <code>pages</code>, <code>duplicates</code>, <code>manifests_read</code>, <code>sha256</code>: of the distinct sorted lines <code>item_id&lt;TAB&gt;page_id</code> (for manifests <code>item_id</code>), each with a newline</td>
-</tr>
-<tr>
-<td><code>selected</code></td>
-<td><code>items</code>, <code>pages</code>, <code>sha256</code>: of the sample's lines <code>item_id&lt;TAB&gt;page_id</code> in sample order, each with a newline</td>
-</tr>
-<tr>
-<td><code>file</code></td>
-<td><code>sample.parquet</code></td>
-</tr>
-</tbody>
-</table>
-<p><code>OUT/sample.parquet</code> (<code>linecaster.execution.sample</code>) holds one row per sample page in sample order: <code>rank</code> (1-based: a
-sample of N is <code>rank &lt;= N</code>), <code>item_id</code>, <code>page_id</code>, <code>item_rank</code>, <code>page_rank</code>, <code>item_hash</code>, <code>page_hash</code> (unsigned 64
-bit) and <code>item_pages</code> (the item's pages in the listing), with the record's section in the file's metadata
-(<code>linecaster.sample</code>). The same sample gives the same rows and metadata, and with the same pyarrow the same bytes;
-<code>selected.sha256</code> compares samples across versions. <code>linecaster sample [IMAGES] OUT</code> with the input and
-sample options writes it without a run (with <code>--manifests</code>, the manifests too), as a run with the same options would.
-A sample's options are operational parameters (the pipeline's hash leaves them out); a resume with another sample is
-refused.</p>
-<h2 id="tasks-workers-and-rate-limits">Tasks, workers and rate limits<a class="headerlink" href="#tasks-workers-and-rate-limits" title="Permanent link">&para;</a></h2>
-<p><code>--tasks</code> and <code>--workers</code> are chosen when the command line leaves them open (<code>linecaster.execution.run.allocate</code>):</p>
-<table>
-<thead>
-<tr>
-<th>Pipeline</th>
-<th><code>--tasks</code></th>
-<th><code>--workers</code></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>with engines</td>
-<td>1</td>
-<td>every task</td>
-</tr>
-<tr>
-<td>without engines, every rate-limited host through proxies (<code>--proxies</code>, an HTTP policy's <code>proxies: {file}</code>), local or Ray (<code>--on hf-jobs</code>: as below)</td>
-<td>the reader's <code>auto_tasks</code> (from the input), else 1</td>
-<td>sharing them fairly (<code>proxies: {per_worker: share}</code>, the default): one per available proxy, at most one per CPU; with <code>per_worker</code> 1 or N: one per available proxy divided by N (<code>ceil(available / N)</code>), not capped by the CPUs; either way at most the tasks and, with OUT on object storage, at most 64 (<code>OBJECT_STORAGE_WORKERS</code>)</td>
-</tr>
-<tr>
-<td>without engines, with <code>--rate-limit</code> (a host with rate limits and no proxies)</td>
-<td>the reader's <code>auto_tasks</code>, else 1</td>
-<td>1</td>
-</tr>
-<tr>
-<td>without engines, without <code>--rate-limit</code></td>
-<td>the reader's <code>auto_tasks</code>, else 1</td>
-<td>one per CPU, at most the tasks</td>
-</tr>
-</tbody>
-</table>
-<p>The available proxies are counted once at launch from one listing of the broker
-(<code>linecaster.execution.run.available_proxies</code>): those in the file, less those with a live block or broken mark for the
-run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
-(the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. Sharing
-the proxies fairly, a few workers use them all, so their count stops at the CPUs; with one proxy per worker (or up to
-N) using them all takes a worker per proxy (per N), and the workers mostly wait on the network, so their count is not
-capped by the CPUs. With OUT on object storage (any fsspec protocol but a local one: <code>s3://</code>, <code>gs://</code>, <code>hf://</code>,
-<code>az://</code>, ...) the count stops at <code>linecaster.execution.run.OBJECT_STORAGE_WORKERS</code> (64) in both modes: in one setup,
-250 workers writing to S3-compatible object storage hung in their listings of <code>OUT/images</code> and fetched less than 64
-did, which ran cleanly; an observation from that setup, not a guarantee for others. The run states the count and why
-(<code>linecaster.execution.run.workers_note</code>, e.g. <code>250 proxies available, OUT on object storage → 64 workers, a fair
-share each</code>, or <code>250 proxies available → 250 workers, 1 proxy each</code>). <code>--workers</code> overrides it (each worker is a
-process with its own memory).</p>
-<p><code>auto_tasks</code> is about 1,000 pages per task for <code>ImageParquetReader</code> and about 5 items per task for <code>ManifestReader</code>
-(<code>linecaster.components.readers.tables.PAGES_PER_TASK</code>, <code>ITEMS_PER_TASK</code>), so a resume repeats little. The harvest
-(<code>pipelines/harvest.py</code>) asks its reader for one item per task (<code>task_per_item</code>): the tasks divide the items, an
-item's rows wherever they are in the table (<code>tables.item_runs</code>), so every item is whole in its task and a task that
-fails costs one item. With <code>--reuse</code> (off by default: on some object storage a listing is slow even for an empty
-folder, and only the items a stopped launch was in, or with <code>--retry-failed</code> the finished items with failed pages,
-have anything to reuse) its reader also gets <code>reuse_folder</code>
-(<code>OUT/images</code>): when it reaches an item it lists the item's
-folder once (an fsspec listing) and reads a page whose image file is already there from the storage instead of
-fetching it from the source (<code>linecaster.components.readers.existing</code>); only pages of interrupted items (and of the items
-<code>--retry-failed</code> runs again, whose failed pages alone are then fetched) are read back, so egress stays small. The reader waits at most <code>LISTING_TIMEOUT</code> (60 s) for a listing (on object storage fsspec cancels
-it then on its IO loop): one that times out or fails is a warning and a stat (<code>reuse_listing_timeouts</code>,
-<code>reuse_listing_errors</code>), and the item's pages are fetched again, their files overwritten. Such a record is complete and says <code>image.extra.reused</code>; the console counts it as done but not in
-the rate. On a restart the console's size starts with the finished tasks' <code>media_size</code> from datatrove's stats files
-(<code>linecaster.execution.local.size_before</code>, read in the background). Parquet tables are
-divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
-<code>--max-pages N</code> (<code>--parquet</code>, IMAGES; the readers' <code>max_pages</code>) reads the input as if it ended after its first N
-pages, in the same automatic tasks: a smoke test of the real setup. <code>--limit</code> counts per task, as in datatrove. The
-same pages for every setup and input order: a <a href="#samples">sample</a>.</p>
-<p><code>--rate-limit</code> holds per worker: each worker process has one fetcher with its limits (<code>HTTPFetcher.shared</code>), so a
-server sees the workers running at once times the limits; the run states it before it starts
-(<code>linecaster.execution.run.rate_note</code>, e.g. <code>rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a
-server</code>). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
-(<code>linecaster.net.http.prefetched</code>, at most <code>MAX_AHEAD</code>), and the fetcher, with its limits and the window it has
-grown to, is shared by the tasks a worker runs one after the other (<code>HTTPFetcher.shared</code>). With <code>--proxies</code> the
-limits hold per proxy instead (below), and the run states that (<code>rate limits per proxy: 150/60 · 100 proxies → up to
-15,000/min at a server</code>; with fewer workers than proxies <code>· 10 of 100 proxies in use (1 proxy per worker)</code>).</p>
-<p><strong>Proxies.</strong> <code>--proxies FILE</code> sends the http(s) requests through a list of proxies, shared by the workers through the
-<a href="../broker/">broker</a> (<code>--broker PATH</code>, any fsspec folder, default <code>OUT/logs/broker</code>; runs pointed at one path share
-the proxies and their blocks too). Each proxy has one worker at a time, the one that holds its lease, and each worker
-holds a fair share of them (<code>linecaster.net.proxies.ProxyPool</code>, <code>per_worker: share</code>, the default): of the
-proxies not blocked for the host, divided by the live workers, claimed at most 2 at a time and grown by rebalancing,
-which also gives back what is beyond it when another worker joins. An HTTP policy's <code>proxies: {per_worker: ...}</code> (per
-host or at the root; hosts that share a list share the setting) gives a worker one proxy instead (<code>1</code>: it claims a
-free one usable for the host and, when that one is blocked or broken, releases it and claims another at once), or up to N,
-claimed one by one; with output on local disk or a short list, one per worker and a worker per proxy is the simplest
-way to use them all. The host's rate limits hold per
-proxy, so per IP, as servers count them: the owner spaces the requests through a proxy to a host by the strictest
-limit, and each request goes through the owned proxy whose turn comes first. A proxy is left out when the failure is
-its own (<a href="../http/#blocks">http</a>). A block (a status in the host's <code>block_on</code>, 429 by default, and with <code>html</code> there an
-HTML page where another format was expected) is a mark in the broker for that host, until its <code>Retry-After</code>, else for
-60 s, doubling on each repeat up to the host's <code>block_ttl</code> (an hour by default): the owner stops using the proxy there
-at once, releases it once it is blocked for every host it uses, and whoever claims it later sees the mark, so no
-worker sends a request into another's block, and a restarted run none into a block it found before. A broken proxy (a
-proxy error, no connection to it, <code>broken_after</code> failures in a row, 3 by default) is marked for every host, first for
-<code>broken_ttl</code> (5 minutes), doubling up to <code>block_ttl</code>. A block does not count as an attempt and the request goes on
-through another proxy at once, so <code>max_retries</code> (retries after the first attempt) counts only the attempts that
-reached the server and failed there; a component does not count toward the breaker either. A timeout is mostly a slow
-server: it is retried and leaves the proxy in. When none of a worker's proxies is usable for a host and none
-is free to claim, its requests to the host pause until a block ends or another worker gives a proxy back (one warning
-when the pause starts, one when it ends; the wait is in the fetch record's <code>pause_seconds</code>); once the waits since the
-host's last successful response would pass its <code>max_pause</code> (6 hours; <a href="../http/#max_pause">http</a>) the run stops
-(<code>StopRequests</code>) and says when the first proxy returns. An HTTP policy
-can set <code>proxies: {block_ttl: 72h, broken_after: 1}</code> and further statuses that block at the host (<code>block_on: [429,
-403]</code>, <code>block_on: [429, html]</code>). The console shows the proxies the worker holds, those blocked and those free. On Ray
-each task is a process of its own; the next task on a machine takes over the worker slot the last one handed over, and
-with it its proxies. The file holds one proxy per line, a URL or <code>host:port[:user:pass]</code> as Webshare lists them; the
-run record keeps its name, logs show proxies without credentials (<code>linecaster.net.http.redact</code>), and the broker names
-them by a hash of host and port.</p>
-<p><strong>Failures.</strong> Each fetcher has a breaker (<code>linecaster.net.http.Breaker</code>): when most attempts of the last minute got a
-server error (5xx, Cloudflare's 520-524 among them), its requests pause, a probe goes out now and then (waits doubling
-from one to ten minutes), and the first answer that is not a server error lets them go on; the pages wait instead of
-failing. A single server error is retried (with a proxy list without counting against the proxy it came through). A
-block on a direct connection (a status in the host's <code>block_on</code>, 429 by default) pauses the worker that got it
-(<code>linecaster.net.http.Pause</code>): its requests to that host wait until the response's <code>Retry-After</code> has passed (seconds
-or an HTTP-date; without one a minute, doubling while components keep coming), then the request that got it is tried
-again, without using up one of its retries; blocks for requests already in flight extend the pause, never shorten
-it. The pages wait instead of failing, and the requests to other hosts and other workers go on. The log says when a pause starts (host,
-status, how long, until when) and when the requests go on, and a page's fetch record has the time paused
-(<code>pause_seconds</code>). A worker that would pause more than the host's <code>max_pause</code> (6 hours) since its last successful
-response stops the run: the worker waits, or stops when the wait would be too long (<a href="../http/#max_pause">http</a>, one
-count for both paths). Through proxies a block leaves
-that proxy out at the host instead (above). An HTML page where an image, XML or JSON was expected is a failed attempt,
-retried like a server error, unless the host's policy makes it a block or a stop (<a href="../http/#unexpected-html">http</a>). A
-local task that fails is logged and the others go on (<code>LocalExecutor</code>); it runs again on the next launch. An error
-that is not the pages' (<code>NOT_THE_PAGES</code>) or <code>FAILED_IN_A_ROW</code> failed tasks in a row in one worker stop the run.
-<code>--retry-failed</code> runs the finished tasks that left rejects again; <code>kill -USR1 &lt;pid&gt;</code> dumps every thread's stack.
-On Ray (<code>linecaster.execution.ray.RayExecutor</code>) the same error stops the run through a marker in the logging folder
-(<code>stopped.json</code>): every task after it ends before its pipeline starts, so none sends a request into the component that
-stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
-Ray job does not end as succeeded. A new launch removes the marker. Before it submits a task, a Ray launch checks
-that a live node has what a task reserves (<code>--cpus-per-task</code>; <code>--mem-per-task-gb</code>, else <code>--mem-per-cpu-gb</code> per CPU;
-one GPU for a stage with models) and stops with a <code>PipelineConfigError</code> if none has, where Ray would keep the tasks
-waiting without an error; <code>--no-fit-check</code> leaves the check out, for a cluster that adds nodes on demand. A task sizes
-the native thread pools to the CPUs it may use (<code>linecaster.execution.cpus</code>: its Ray CPUs, else the cgroup's CPU quota),
-and so do the worker counts a launch derives "one per CPU".</p>
-<p><strong>Resources.</strong> <code>pipelines/harvest.py --items TABLE --item-key COL</code> fetches items' remote files other than page images
-(<code>ResourceReader</code>): from URL templates per kind (<code>--resource marcxml=https://catalog.example.org/{item}/marcxml</code>) or
-a table with one row per resource (<code>--url-key</code>, <code>--kind-key</code>, <code>--name-key</code>). Each is checked (XML, JSON or an image must parse, a DjVu file must start with its signature;
-an HTML page where another format was expected is retried, and a resource that fails with it counts toward the
-breaker) and kept as a raw copy,
-<code>OUT/&lt;kind&gt;/&lt;item&gt;/&lt;name&gt;.&lt;ext&gt;</code> (<code>ResourceFilesWriter</code>), the reference later stages link to, with its fetch record in
-<code>OUT/resources/&lt;rank&gt;.jsonl.gz</code> (<code>ResourceRecordWriter</code>: source and final URL, status, type, size, <code>sha256</code>, ETag,
-Last-Modified, time). One item per task, <code>--max-items</code> for a smoke test, copies already there read back. <code>--http-policy FILE</code>
-gives the run's requests their settings from one YAML file (<code>linecaster.net.policy</code>, <a href="../http/#the-http-policy">http</a>):
-for every host at the root, and under <code>hosts:</code> an entry for each host that differs, whose fields replace the root's;
-the run's own options go between the two. The settings: rate limits (per proxy through proxies), retries
-(<code>max_retries</code>), deadline, User-Agent, what blocks (<code>block_on</code>, default <code>[429]</code>; with <code>html</code> an HTML page where
-another format was expected) and what stops the run without a retry (<code>stop_on</code>: statuses and <code>html</code>; something in
-both <code>block_on</code>, or its default, and <code>stop_on</code> is refused, so <code>block_on: []</code> with <code>stop_on: [429]</code> stops on a 429),
-<code>max_pause</code>, <code>direct</code>, the proxy path's own section (<code>proxies: {file, per_worker, block_ttl, broken_after,
-broken_ttl}</code>) and the broker (root only). The run states the rules that hold per host before it starts. For every
-input fetched over http(s): <code>--items</code>, <code>--parquet</code> with http(s) image URLs, <code>--manifests</code> (the manifests, their
-images and OCR files) and <code>--pages</code> (the images it fetches again); with rate limits in the file for a host without
-proxies a run keeps one worker, with proxies for every rate-limited host its workers follow the available proxies
-(above).</p>
-<p>The default User-Agent is datatrove's, <code>HF-Research/1.0</code> (<code>linecaster.net.http.USER_AGENT</code>), deliberately: datatrove
-is integral to linecaster, and its media fetcher (<code>HTTPFetchReader</code>) sends the same, so a run that fetches through
-both presents itself as one client to every host. <code>--user-agent</code> or an HTTP policy's <code>user_agent</code> sets another.</p>
-<h2 id="the-console">The console<a class="headerlink" href="#the-console" title="Permanent link">&para;</a></h2>
-<p>A local run (<code>--on local</code>, <code>linecaster.execution.local.LocalExecutor</code>) shows on the terminal: one line naming the
-pipeline (its components, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
-live progress line (pages done of the total, rate over the last five minutes, size, failed pages, the task, the time
-left) pinned to the terminal's top row, with everything else scrolling below it (a scroll region, <code>Pinned</code>), a line per finished task and a summary, in human units
-(<code>linecaster.execution.console</code>). The <code>Progress</code> observer, which the runtime puts on every stage, counts the pages
-that leave the pipeline; with several workers each worker process reports its counts to the console about every
-second. Off a terminal the progress is a log line every 30 s instead.
-datatrove's own console output (its pipeline listing and stats component per task, the merged stats) goes only to the
-task logs (<code>OUT/logs/logs/task_&lt;rank&gt;.log</code>, in its full line format) and the stats files, which keep it whole. A launch
-lists the completion markers once instead of looking them up task by task.</p>
-<h2 id="secrets">Secrets<a class="headerlink" href="#secrets" title="Permanent link">&para;</a></h2>
-<p><code>linecaster.secrets.EnvVar("NAME")</code> names an environment variable; the value is read in the task
-(<code>resolve()</code>), never stored: an <code>EnvVar</code> pickles by name, <code>to_dict()</code> writes <code>{"env": "NAME"}</code>.
-<code>Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})</code> (and
-<code>Chat(preset, endpoint, api_key=..., headers=...)</code> alike) sends <code>Authorization: Bearer &lt;key&gt;</code> and the headers with
-every request through saturate's <code>AdaptiveClient(headers=...)</code>;
-a key given as text is refused. A missing variable fails the component's warm-up.</p>
 <h2 id="pipeline-templates">Pipeline templates<a class="headerlink" href="#pipeline-templates" title="Permanent link">&para;</a></h2>
 <p>A pipeline script's code is a pipeline template in <code>linecaster.templates</code> (<code>harvest</code>, <code>convert</code>, <code>transcribe_modular</code>,
 <code>transcribe_vlm</code>, <code>transcribe_page</code>, <code>bind</code>, <code>import_transcriptions</code>, <code>score</code>): its docstring (the help text), <code>options(ap)</code>, <code>models(a)</code>,
@@ -2454,7 +2112,7 @@ are the document's context, <code>record</code>, <code>revision</code> and <code
 (<code>ImageParquetReader(read_images=False)</code>, or no <code>--image-key</code>): importing needs no image. Its page records are what
 <code>linecaster score</code> reads as a ground truth, and what a dataset is assembled from.</p>
 <h2 id="the-item-stage">The item stage<a class="headerlink" href="#the-item-stage" title="Permanent link">&para;</a></h2>
-<p>The item-level steps follow a <code>ItemAssembler</code>; the usual shape (<code>pipelines/bind.py</code>, and <code>--item-texts</code> of
+<p>The item-level steps follow an <code>ItemAssembler</code>; the usual shape (<code>pipelines/bind.py</code>, and <code>--item-texts</code> of
 <code>pipelines/transcribe_modular.py</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="n">texts</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"literal:txt"</span><span class="p">,</span> <span class="s2">"latin-historic+unicode-marks+flow:md"</span><span class="p">)</span>   <span class="c1"># --text, repeatable</span>
 <span class="p">[</span><span class="n">PageRecordReader</span><span class="p">(</span><span class="n">pages</span><span class="p">,</span> <span class="n">fetch_images</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">item_shards</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
@@ -2470,8 +2128,8 @@ normalized unless a text names a strategy, and <code>bind</code> writes only the
 others. A JSON Lines row holds <code>id</code> (the item), <code>text</code>, <code>spec</code>, <code>strategy</code>, <code>strategy_sha256</code>, <code>normalizations</code>,
 <code>format</code>, <code>page_ids</code>, <code>pages</code> and <code>token_count</code> with a token counter. The page files (<code>PageFileWriter</code>) take one
 <code>strategy</code> too (<code>--strategy</code>, default <code>literal</code>).</p>
-<p>A <code>ItemSplitter</code> after the item-level components passes each item's pages on as pages (e.g. to a <code>PageJsonlWriter</code>), with
-the paragraphs of the item recomposition.</p>
+<p>An <code>ItemSplitter</code> after the item-level components passes each item's pages on as pages (e.g. to a <code>PageJsonlWriter</code>), with
+the paragraphs made for the item.</p>
 <h2 id="page-records">Page records<a class="headerlink" href="#page-records" title="Permanent link">&para;</a></h2>
 <p>Stored page records are rows <code>{"schema": "linecaster.page/6", "id", "text", "page", "errors"}</code> (<code>PageJsonlWriter</code>,
 <code>PageParquetWriter</code>; <code>PAGE_SCHEMA</code> in <code>linecaster.data.page</code>): <code>page</code> is the page record of the
@@ -2489,37 +2147,6 @@ catalog policy (<code>id</code>, default <code>page-layers</code>; <a href="../c
 each region in the documents, files and texts they write (<a href="../data-model/#rendering">data model</a>).
 <code>pipelines/transcribe_modular.py</code> and <code>pipelines/bind.py</code> set it with <code>--policy</code>; it is a functional parameter, so the
 run record names it and <code>pipeline_sha256</code> covers it.</p>
-<h2 id="hf-jobs-helpers">HF Jobs helpers<a class="headerlink" href="#hf-jobs-helpers" title="Permanent link">&para;</a></h2>
-<p>A launch with <code>--on hf-jobs</code> names <code>--namespace</code>, the Hugging Face user or organization the Jobs run under and are
-billed to, and <code>--commit</code>, the linecaster commit the Jobs install (pushed). Neither has a default, and the namespace
-is not taken from the logged-in account, so the account a run spends is always the one its command line and run
-record name. <code>--commit</code> is required for linecaster's own scripts; a downstream project's script outside the linecaster
-checkout that takes linecaster from a git tag, branch or rev runs without it (<code>jobs.needs_commit</code>), since its Jobs
-install what its sources name.</p>
-<p><code>linecaster.execution.jobs.dependencies(commit, script=None, engines=True)</code> spells out what a Job installs from a
-pipeline script, linecaster's or a downstream project's, as <code>Dependencies</code>:</p>
-<ul>
-<li><code>requirements</code>: the script's dependencies with their sources as PEP 508 URLs (<code>url</code> as it is; <code>git</code> with its
-  <code>tag</code>, <code>branch</code> or <code>rev</code> and its <code>subdirectory</code>, as <code>git+URL@REF#subdirectory=DIR</code>; a <code>path</code> into the linecaster
-  checkout as GitHub's source archive of linecaster at <code>commit</code>, any other path an error), then every package
-  reachable from them in the script's lock that comes from no index (the sources the packages declare themselves:
-  the kraken fork at its locked commit, the OpenCV stub);</li>
-<li><code>constraints</code>: every package reachable from them that the lock takes from an index, at the lock's version
-  (<code>name==version</code>; a package the lock holds at several versions with its resolution markers), so a Job resolves the
-  versions of the lock; none for a script without a lock;</li>
-<li><code>overrides</code>: the script's <code>[tool.uv] override-dependencies</code> (a lock that resolves only with them, such as
-  <code>transcribe_page.py</code>'s <code>pillow==12.3.0</code> over surya-ocr's <code>pillow&lt;11</code>).</li>
-</ul>
-<p>linecaster's <code>ray</code> extra is left out. <code>engines=False</code> keeps linecaster with its extras and the sources they need, and
-the constraints of what those reach; without a script it raises unless <code>engines=False</code> (linecaster alone). A
-downstream project's pipeline runs on Jobs from its own script (its sources pinned to a linecaster tag), read as it is on disk.</p>
-<p><code>uv run --with</code> (datatrove's way of installing a Job's dependencies) ignores constraints and overrides, whether given
-as <code>UV_CONSTRAINT</code>, <code>UV_OVERRIDE</code> or a <code>uv.toml</code>; only a script's own <code>[tool.uv]</code> brings them to <code>uv run</code>. So
-<code>JobsExecutor</code> given <code>Dependencies</code> uploads, in place of datatrove's <code>launch_pickled_pipeline.py</code>, a uv script of the
-same name whose inline metadata holds the requirements, <code>constraint-dependencies</code> and <code>override-dependencies</code>
-(<code>Dependencies.script</code>) and which then runs datatrove's launcher. Constraints only bound what the requirements bring:
-a package the lock holds for another platform is not installed. <code>--dry-run</code> prints the three lists; the run record
-keeps them (<code>dependencies</code>, <code>constraints</code>, <code>overrides</code>).</p>
 
 
 

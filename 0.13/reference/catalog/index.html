@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -1298,6 +1327,8 @@
       
         
       
+        
+      
     
     
     
@@ -1341,6 +1372,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -2370,7 +2428,7 @@ record.</p>
 traditions <code>arabic-tatweel</code>, <code>arabic-marks</code>, <code>arabic-letters</code>, <code>persian-arabic-letters</code> (Persian and Urdu),
 <code>hebrew-points</code>, <code>greek-monotonic</code>, <code>cyrillic-prereform</code> (Russian), <code>japanese-iteration-marks</code> and
 <code>romanian-comma-below</code> (Romanian). For comparing international typography (Omni Parse Bench's comparison fold,
-Apache-2.0) it ships <code>hierarchy</code> (quotes, primes, the minus sign and other dash-likes, spaces, arrows, the fraction
+Apache-2.0) it ships <code>typography</code> (quotes, primes, the minus sign and other dash-likes, spaces, arrows, the fraction
 slash, the ellipsis, a decimal middle dot), <code>cjk-punctuation</code> (CJK and full-width punctuation as ASCII), <code>checkboxes</code>
 (as ☒ and ☐), <code>footnote-markers</code> (<code>[1]</code>, <code>[^a]</code> as their label), <code>bullets</code> (a bullet glyph starting a line),
 <code>leaders</code> (runs of dots, dashes, underscores), <code>superscript-digits</code> (set apart after a digit) and <code>line-end-hyphens</code>
@@ -2657,7 +2715,7 @@ options), alone in a reading order, by an annotator of kind <code>rule</code> an
 <code>LayoutDetector("single-region")</code> runs it, and like the rule-based engines it is built in and runs in the
 pipeline's process only. <code>pipelines/transcribe_modular.py --layout single-region</code> reads a page as one region.</p>
 <h3 id="rule-based-engines">Rule-based engines<a class="headerlink" href="#rule-based-engines" title="Permanent link">&para;</a></h3>
-<p>The engines of the rule-based steps (<strong>strategies</strong>) live in <code>linecaster.engines</code>, are pure Python and run in the
+<p>The engines of the rule-based steps live in <code>linecaster.engines</code>, are pure Python and run in the
 pipeline's process only (<code>IN_PROCESS_ONLY</code>; <code>linecaster serve</code> refuses them): <code>image.webp-lossless.v1</code>,
 <code>hierarchy.ratios.v1</code>, <code>paragraphs.unicode.v1</code>, <code>document.linked.v1</code> and the by-script engine
 <code>paragraphs.by-script.v1</code>. None of them changes a text: they add structure (headings, paragraphs, links), and a
@@ -2711,11 +2769,11 @@ output that holds the evidence.</p>
 <h3 id="scripts-and-dispatch">Scripts and dispatch<a class="headerlink" href="#scripts-and-dispatch" title="Permanent link">&para;</a></h3>
 <p>A preset whose engine is a by-script engine names its strategies in <code>by_script</code>: an ISO 15924 code per script that
 needs its own rules, <code>"*"</code> for every other script.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hebrew-latin-recomposition</span>
+<div class="highlight"><pre><span></span><code><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hebrew-latin-paragraphs</span>
 <span class="nt">step</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">paragraphs</span>
 <span class="nt">engine</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">paragraphs.by-script.v1</span>
 <span class="nt">by_script</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">Hebr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hebrew-recomposition</span>
+<span class="w">  </span><span class="nt">Hebr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hebrew-paragraphs</span>
 <span class="w">  </span><span class="s">"*"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">unicode-paragraphs</span>
 </code></pre></div>
 <p><code>engine_spec</code> resolves them into the engine's <code>strategies</code> (each strategy's engine, options, id and hash).
@@ -2724,15 +2782,15 @@ end (a division mark, the separator between two rows) the script of the last cha
 one, else of the first after it (characters of the scripts Common and Inherited, such as spaces, hyphens, digits and
 combining marks, have none). A script without a strategy of its own goes to <code>"*"</code>. Scripts are
 Unicode's <code>Script</code> property, matched with the <code>regex</code> package's <code>\p{Script=...}</code>. <code>verify</code> checks that every
-strategy is a preset of the same step and covers its script. (These by-script strategies are presets of a step;
-transcription strategies, the catalog kind, are another thing.)</p>
+one is a preset of the same step and covers its script. The option's name <code>strategies</code> is the engine's own: its
+values are presets of the step, not strategies of the catalog.</p>
 <h2 id="pipelines-recipes-and-launchpy">Pipelines, recipes and <code>launch.py</code><a class="headerlink" href="#pipelines-recipes-and-launchpy" title="Permanent link">&para;</a></h2>
 <p>Every pipeline script declares <code>PIPELINE</code>, its id: its file name with <code>.v&lt;n&gt;</code> (<code>harvest.v1</code>,
 <code>transcribe_modular.v1</code>, <code>transcribe_vlm.v1</code>, <code>transcribe_page.v1</code>, <code>bind.v1</code>, <code>convert.v1</code>,
 <code>import_transcriptions.v1</code>, <code>score.v1</code>). A script with slots also declares <code>SLOTS</code> (slot →
 option; the option is the step's name: <code>--layout</code>, <code>--lines</code>, <code>--recognition</code>, ...; the rule-based steps are slots
 too: <code>transcribe_modular.v1</code> has <code>--hierarchy</code>, <code>--paragraphs</code> and <code>--document</code>, <code>bind.v1</code>
-<code>--paragraphs</code> and <code>--document</code>; a slot left empty leaves its step out, e.g. no recomposition: the page stays
+<code>--paragraphs</code> and <code>--document</code>; a slot left empty leaves its step out, e.g. no paragraphs step: the page stays
 as laid out). It has no default presets: the user fills every slot, or names a recipe (<code>--recipe id</code>), with single
 flags on top recorded as overrides in the run record (<code>recipe</code>: the id, the pipeline id, the hash and the
 overrides). The texts a run writes are no slot: <code>--text &lt;strategy&gt;:&lt;format&gt;</code> names each (a recipe may name them in

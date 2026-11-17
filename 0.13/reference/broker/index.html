@@ -278,6 +278,8 @@
       
         
       
+        
+      
     
     
     
@@ -336,7 +338,34 @@
   <span class="md-ellipsis">
     
   
-  Run a recipe
+  Your first pipeline
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../start/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  A pipeline in Python
 
     
   </span>
@@ -969,6 +998,8 @@
       
         
       
+        
+      
     
     
     
@@ -1012,6 +1043,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Running at scale
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -1671,7 +1729,7 @@ pointed at one path share the proxies and their blocks. A run's default worker c
 (<code>linecaster.execution.run.allocate</code>): from the proxies available at launch (the proxies in the file, less those with
 a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
 <code>linecaster.net.broker.survey_kind</code>), one per available proxy and at most one per CPU sharing them fairly, divided by N
-with <code>per_worker</code> 1 or N, and at most 64 with OUT on object storage (<a href="../pipelines/#tasks-workers-and-rate-limits">pipelines</a>);
+with <code>per_worker</code> 1 or N, and at most 64 with OUT on object storage (<a href="../running/#tasks-workers-and-rate-limits">pipelines</a>);
 on local and Ray runs only (on HF Jobs each worker is a Job, so a proxy list never sets their number).</p>
 <h2 id="the-command">The command<a class="headerlink" href="#the-command" title="Permanent link">&para;</a></h2>
 <p><code>linecaster broker</code> reads and tidies a broker's folder (<code>PATH</code>: any fsspec path, e.g. <code>OUT/logs/broker</code> or
