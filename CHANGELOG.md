@@ -4,6 +4,54 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## 0.13.0 (2026-11-17)
+
+A pipeline is a thing of its own, and the packages are layers. `Pipeline` checks, draws, runs and records a list of
+components; a component and a backend come back from what they recorded; `linecaster` exports the four names most
+code starts from; and a test holds every package to importing only from its own layer or below. No output changes
+(the golden test of 0.12 holds). Engine packages need `linecaster>=0.13,<0.14` (kraken, paddlex, tesseract, surya,
+indra, services 0.2.5; mediawiki 0.2.3).
+
+### Upgrade notes
+
+`python tools/codemod_0_13.py PATH` moves the imports below; code written for 0.11 goes through
+`tools/codemod_0_12.py` first.
+
+- **Modules that moved to their layer.** `linecaster.execution.secrets` is `linecaster.secrets` (`EnvVar`);
+  `linecaster.execution.observers` is `linecaster.core.observers`; the rules of the hierarchy and paragraphs steps
+  are `linecaster.text.hierarchy` and `linecaster.text.paragraphs` (0.12 had put them under
+  `linecaster.engines.hierarchy.rules` and `linecaster.engines.paragraphs.rules`, above the document builder that
+  uses them), and their engines `linecaster.engines.hierarchy` and `linecaster.engines.paragraphs`;
+  `linecaster.formats.omnidocbench` is `linecaster.evaluation.omnidocbench`; `linecaster.catalog.docs` is
+  `linecaster.docs.catalog`. *Who:* imports of these modules. *What to do:* run the codemod.
+- **Evidence formats and the format registry left the catalog's schema.** `Evidence`, `Evidence2`, `Evidence3`,
+  `read_evidence` and `upgrade_evidence_2` are in `linecaster.evaluation.evidence_format` (were in
+  `linecaster.catalog.schema`; `linecaster.catalog` no longer exports `Evidence`); `FORMATS`, `json_schemas` and
+  `write_schemas` are in `linecaster.schemas`. *Who:* evaluations that validate evidence records with these models.
+  *What to do:* import them from their new modules.
+- **Tests that patch the pipelines' command line.** `linecaster.execution.run` is four modules: `options` (the
+  parser and its checks), `wiring` (the reader, the backends and servers, `--set`), `allocation` (tasks and
+  workers) and `run` (records, executors, recipes, `main`). `run` still gives every name (`run.reader`,
+  `run.main`, ...), but a function is looked up in the module that defines it. *Who:* tests that
+  `monkeypatch.setattr(run, "available_cpus", ...)` and the like. *What to do:* patch `allocation` (or `wiring`,
+  `options`) instead.
+
+### Added
+
+- `linecaster.Pipeline`: `Pipeline(components, servers=[...])` with `check()` (the plan, or every problem),
+  `draw()` (the graph as Mermaid), `run(out)` (datatrove's local executor, stage after stage), `run_pages(docs)`,
+  `plan(**options)` for any other executor, and `to_dict()` / `from_dict()`. Servers are named apart from the
+  components and put last, where datatrove needs them.
+- `Component.from_dict` and `linecaster.backends.backend_from_dict`: a component and a backend rebuilt from their
+  `to_dict()`, secrets as `EnvVar` by name. Every public component is tested to come back as it described itself.
+- `from linecaster import Pipeline, Component, Page, Transcription`, loaded when first used.
+- The layers of the packages, in [architecture](docs/reference/architecture.md), with
+  `tests/test_import_rule.py::test_packages_import_downward`.
+
+### Changed
+
+- The README's and the docs' example pipeline is a `Pipeline`.
+
 ## 0.12.0 (2026-11-17)
 
 One vocabulary. linecaster's words had grown several meanings each ("block" five, "step" four), and its packages no

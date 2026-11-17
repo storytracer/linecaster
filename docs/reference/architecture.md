@@ -27,7 +27,7 @@ built on top of it.
 | `linecaster.document` | a page's or an item's document (`Document`, its blocks and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
 | `linecaster.conventions` | conventions: their format (`linecaster.conventions`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
 | `linecaster.normalization` | the normalizations' rules on characters, LaTeX as text |
-| `linecaster.text` | helpers on text: scripts and writing directions, offsets through a change of text, a page's literal text |
+| `linecaster.text` | pure functions on text and on transcriptions: the rules of the hierarchy and paragraphs steps (`hierarchy`, `paragraphs`), scripts and writing directions, offsets through a change of text, a page's literal text |
 | `linecaster.images` | the working image, plots |
 | `linecaster.engines` | the engine API (`linecaster.engines.api`) and the built-in engines: the rule-based steps (`hierarchy`, `paragraphs`, `document`, `image`), the importers, the taggers and the single-region layout |
 | `linecaster.core` | what every component builds on: `Component`, `PageComponent`, `ModelComponent`, `RuleComponent`, contracts, composites |
@@ -38,12 +38,25 @@ built on top of it.
 | `linecaster.serving` | `linecaster serve` |
 | `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools ([http](http.md)) |
 | `linecaster.net.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
-| `linecaster.execution` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
+| `linecaster.pipeline` | `Pipeline`: a list of components checked, run and recorded as one |
+| `linecaster.execution` | the builder, the pipelines' command line (`options`, `wiring`, `allocation`, `run`), executors, the run record, Jobs helpers, logs |
 | `linecaster.templates` | the pipeline templates, one per pipeline script ([pipelines](pipelines.md#pipeline-templates)) |
-| `linecaster.catalog` | the catalog: its entries (normalizations and strategies among them), schemas, index, fetching pins, the docs of its entries |
+| `linecaster.catalog` | the catalog: its entries (normalizations and strategies among them), their schemas, the index, fetching pins |
+| `linecaster.schemas` | every format by its schema id, and the JSON Schemas written from them |
+| `linecaster.secrets` | `EnvVar`: a credential named by its environment variable |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
-| `linecaster.docs` | `linecaster docs`: the generated pages |
+| `linecaster.docs` | `linecaster docs`: the generated pages of the components and the catalog |
 | `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_component`, the pytest markers |
+
+The packages are layers, and a module imports at its top only from its own layer or below
+(`tests/test_import_rule.py`):
+
+`errors`, `secrets` ← `data` ← `text`, `normalization`, `conventions`, `images` ← `formats` ← `document` ←
+`engines` ← `catalog` ← `evaluation` ← `net`, `backends` ← `core` ← `tracing` ← `components` ← `serving` ←
+`execution`, `pipeline` ← `templates` ← `schemas`, `docs`, `testing`, `cli`
+
+An import inside a function may reach up: the builder puts writers into a pipeline, and the catalog asks which
+engines are installed.
 
 `linecaster.data`, `formats`, `document`, `conventions`, `normalization`, `text`, `images`, `engines` and
 `evaluation` load neither datatrove nor saturate, nor linecaster's components or runtime (`tests/test_import_rule.py`),

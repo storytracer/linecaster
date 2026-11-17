@@ -113,3 +113,24 @@ Decided otherwise while doing it:
 Moved to 0.13: splitting the large files (`execution/run.py`, `catalog/registry.py`, `catalog/schema.py`, `cli.py`,
 `tracing/__init__.py`), which the pipeline API rewrites anyway; the layer test over every package; dividing the
 long reference pages into how-to and reference; `NOTES.md` as decision records.
+
+## What 0.13 did
+
+`Pipeline` (`linecaster.pipeline`): check, draw, run on this machine, `run_pages`, `to_dict` and `from_dict`, servers
+named apart from components. `Component.from_dict` and `backend_from_dict`. `linecaster` exports `Pipeline`,
+`Component`, `Page` and `Transcription`. The layers and their test. `execution/run.py` in four modules. The evidence
+formats with the evaluation, the format registry in `linecaster.schemas`.
+
+Decided otherwise: the rules of the hierarchy and paragraphs steps are in `linecaster.text` again
+(`text.hierarchy`, `text.paragraphs`): the document builder and the plots use them, below the engines.
+
+Still open, for a later minor:
+
+- **Typed templates and a generated command line.** The templates still take an argparse `Namespace`, and
+  `execution/options.py` holds about a hundred shared options. Turning each template into a function with a typed
+  parameter model touches every pipeline script, the recipes and the Jobs path, which cannot be tested without a
+  cluster and Jobs runs: it needs a session of its own, with smoke runs on each executor.
+- `linecaster run OUT/run.yaml` (a pipeline rebuilt from a run record: `Pipeline.from_dict` is its base).
+- `catalog/registry.py`, `cli.py` and `tracing/__init__.py` in smaller modules.
+- The long reference pages (`pipelines.md`, `data-model.md`, `evaluation.md`) divided into how-to and reference;
+  `NOTES.md` as dated decision records.

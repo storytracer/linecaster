@@ -1,12 +1,12 @@
 [project]
 name = "linecaster-mediawiki"
-version = "0.2.2"
+version = "0.2.3"
 description = "MediaWiki importer for linecaster: wikitext (with ProofreadPage, Cite and Scribunto) read into transcriptions through wikitextprocessor"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # the linecaster releases this package works with: its engine API (linecaster.engines.api) and data model
-    "linecaster>=0.12,<0.13",
+    "linecaster>=0.13,<0.14",
     # the wikitext engine: templates, parser functions and Lua modules expanded from the wiki's own pages, and the
     # wikitext parser (MIT; Lua through lupa). Pinned to a commit: the PyPI release of the same version is older code
     # (it still needs pkg_resources)

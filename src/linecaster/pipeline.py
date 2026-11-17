@@ -77,9 +77,11 @@ class Pipeline:
             workers: the tasks running at once; default all of them.
             **options: ``plan()``'s other options.
         """
+        from linecaster.execution.console import Progress
         from linecaster.execution.local import LocalExecutor
 
-        plan = self.check(tasks=tasks, run_folder=out, **options)
+        observers = [Progress(), *(options.pop("observers", None) or [])]      # the console counts pages through it
+        plan = self.check(tasks=tasks, run_folder=out, observers=observers, **options)
         many, previous = len(plan.stages) > 1, None
         for stage in plan.stages:
             logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
