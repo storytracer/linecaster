@@ -237,7 +237,7 @@ def functional_component(component, served: dict[str, dict] | None = None) -> di
     from linecaster.core.contract import contract_of
     from linecaster.runtime.builder import component_dict
 
-    if contract_of(component).role == "server":
+    if contract_of(component).kind == "server":
         return None
     d = component_dict(component)
     out: dict[str, Any] = {"component": d["component"], "class": d["class"]}

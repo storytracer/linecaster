@@ -85,7 +85,7 @@ class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
     """
 
     name = "🐿 page records (jsonl)"
-    role = "writer"            # the whole page record: no part in particular
+    kind = "writer"            # the whole page record: no part in particular
     docs_args = {"output_folder": "out/pages"}
     run_id: str | None = None  # the run named on the annotators it added (set by the builder)
 
@@ -123,7 +123,7 @@ class PageParquetWriter(_Flushed, Contracted, ParquetWriter):
     """
 
     name = "📒 page records (parquet)"
-    role = "writer"
+    kind = "writer"
     docs_args = {"output_folder": "out/pages"}
     run_id: str | None = None  # the run named on the annotators it added (set by the builder)
 

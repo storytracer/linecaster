@@ -296,7 +296,7 @@ def test_modular_transcriber_expands_and_keeps_its_group():
                                                     "LineRecognizer"]
     assert t.components[2].formulas_separately is True
     c = t.contract()
-    assert c.role == "composite" and c.unit == "page" and c.unit_out is None
+    assert c.kind == "composite" and c.unit == "page" and c.unit_out is None
     assert c.reads == {Part("image")}
     assert {str(p) for p in c.adds} == {"ocr_new:regions", "ocr_new:reading_order", "ocr_new:lines",
                                         "ocr_new:line_regions", "ocr_new:text", "ocr_new:line_confidences"}
@@ -321,7 +321,7 @@ def test_nested_composites_and_given_contracts():
     assert [b.get("composite") for b in p.describe()["stages"][0]["components"]] == [
         None, "outer", "outer/inner", "outer/inner", "outer"]
     assert "subgraph c1_outer_inner" in p.mermaid()
-    given = Contract(unit="page", role="composite", reads=frozenset({Part("image")}))
+    given = Contract(unit="page", kind="composite", reads=frozenset({Part("image")}))
     assert Composite("x", [_lines()], contract=given).contract() is given
     with pytest.raises(PipelineConfigError):
         Composite("empty", [])

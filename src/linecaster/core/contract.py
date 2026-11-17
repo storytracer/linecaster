@@ -19,7 +19,7 @@ from linecaster.core.component import Component
 PAGE_PARTS = frozenset({"image", "metadata", "transcription_file"})
 #: the units a stream carries; ``any`` is for components that pass whatever comes (servers)
 UNITS = ("page", "item", "any")
-ROLES = ("reader", "writer", "server", "model", "transform", "binder", "splitter", "validator", "composite")
+KINDS = ("reader", "writer", "server", "model", "transform", "binder", "splitter", "validator", "composite")
 
 
 @dataclass(frozen=True, order=True)
@@ -66,7 +66,7 @@ class Contract:
     adds: frozenset[Part] = field(default_factory=frozenset)
     replaces: frozenset[Part] = field(default_factory=frozenset)
     removes: frozenset[Part] = field(default_factory=frozenset)   # parts gone after the component (not passed on)
-    role: str = ""                              # "reader", "writer", "server", "model", "transform", "binder", ...
+    kind: str = ""                              # "reader", "writer", "server", "model", "transform", "binder", ...
 
     def __post_init__(self):
         for u in (self.unit, self.unit_out):
@@ -78,7 +78,7 @@ class Contract:
         return self.unit_out or self.unit
 
     def describe(self) -> dict:
-        out: dict = {"role": self.role, "unit": self.unit}
+        out: dict = {"kind": self.kind, "unit": self.unit}
         if self.unit_out:
             out["unit_out"] = self.unit_out
         for key in ("reads", "adds", "replaces", "removes"):
@@ -90,7 +90,7 @@ class Contract:
 class Contracted(Component):
     """Gives a component the default ``contract()``, read from its class attributes.
 
-    ``unit``, ``unit_out``, ``role``, and ``parts_read``, ``parts_added``, ``parts_replaced`` and ``parts_removed``,
+    ``unit``, ``unit_out``, ``kind``, and ``parts_read``, ``parts_added``, ``parts_replaced`` and ``parts_removed``,
     which name parts:
     page-level ones (``image``, ``metadata``, ``transcription_file``) stay page-level, the others belong to the
     component's ``transcription`` attribute (default ``ocr_new``). Components whose parts depend on their options override
@@ -99,7 +99,7 @@ class Contracted(Component):
 
     unit: str = "page"
     unit_out: str | None = None
-    role: str = "transform"
+    kind: str = "transform"
     parts_read: tuple[str, ...] = ()
     parts_added: tuple[str, ...] = ()
     parts_replaced: tuple[str, ...] = ()
@@ -110,7 +110,7 @@ class Contracted(Component):
 
     def contract(self) -> Contract:
         t = self._transcription()
-        return Contract(unit=self.unit, unit_out=self.unit_out, role=self.role, reads=parts(self.parts_read, t),
+        return Contract(unit=self.unit, unit_out=self.unit_out, kind=self.kind, reads=parts(self.parts_read, t),
                         adds=parts(self.parts_added, t), replaces=parts(self.parts_replaced, t),
                         removes=parts(self.parts_removed, t))
 
@@ -120,4 +120,4 @@ def contract_of(component) -> Contract:
     fn = getattr(component, "contract", None)
     if callable(fn):
         return fn()
-    return Contract(unit="page", role="transform")
+    return Contract(unit="page", kind="transform")

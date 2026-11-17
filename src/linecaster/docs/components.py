@@ -228,7 +228,7 @@ def _presets(b: ComponentDoc, catalog, links: Links, here: Path, catalog_dir: Pa
 
 
 def _names(names: list[str], components: dict[str, ComponentDoc], here: Path, root: Path, links: Links) -> str:
-    readers = sorted(n for n, b in components.items() if b.contract and b.contract.role == "reader")
+    readers = sorted(n for n, b in components.items() if b.contract and b.contract.kind == "reader")
     shown = list(names)
     if readers and all(r in shown for r in readers):
         shown = ["any reader", *[n for n in shown if n not in readers]]
@@ -266,7 +266,7 @@ def component_page(b: ComponentDoc, components: dict[str, ComponentDoc], positio
     rows = []
     if c is not None:
         rows.append(("Unit", f"{c.unit} → {c.unit_out}" if c.unit_out else c.unit))
-        rows.append(("Role", c.role))
+        rows.append(("Kind", c.kind))
         for key, label in (("reads", "Reads"), ("adds", "Adds"), ("replaces", "Replaces")):
             rows.append((label, ", ".join(f"`{p}`" for p in _parts(c, key)) or "-"))
         if c.removes:

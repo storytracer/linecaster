@@ -58,7 +58,7 @@ def recipe_components(images: str, out: str, recipe: str):
     if len(plan.stages) != 1:
         raise SystemExit(f"{recipe}: {len(plan.stages)} stages; the spike runs one page stage")
     reader, *rest = plan.stages[0].components
-    page_components = [b for b in rest if getattr(b, "role", None) not in ("writer", "server")]
+    page_components = [b for b in rest if getattr(b, "kind", None) not in ("writer", "server")]
     return reader, page_components, rec
 
 

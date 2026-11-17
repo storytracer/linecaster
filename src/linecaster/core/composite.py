@@ -22,7 +22,7 @@ class Composite(Component):
         contract: the outward contract; ``None``: derived from the components.
     """
 
-    role = "composite"
+    kind = "composite"
 
     def __init__(self, name: str, components: list, contract: Contract | None = None):
         if not components:
@@ -54,7 +54,7 @@ class Composite(Component):
             replaces |= c.replaces
         unit_out = inner[-1].output_unit
         return Contract(unit=inner[0].unit, unit_out=unit_out if unit_out != inner[0].unit else None,
-                        role=self.role, reads=frozenset(reads), adds=frozenset(adds),
+                        kind=self.kind, reads=frozenset(reads), adds=frozenset(adds),
                         replaces=frozenset(replaces - adds))
 
     def __repr__(self) -> str:

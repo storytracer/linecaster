@@ -44,7 +44,7 @@ class RejectWriter(Contracted, PipelineStep):
 
     type = "💽 - WRITER"
     name = "🗑 rejects"
-    role = "writer"
+    kind = "writer"
     unit = "any"                    # it reads only a document's id and errors: pages or resources alike
     docs_args = {"output_folder": "out/rejects"}
 

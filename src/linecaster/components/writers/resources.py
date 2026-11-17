@@ -25,7 +25,7 @@ class ResourceFilesWriter(Contracted, PipelineStep):
 
     type = "💽 - WRITER"
     name = "🌐 resource files"
-    role = "writer"
+    kind = "writer"
     unit = "item"
     docs_args = {"output_folder": "out"}
     parts_replaced = ("metadata",)          # the record's uri names the copy
@@ -69,7 +69,7 @@ class ResourceRecordWriter(Contracted, PipelineStep):
 
     type = "💽 - WRITER"
     name = "🌐 resource records"
-    role = "writer"
+    kind = "writer"
     unit = "item"
     docs_args = {"output_folder": "out/resources"}
     parts_read = ("metadata",)

@@ -146,7 +146,7 @@ class ModelComponent(PageComponent):
     """
 
     step = "model"
-    role = "model"
+    kind = "model"
     route: str | None = None       # the served route; None = linecaster serve's ``/linecaster/{step}``
     #: a step that reads only regions with this label gets no image for a page without one (``None``)
     region_label: str | None = None
@@ -178,7 +178,7 @@ class ModelComponent(PageComponent):
 
     def contract(self) -> Contract:
         reads = parts(("image", *STEP_READS.get(self.step, ())), self.transcription)
-        return Contract(unit="page", role=self.role, reads=reads,
+        return Contract(unit="page", kind=self.kind, reads=reads,
                         adds=parts(produces(self.backend, self.step), self.transcription))
 
     def warm_up(self) -> None:

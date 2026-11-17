@@ -53,7 +53,7 @@ class Tagger(RuleComponent):
 
     def contract(self) -> Contract:
         t = self._transcription()
-        return Contract(unit=self.unit, role=self.role, reads=parts(self.parts_read, t),
+        return Contract(unit=self.unit, kind=self.kind, reads=parts(self.parts_read, t),
                         adds=parts(self.parts_added, t))
 
     def process_page(self, doc, page):

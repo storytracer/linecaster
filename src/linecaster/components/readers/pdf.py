@@ -61,7 +61,7 @@ class PdfReader(Contracted, BaseDiskReader):
     """
 
     name = "📕 pdf"
-    role = "reader"
+    kind = "reader"
     whole_items = True          # a PDF is one entry, so an item's pages stay in one task
     parts_added = ("image", "metadata")
     docs_args = {"data_folder": "pdfs/"}

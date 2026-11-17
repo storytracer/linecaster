@@ -22,7 +22,7 @@ class ScoreWriter(Contracted, PipelineStep):
 
     type = "💽 - WRITER"
     name = "🎯 score records"
-    role = "writer"
+    kind = "writer"
     docs_args = {"output_folder": "out/scores"}
 
     def __init__(self, output_folder: DataFolderLike):

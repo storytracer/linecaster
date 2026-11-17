@@ -53,7 +53,7 @@ class Recomposer(RuleComponent):
         """It reads the regions and lines and adds the paragraphs; it makes them anew where they exist (an item-level
         recomposition after a page-level one), so it declares them replaced too."""
         reads, adds = parts(("regions", "lines"), self.transcription), parts(("paragraphs",), self.transcription)
-        return Contract(unit=self.unit, role=self.role, reads=reads, adds=adds, replaces=adds)
+        return Contract(unit=self.unit, kind=self.kind, reads=reads, adds=adds, replaces=adds)
 
     def apply(self, page, t) -> None:
         self.engine([t], page_ids=[page.page_id])

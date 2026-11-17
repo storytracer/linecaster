@@ -26,14 +26,14 @@ class Splitter(Contracted, PipelineStep):
 
     type = "🔠 - LINECASTER"
     name = "📄 splitter"
-    role = "splitter"
+    kind = "splitter"
 
     def __init__(self, primary: str = "ocr_new"):
         super().__init__()
         self.primary = primary
 
     def contract(self) -> Contract:
-        return Contract(unit="item", unit_out="page", role=self.role)
+        return Contract(unit="item", unit_out="page", kind=self.kind)
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         for doc in data:

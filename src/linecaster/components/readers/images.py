@@ -163,7 +163,7 @@ class ImageFolderReader(Sampled, Contracted, BaseDiskReader):
     """
 
     name = "🖼️ image folder"
-    role = "reader"
+    kind = "reader"
     parts_added = ("image", "metadata")
     operational = ("read_images",)          # how the files are read: the pages are the same either way
     docs_args = {"data_folder": "scans/"}
@@ -357,7 +357,7 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
     """
 
     name = "🖼️ image parquet"
-    role = "reader"
+    kind = "reader"
     parts_added = ("image", "metadata")
     operational = ("reuse_index",)         # where images come from, not which pages
     docs_args = {"data_folder": "pages/"}

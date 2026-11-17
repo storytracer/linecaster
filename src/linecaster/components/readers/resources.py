@@ -165,7 +165,7 @@ class ResourceReader(Contracted, BaseDiskReader):
     """
 
     name = "🌐 resources"
-    role = "reader"
+    kind = "reader"
     unit = "item"
     parts_added = ("metadata",)
     docs_args = {"data_folder": "items/", "item_key": "lccn",

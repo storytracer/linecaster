@@ -188,14 +188,14 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
     """
 
     name = "📜 manifests"
-    role = "reader"
+    kind = "reader"
     whole_items = True          # a manifest is one entry, so an item's pages stay in one task
     operational = ("reuse_index",)         # where images come from, not which pages
 
     def contract(self) -> Contract:
         """The page image and record, and with ``existing_ocr`` the library's OCR file."""
         adds = {Part("image"), Part("metadata")} | ({Part("transcription_file")} if self.existing_ocr else set())
-        return Contract(unit="page", role=self.role, adds=frozenset(adds))
+        return Contract(unit="page", kind=self.kind, adds=frozenset(adds))
 
     def __init__(self, data_folder: DataFolderLike = ".", paths_file: DataFileLike | None = None,
                  glob_pattern: str | None = None, recursive: bool = True, limit: int = -1, skip: int = 0,

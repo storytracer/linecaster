@@ -420,7 +420,7 @@ class Tracing(Observer):
         if self.tracer is None:
             return
         end = _ns()
-        server = getattr(component, "role", None) == "server" or type(component).__name__ in (
+        server = getattr(component, "kind", None) == "server" or type(component).__name__ in (
             "ModelServer", "ChatModelServer", "ServiceServer")
         name = "linecaster.server.start" if server else "linecaster.warm_up"
         attrs = server_attributes(component) if server else dict(self._attributes(component))

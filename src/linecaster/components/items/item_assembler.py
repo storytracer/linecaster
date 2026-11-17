@@ -31,14 +31,14 @@ class Binder(Contracted, PipelineStep):
 
     type = "🔠 - LINECASTER"
     name = "📚 binder"
-    role = "binder"
+    kind = "binder"
 
     def __init__(self, count_key: str = "item_page_count"):
         super().__init__()
         self.count_key = count_key
 
     def contract(self) -> Contract:
-        return Contract(unit="page", unit_out="item", role=self.role)
+        return Contract(unit="page", unit_out="item", kind=self.kind)
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         for item, pages in gather(data, self, self.count_key):

@@ -27,7 +27,7 @@ class ModelServer(Contracted, PipelineStep):
 
     The server starts in ``warm_up()`` and is ready when every model is loaded; it stops when the task's pages are
     through. Its environment carries what the observers ask for (the task's trace file). A server that does not
-    start fails the task (``ServerError``). Its role is ``server`` and its unit ``any``: it touches no part. It goes
+    start fails the task (``ServerError``). Its kind is ``server`` and its unit ``any``: it touches no part. It goes
     **last** in the pipeline (after the writer): datatrove chains generators, and only the last one lives until every
     page is written.
 
@@ -46,7 +46,7 @@ class ModelServer(Contracted, PipelineStep):
 
     type = "🔠 - LINECASTER"
     name = "🖥️ model server"
-    unit, role = "any", "server"
+    unit, kind = "any", "server"
     docs_args = {"models": []}
 
     def __init__(self, models: list[dict], port: int = 8100, python: str | None = None, boot_timeout: int = 1800,
@@ -107,7 +107,7 @@ class ChatModelServer(Contracted, PipelineStep):
     gets its own port and its own GPU (``CUDA_VISIBLE_DEVICES``): a second vLLM on a GPU that one already uses does
     not get its memory share, and a second server on the same port does not start.
 
-    Its role is ``server`` and its unit ``any``: it touches no part. Like ``ModelServer``, it goes **last** in the
+    Its kind is ``server`` and its unit ``any``: it touches no part. Like ``ModelServer``, it goes **last** in the
     pipeline (after the writer): datatrove chains generators, and only the last one lives until every page is
     written.
 
@@ -135,7 +135,7 @@ class ChatModelServer(Contracted, PipelineStep):
 
     type = "🔠 - LINECASTER"
     name = "🖥️ chat model server"
-    unit, role = "any", "server"
+    unit, kind = "any", "server"
     docs_args = {"spec": "lightonocr-2-1b"}
 
     def __init__(self, spec, port: int = 8000, host: str = "127.0.0.1", gpu_memory_utilization: float | None = None,

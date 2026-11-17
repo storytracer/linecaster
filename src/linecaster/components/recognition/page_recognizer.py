@@ -303,7 +303,7 @@ class PageRecognizer(ModelComponent):
     def contract(self) -> Contract:
         """The completion is the text; the preset's ``capabilities.produces`` say what else (``markdown``, ...)."""
         adds = {*self.lines_added, "text", *produces(self.backend, self.step)}
-        return Contract(unit="page", role=self.role, reads=parts(("image", *self.regions_read), self.transcription),
+        return Contract(unit="page", kind=self.kind, reads=parts(("image", *self.regions_read), self.transcription),
                         adds=parts(adds, self.transcription), replaces=parts(self.parts_made_anew, self.transcription))
 
     def process_page(self, doc, page):

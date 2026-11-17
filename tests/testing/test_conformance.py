@@ -282,7 +282,7 @@ def test_check_component_finds_an_undeclared_removal(tmp_path):
 
     class Hides(ImageConverter):
         def contract(self):
-            return Contract(unit="page", role=self.role, reads=parts(("metadata",), None),
+            return Contract(unit="page", kind=self.kind, reads=parts(("metadata",), None),
                             replaces=parts(("metadata",), None))
 
     with pytest.raises(AssertionError, match=r"removed \['image'\]; the contract removes nothing"):

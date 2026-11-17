@@ -71,7 +71,7 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
 
     type = "📖 - READER"
     name = "📄 page records"
-    role = "reader"
+    kind = "reader"
     live_params = ("provides",)          # the builder declares what an earlier stage wrote
     docs_args = {"data_folder": "out/pages"}
 
@@ -96,7 +96,7 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
         declares nothing."""
         given = frozenset({Part("*")}) if self.provides is None else self.provides
         own = {Part("metadata")} | ({Part("image")} if self.fetch_images else set())
-        return Contract(unit="page", role=self.role, adds=frozenset(own) | (given - {Part("image")}))
+        return Contract(unit="page", kind=self.kind, adds=frozenset(own) | (given - {Part("image")}))
 
     def _records(self, path: str):
         import gzip

@@ -152,7 +152,7 @@ class ImageConverter(Contracted, PipelineStep):
     def contract(self) -> Contract:
         """The converted image replaces the page image with ``keep_bytes``; without it the page leaves with no image
         bytes (it removes ``image``)."""
-        return Contract(unit="page", role=self.role, reads=parts(("metadata",), None),
+        return Contract(unit="page", kind=self.kind, reads=parts(("metadata",), None),
                         replaces=parts(("image", "metadata") if self.keep_bytes else ("metadata",), None),
                         removes=parts(() if self.keep_bytes else ("image",), None))
 

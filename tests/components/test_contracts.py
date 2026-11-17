@@ -73,7 +73,7 @@ def test_model_components_take_their_parts_from_the_preset_or_the_engine():
     rec = InProcess("x:Y")
     rec.preset = "kraken-ppocrv6-medium"
     c = LineRecognizer(rec).contract()
-    assert c.role == "model" and c.unit == "page"
+    assert c.kind == "model" and c.unit == "page"
     assert c.reads == {Part("image"), Part("lines", "ocr_new")}
     assert {p.name for p in c.adds} == {"text", "words", "word_confidences", "line_confidences"}
     # an engine without a preset: its declared capabilities (read from its source, nothing imported)
@@ -153,16 +153,16 @@ def test_contracts_of_the_components_without_a_model(tmp_path):
     assert names(r.adds) == ["ocr_new:paragraphs"] and names(r.reads) == ["ocr_new:lines", "ocr_new:regions"]
     assert r.replaces == r.adds                    # paragraphs made anew where they exist
     assert Recomposer("unicode-recomposition", unit="item").contract().unit == "item"
-    assert Binder().contract() == Contract(unit="page", unit_out="item", role="binder")
-    assert Splitter().contract() == Contract(unit="item", unit_out="page", role="splitter")
-    assert ItemTextWriter(str(tmp_path)).contract() == Contract(unit="item", role="writer",
+    assert Binder().contract() == Contract(unit="page", unit_out="item", kind="binder")
+    assert Splitter().contract() == Contract(unit="item", unit_out="page", kind="splitter")
+    assert ItemTextWriter(str(tmp_path)).contract() == Contract(unit="item", kind="writer",
                                                                reads=frozenset({Part("document")}))
-    assert ItemDocumentWriter(str(tmp_path)).contract() == Contract(unit="item", role="writer",
+    assert ItemDocumentWriter(str(tmp_path)).contract() == Contract(unit="item", kind="writer",
                                                                    reads=frozenset({Part("document")}))
     files = PageFileWriter(str(tmp_path), formats=("hocr", "md", "json", "plot", "transcription")).contract()
     assert names(files.reads) == ["image", "ocr_new:document", "ocr_new:lines", "ocr_new:text"]
-    assert PageJsonlWriter(str(tmp_path)).contract() == Contract(unit="page", role="writer")
-    assert ModelServer([]).contract().unit == "any" and ModelServer([]).contract().role == "server"
+    assert PageJsonlWriter(str(tmp_path)).contract() == Contract(unit="page", kind="writer")
+    assert ModelServer([]).contract().unit == "any" and ModelServer([]).contract().kind == "server"
     assert names(ImageConverter(str(tmp_path), "working-image", keep_bytes=True).contract().replaces) == [
         "image", "metadata"]
     assert ImageConverter(str(tmp_path), "working-image", keep_bytes=True).contract().removes == frozenset()
@@ -173,7 +173,7 @@ def test_contracts_of_the_components_without_a_model(tmp_path):
 
     files = ImageFilesWriter(str(tmp_path)).contract()           # image.uri and extra name the copy
     assert names(files.reads) == ["image"] and names(files.replaces) == ["metadata"]
-    assert contract_of(object()) == Contract(unit="page", role="transform")
+    assert contract_of(object()) == Contract(unit="page", kind="transform")
 
 
 # ------------------------------------------------------------------------------------------------ component shapes
@@ -304,7 +304,7 @@ def test_every_component_family_goes_into_the_run_record_as_built(tmp_path, monk
         own = [p for p, x in list(inspect.signature(type(component).__init__).parameters.items())[1:]
                if x.kind not in (x.VAR_KEYWORD, x.VAR_POSITIONAL)]
         assert set(own) <= set(d["params"]), type(component).__name__        # every constructor parameter
-        assert entry["contract"]["role"] == component.contract().role
+        assert entry["contract"]["kind"] == component.contract().kind
     by_name = {e["component"]: e for e in entries[:len(components)]}
     assert by_name["LineRecognizer"]["params"]["backend"] == {
         "backend": "served", "endpoint": "https://api.example.org/v1", "model": "m", "max_window": 32,

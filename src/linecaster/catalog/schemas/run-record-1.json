@@ -165,8 +165,8 @@
     "Contract": {
       "additionalProperties": false,
       "properties": {
-        "role": {
-          "title": "Role",
+        "kind": {
+          "title": "Kind",
           "type": "string"
         },
         "unit": {
@@ -247,7 +247,7 @@
         }
       },
       "required": [
-        "role",
+        "kind",
         "unit"
       ],
       "title": "Contract",

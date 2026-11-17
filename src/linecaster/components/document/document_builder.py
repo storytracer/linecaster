@@ -63,7 +63,7 @@ class Composer(RuleComponent):
         """It reads the regions and lines (and the paragraphs when there are: they are optional, so not named)."""
         reads = parts(("regions", "lines"), self.transcription)
         adds = parts(("document",), self.transcription) if self.unit == "page" else frozenset({Part("document")})
-        return Contract(unit=self.unit, role=self.role, reads=reads, adds=adds)
+        return Contract(unit=self.unit, kind=self.kind, reads=reads, adds=adds)
 
     def process_page(self, doc, page):
         t = page.transcriptions.get(self.transcription)

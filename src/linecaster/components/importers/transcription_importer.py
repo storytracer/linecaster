@@ -55,7 +55,7 @@ class TranscriptionImporter(PageComponent):
     """
 
     name = "📄 transcription importer"
-    role = "transform"
+    kind = "transform"
     step = "import"
     docs_args = {"importer": "auto-import"}
 
@@ -85,7 +85,7 @@ class TranscriptionImporter(PageComponent):
         the importer reads and replaces what the page had under that name (``<transcription>:*``)."""
         reads = {Part("metadata"), Part("transcription_file")} if self.source == "media" else {Part("metadata")}
         made = frozenset({Part("*", self.transcription)})
-        return Contract(unit="page", role=self.role, reads=frozenset(reads), adds=made, replaces=made)
+        return Contract(unit="page", kind=self.kind, reads=frozenset(reads), adds=made, replaces=made)
 
     def warm_up(self) -> None:
         self.backend.warm_up()

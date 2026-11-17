@@ -35,7 +35,7 @@ class ImageFilesWriter(Contracted, PipelineStep):
 
     type = "💽 - WRITER"
     name = "🖼️ image files"
-    role = "writer"
+    kind = "writer"
     docs_args = {"output_folder": "out/images"}
     parts_read = ("image",)
     parts_replaced = ("metadata",)          # image.uri and image.extra name the copy

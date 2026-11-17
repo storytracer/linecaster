@@ -177,7 +177,7 @@ class Node:
     id: str
     component: str                         # class name
     name: str                          # datatrove name (or class name)
-    role: str
+    kind: str
     unit: str
     stage: int
     composites: tuple[str, ...] = ()
@@ -390,14 +390,14 @@ def _until(entries: list[_Entry], name: str, run_folder: str | None, problems: l
     target = get_datafolder(folder).path
     if not any(_is(e.component, "PageJsonlWriter") and _folder(e.component) == target for e in kept):
         kept.append(_Entry(_pages_writer(folder)))
-    return kept + [e for e in entries[i + 1:] if e.contract.role == "server"]
+    return kept + [e for e in entries[i + 1:] if e.contract.kind == "server"]
 
 
 def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
     """The recipe on every step: a ``RecipeStamper`` before the first writer."""
     from linecaster.components.validation.recipe_stamper import RecipeStamper
 
-    i = next((k for k, e in enumerate(entries) if e.contract.role in ("writer", "server")), len(entries))
+    i = next((k for k, e in enumerate(entries) if e.contract.kind in ("writer", "server")), len(entries))
     entries.insert(i, _Entry(RecipeStamper(*recipe)))
 
 
@@ -420,7 +420,7 @@ def _rejects(entries: list[_Entry], run_folder: str) -> None:
 
     if any(_is(e.component, "RejectWriter") for e in entries):
         return
-    i = next((k for k, e in enumerate(entries) if e.contract.role in ("writer", "server", "binder")
+    i = next((k for k, e in enumerate(entries) if e.contract.kind in ("writer", "server", "binder")
               or e.contract.unit_out == "item"), len(entries))
     entries.insert(i, _Entry(RejectWriter(posixpath.join(run_folder.rstrip("/"), "rejects"))))
 
@@ -428,7 +428,7 @@ def _rejects(entries: list[_Entry], run_folder: str) -> None:
 def _cut(entries: list[_Entry], tasks: int, run_folder: str | None, problems: list[str]):
     """``[(name, entries, tasks)]``: one stage, or two cut where the stream changes to items (``tasks > 1``)."""
     end = len(entries)
-    while end > 0 and entries[end - 1].contract.role == "server":
+    while end > 0 and entries[end - 1].contract.kind == "server":
         end -= 1
     body, servers = entries[:end], entries[end:]
     k = next((i for i, e in enumerate(body) if e.contract.unit == "page" and e.contract.unit_out == "item"), None)
@@ -458,7 +458,7 @@ def _cut(entries: list[_Entry], tasks: int, run_folder: str | None, problems: li
     from linecaster.components.readers.records import PageRecordReader
 
     reader = PageRecordReader(folder, fetch_images=False, item_shards=True, provides=())
-    models_after = any(e.contract.role == "model" for e in post)
+    models_after = any(e.contract.kind == "model" for e in post)
     first, second = (pre, [_Entry(reader), *post, *servers]) if models_after else (pre + servers, [_Entry(reader), *post])
     return [("pages", first, tasks), ("items", second, n)]
 
@@ -485,9 +485,9 @@ def _across(c: Contract, available: dict[Part, str]) -> dict[Part, str]:
     """The parts after a component that changes the stream's unit: a binder's item record holds its pages, and a
     splitter's pages what the item record held, so the parts carry across (apart from ``LEFT_BEHIND``); after any
     other such component only what it adds."""
-    if c.role not in LEFT_BEHIND:
+    if c.kind not in LEFT_BEHIND:
         return {p: v for p, v in available.items() if p in c.adds}
-    return {p: v for p, v in available.items() if p not in LEFT_BEHIND[c.role]}
+    return {p: v for p, v in available.items() if p not in LEFT_BEHIND[c.kind]}
 
 
 class _Analysis:
@@ -498,7 +498,7 @@ class _Analysis:
 
     def node(self, e: _Entry, stage: int) -> Node:
         n = Node(id=f"n{self.counter[0]}", component=type(e.component).__name__,
-                 name=getattr(e.component, "name", None) or type(e.component).__name__, role=e.contract.role,
+                 name=getattr(e.component, "name", None) or type(e.component).__name__, kind=e.contract.kind,
                  unit=e.contract.unit, stage=stage, composites=e.composites,
                  group=getattr(e.component, "group", None),
                  when=(w.describe() if (w := getattr(e.component, "when", None)) is not None else None))
@@ -513,9 +513,9 @@ class _Analysis:
         nodes = [self.node(e, index) for e in entries]
         edges: dict[tuple[str, str], set[str]] = {}
         unit = "page"
-        if given and (not entries or entries[0].contract.role != "reader"):
+        if given and (not entries or entries[0].contract.kind != "reader"):
             available[Part("*")] = "input"
-        elif not entries or entries[0].contract.role != "reader":
+        elif not entries or entries[0].contract.kind != "reader":
             problems.append(f"{where} starts with {entries[0].label if entries else 'nothing'}, not a reader")
         server_seen = None
         groups_done: set[str] = set()
@@ -536,15 +536,15 @@ class _Analysis:
                 c = e.contract
                 if k > 0 and c.unit != "any" and c.unit != unit:
                     problems.append(f"{e.label} works on {c.unit}s, but the stream carries {unit}s here")
-                if server_seen is not None and c.role != "server":
+                if server_seen is not None and c.kind != "server":
                     problems.append(f"{e.label} comes after the server component {server_seen}: server components go last")
-                if c.role == "server":
+                if c.kind == "server":
                     server_seen = e.label
                 when = getattr(e.component, "when", None)
                 if group is not None and when is None:
                     problems.append(f"{e.label} is an alternative of group {group!r} without a condition (when=)")
-                if when is not None and c.role in ("reader", "server"):
-                    problems.append(f"{e.label}: a {c.role} cannot take a condition")
+                if when is not None and c.kind in ("reader", "server"):
+                    problems.append(f"{e.label}: a {c.kind} cannot take a condition")
                 if isinstance(when, Otherwise) and group is not None and k != j - 1:
                     problems.append(f"{e.label}: OTHERWISE must be the last alternative of group {group!r}")
                 base = before if group is not None else available
@@ -588,7 +588,7 @@ class _Analysis:
     def _served(self, entries: list[_Entry], where: str) -> None:
         ports = {}
         for e in entries:
-            if e.contract.role == "server" and getattr(e.component, "port", None) is not None:
+            if e.contract.kind == "server" and getattr(e.component, "port", None) is not None:
                 ports[e.component.port] = e
         for e in entries:
             backend = getattr(e.component, "backend", None)
@@ -745,7 +745,7 @@ def _build(components: list, *, tasks: int = 1, until=None, after=None, taps=Non
         if i is None:
             continue
         s, e = flat[i]
-        if e.contract.output_unit not in ("page", "any") or e.contract.role == "server":
+        if e.contract.output_unit not in ("page", "any") or e.contract.kind == "server":
             problems.append(f"--tap-after {component_name}: page records can only be tapped after a page component")
             continue
         tap_at.setdefault(s, []).append(Tap(e.component, folder))
@@ -771,7 +771,7 @@ def _timing(entries: list[_Entry]):
 
     if not entries or entries[0].contract.unit not in ("page", "any") or entries[0].contract.output_unit == "item":
         return None
-    stop = next((e.component for e in entries[1:] if e.contract.role in ("writer", "server", "binder")
+    stop = next((e.component for e in entries[1:] if e.contract.kind in ("writer", "server", "binder")
                  or e.contract.unit_out == "item"), None)
     return None if stop is None else PageTiming(entries[0].component, stop)
 

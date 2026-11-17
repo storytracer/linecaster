@@ -341,7 +341,7 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     assert recognizer["class"] == "linecaster.components.recognition.line_recognizer:LineRecognizer"
     assert recognizer["params"]["backend"] == {"backend": "in-process", "engine": "test_provenance:StampModel",
                                                "options": {"size": 3}, "preset": "stamp", "preset_sha256": SHA}
-    assert recognizer["contract"]["role"] == "model" and recognizer["contract"]["reads"] == ["image", "ocr_new:lines"]
+    assert recognizer["contract"]["kind"] == "model" and recognizer["contract"]["reads"] == ["image", "ocr_new:lines"]
     assert rec["pipeline_sha256"] == provenance.pipeline_sha256(run.build_plan(a, _pipeline(a, files)))
     sw = rec["software"]
     assert sw["linecaster"] == provenance.version() and sw["python"].startswith("3.")

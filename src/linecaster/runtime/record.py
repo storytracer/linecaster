@@ -27,7 +27,7 @@ class Recipe(_Record):
 
 
 class Contract(_Record):
-    role: str
+    kind: str
     unit: str
     unit_out: str | None = None
     reads: list[str] | None = None

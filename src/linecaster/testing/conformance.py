@@ -716,7 +716,7 @@ def check_component(component, docs=None, *, run: bool = True) -> list:
         component.warm_up()
         if loaded is not None and getattr(backend, "_model", None) is not loaded:
             problems.append("a second warm_up() loaded the engine again")
-        docs = list(docs) if docs is not None else (_sample_docs(contract.unit, component) if contract.role != "reader"
+        docs = list(docs) if docs is not None else (_sample_docs(contract.unit, component) if contract.kind != "reader"
                                              else [])
         before = {d.id: copy.deepcopy(d) for d in docs}
         out = run_pages([component], docs)
@@ -735,7 +735,7 @@ def check_component(component, docs=None, *, run: bool = True) -> list:
                                         f"{'removes' if where == 'removed' else 'adds or replaces'} "
                                         f"{sorted(map(str, ok)) or 'nothing'}")
                 problems.extend(f"page {d.id}: {p}" for p in _overwritten_on_page(b, d, contract))
-        if contract.role == "model" and contract.unit == "page" and docs:
+        if contract.kind == "model" and contract.unit == "page" and docs:
             failed = copy.deepcopy(docs[0])
             failed.id = f"{failed.id}-failed"
             failed.metadata[ERRORS_KEY] = [{"component": "Earlier", "type": "error", "error": "failed before"}]
@@ -744,7 +744,7 @@ def check_component(component, docs=None, *, run: bool = True) -> list:
             if len(passed) != 1 or passed[0].metadata != kept.metadata:
                 problems.append("a page that carries an earlier error did not pass through unchanged")
         if (isinstance(component, PageComponent) and Part("image") in contract.reads and contract.unit == "page"
-                and contract.role in ("model", "transform", "validator") and docs):
+                and contract.kind in ("model", "transform", "validator") and docs):
             bare = copy.deepcopy(docs[0])
             bare.id, bare.media = f"{bare.id}-no-image", []
             bare.metadata.pop(ERRORS_KEY, None)

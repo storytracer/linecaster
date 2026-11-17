@@ -38,7 +38,7 @@ class ServiceServer(Contracted, PipelineStep):
     The service runs in its own process group with the preset's ``env``, without the pipeline's environment
     (``PIPELINE_ENV``, and this interpreter's ``bin`` off ``PATH``), so the image's own Pythons and servers run as
     the image has them. A service that exits or is not ready within ``boot_timeout`` fails the task
-    (``ServerError``). Its role is ``server`` and its unit ``any``: it touches no part. It goes **last** in the
+    (``ServerError``). Its kind is ``server`` and its unit ``any``: it touches no part. It goes **last** in the
     pipeline (after the writer): datatrove chains generators, and only the last one lives until every page is
     written. A vendor's entrypoint listens on the ports the image sets (one service per machine).
 
@@ -58,7 +58,7 @@ class ServiceServer(Contracted, PipelineStep):
 
     type = "🔠 - LINECASTER"
     name = "🖥️ service server"
-    unit, role = "any", "server"
+    unit, kind = "any", "server"
     docs_args = {"preset": "falcon-ocr"}
 
     def __init__(self, preset: str, port: int = 8000, host: str = "127.0.0.1", vllm: str = "vllm",

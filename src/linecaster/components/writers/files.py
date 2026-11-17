@@ -77,7 +77,7 @@ class PageFileWriter(Contracted, PipelineStep):
 
     type = "💽 - WRITER"
     name = "🗂️ page files"
-    role = "writer"
+    kind = "writer"
     docs_args = {"output_folder": "out/files"}
 
     def __init__(self, output_folder: DataFolderLike, formats: tuple[str, ...] = ("hocr", "alto", "page", "txt"),
@@ -109,7 +109,7 @@ class PageFileWriter(Contracted, PipelineStep):
         names = {FORMAT_PARTS[f] for f in self.formats} - {None}
         if not self.text_fallback and names & {"text"} and {"md", "txt"} & set(self.formats):
             names = (names - {"text"}) | {"document"}
-        return Contract(unit="page", role=self.role, reads=parts(names, self.transcription))
+        return Contract(unit="page", kind=self.kind, reads=parts(names, self.transcription))
 
     def path(self, page) -> str:
         stem = f"{page.page_id}{self.suffix}"

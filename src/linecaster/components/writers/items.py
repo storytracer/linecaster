@@ -73,11 +73,11 @@ class ItemDocumentWriter(Contracted, PipelineStep):
 
     type = "💽 - WRITER"
     name = "📝 item documents"
-    unit, role = "item", "writer"
+    unit, kind = "item", "writer"
     docs_args = {"output_folder": "out/documents"}
 
     def contract(self) -> Contract:
-        return Contract(unit=self.unit, role=self.role, reads=frozenset({Part("document")}))
+        return Contract(unit=self.unit, kind=self.kind, reads=frozenset({Part("document")}))
 
     def __init__(self, output_folder: DataFolderLike, texts=DEFAULT_TEXTS, suffix: str = "", furniture: bool = False,
                  dividers: bool = False, policy: str = DEFAULT_POLICY_REF):
@@ -152,12 +152,12 @@ class ItemTextWriter(Contracted, JsonlWriter):
         **kwargs: datatrove's ``JsonlWriter`` arguments (``compression``, ``max_file_size``, ...).
     """
 
-    unit, role = "item", "writer"
+    unit, kind = "item", "writer"
     name = "📚 item texts"
     docs_args = {"output_folder": "out/texts", "texts": ("literal:txt",)}
 
     def contract(self) -> Contract:
-        return Contract(unit=self.unit, role=self.role, reads=frozenset({Part("document")}))
+        return Contract(unit=self.unit, kind=self.kind, reads=frozenset({Part("document")}))
 
     def __init__(self, output_folder: DataFolderLike, texts=("literal:txt",),
                  token_counter: Callable[[str], int] | None = None,
