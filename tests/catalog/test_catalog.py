@@ -212,7 +212,7 @@ def test_a_recipe_fills_a_pipeline(tmp_path):
 
 
 def test_the_index_records_a_recipes_expanded_pipeline(tmp_path):
-    """The index records each recipe's pipeline, built from its pipeline shape without the engines; ``verify``
+    """The index records each recipe's pipeline, built from its pipeline template without the engines; ``verify``
     builds it again: a drift is a stale index, a pipeline that cannot be built a problem."""
     from linecaster.catalog import registry
     from linecaster.execution import provenance, run
@@ -229,7 +229,7 @@ def test_the_index_records_a_recipes_expanded_pipeline(tmp_path):
     c.write_index()
     assert yamlio.read(tmp_path / "catalog.index")["recipes"]["r"] == {
         "sha256": c.resolve_recipe("r").sha256, "pipeline_sha256": built["pipeline_sha256"]}
-    # what the shape builds into other folders is the same pipeline (in this process: the catalog put in place)
+    # what the template builds into other folders is the same pipeline (in this process: the catalog put in place)
     from linecaster.templates import transcribe_vlm
 
     with registry.active(c):

@@ -3,7 +3,7 @@ them is imported, so they need not be installed (their pins conflict; there is n
 
 Engines: the entry points in ``engines/*/pyproject.toml`` plus linecaster's own (``chat.v1`` and the rule-based
 engines of ``linecaster.engines``), each class's docstring, ``step``, ``capabilities``, ``scripts`` and ``Options``
-fields. Pipelines: the pipeline shapes of ``linecaster.templates`` (imported; they import no engine), their
+fields. Pipelines: the pipeline templates of ``linecaster.templates`` (imported; they import no engine), their
 ``PIPELINE`` id, docstring, ``SLOTS``, the options ``options()`` adds, and their scripts in ``pipelines/``.
 """
 from __future__ import annotations
@@ -47,7 +47,7 @@ class Pipeline:
     doc: str
     slots: dict[str, str]
     options: list[Option] = field(default_factory=list)
-    shape: Path | None = None       # the source file of its pipeline shape (linecaster.templates.<name>)
+    template: Path | None = None       # the source file of its pipeline template (linecaster.templates.<name>)
 
 
 def _doc(node) -> str:
@@ -166,27 +166,27 @@ def _arguments(fn: ast.FunctionDef) -> list[Option]:
     return out
 
 
-def script_of(shape, repo: Path | None = REPO) -> Path | None:
-    """The pipeline script that runs the pipeline shape ``shape`` (a module of ``linecaster.templates``): the
+def script_of(template, repo: Path | None = REPO) -> Path | None:
+    """The pipeline script that runs the pipeline template ``template`` (a module of ``linecaster.templates``): the
     checkout's ``pipelines/<name>.py``, or ``None`` without a checkout or such a script."""
     if repo is None:
         return None
-    script = repo / "pipelines" / f"{shape.__name__.rpartition('.')[2]}.py"
+    script = repo / "pipelines" / f"{template.__name__.rpartition('.')[2]}.py"
     return script if script.is_file() else None
 
 
 def pipelines(repo: Path | None = REPO) -> dict[str, Pipeline]:
-    """The pipeline shapes of ``linecaster.templates`` by pipeline id (imported: they import no engine), each with
+    """The pipeline templates of ``linecaster.templates`` by pipeline id (imported: they import no engine), each with
     its pipeline script in the checkout ``repo`` (``source``; ``None`` without one), its docstring, slots and the
     options ``options()`` adds (read from its source with ``ast``)."""
-    from linecaster.templates import shapes
+    from linecaster.templates import templates
 
     found = {}
-    for pid, shape in shapes().items():
-        fn = ast.parse(inspect.getsource(shape.options)).body[0]
-        found[pid] = Pipeline(pid, script_of(shape, repo), inspect.cleandoc(shape.__doc__ or ""),
-                              dict(getattr(shape, "SLOTS", None) or {}), _arguments(fn),
-                              Path(inspect.getsourcefile(shape)))
+    for pid, template in templates().items():
+        fn = ast.parse(inspect.getsource(template.options)).body[0]
+        found[pid] = Pipeline(pid, script_of(template, repo), inspect.cleandoc(template.__doc__ or ""),
+                              dict(getattr(template, "SLOTS", None) or {}), _arguments(fn),
+                              Path(inspect.getsourcefile(template)))
     return found
 
 

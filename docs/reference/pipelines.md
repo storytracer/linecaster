@@ -310,10 +310,10 @@ task would read other input), and so is another sample (the record's `sample.sel
 The same hash, tasks and sample: a resume, as datatrove's completion markers make it.
 `--dry-run` reports the same problems.
 
-**Describe mode.** `linecaster.execution.run.describe(shape, argv)` builds a pipeline shape's plan in the current
+**Describe mode.** `linecaster.execution.run.describe(template, argv)` builds a pipeline template's plan in the current
 process without its engines: its options parsed, presets resolved without checking that their engines are
-installed, nothing loaded or started. `describe_recipe(ref)` describes a recipe that way (the shape of the
-recipe's pipeline id, `linecaster.templates.shape(id)`, with `--recipe REF` and placeholder folders): what
+installed, nothing loaded or started. `describe_recipe(ref)` describes a recipe that way (the template of the
+recipe's pipeline id, `linecaster.templates.template(id)`, with `--recipe REF` and placeholder folders): what
 `linecaster catalog index` records as the recipe's `pipeline_sha256` and `verify` compares ([catalog](catalog.md)).
 
 ## Samples
@@ -554,20 +554,21 @@ lists the completion markers once instead of looking them up task by task.
 every request through saturate's `AdaptiveClient(headers=...)`;
 a key given as text is refused. A missing variable fails the component's warm-up.
 
-## Pipeline shapes
+## Pipeline templates
 
-A pipeline script's code is a pipeline shape in `linecaster.templates` (`harvest`, `convert`, `transcribe_modular`,
+A pipeline script's code is a pipeline template in `linecaster.templates` (`harvest`, `convert`, `transcribe_modular`,
 `transcribe_vlm`, `transcribe_page`, `bind`, `import_transcriptions`, `score`): its docstring (the help text), `options(ap)`, `models(a)`,
-`pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.templates.shapes()` lists them by
-pipeline id and `shape(id)` finds one; importing one imports no engine. The script in `pipelines/` is its PEP 723
-component, a docstring and the call that runs the shape:
+`pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.templates.templates()` lists them by
+pipeline id and `template(id)` finds one; importing one imports no engine. The script in `pipelines/` is its PEP 723
+block, a docstring and the call that runs the template:
 
 ```python
-from linecaster.templates import transcribe_modular as shape
+from linecaster.templates import transcribe_modular as template
 from linecaster.execution import run
 
 if __name__ == "__main__":
-    run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
+    run.main(__file__, template.__doc__, template.options, template.models, template.pipeline, template.PIPELINE,
+             template.SLOTS)
 ```
 
 A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need), and

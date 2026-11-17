@@ -1,5 +1,5 @@
 """One command line for a pipeline on every machine. A pipeline is a self-contained uv script (``pipelines/``)
-that runs one pipeline shape with slots for presets (``linecaster.templates``); ``main`` gives it:
+that runs one pipeline template with slots for presets (``linecaster.templates``); ``main`` gives it:
 
     uv run pipelines/transcribe_modular.py IMAGES OUT                              # this machine
     uv run pipelines/transcribe_modular.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
@@ -12,10 +12,10 @@ server that each task starts for itself (``--backend served``, the default on Ra
 pipeline's own ``serve`` command here and on Ray, ``linecaster serve`` in the Job's environment on HF Jobs.
 ``--endpoint`` points them at a server that is already running instead.
 
-A pipeline script passes ``main`` its ``__file__`` and its shape's docstring, the function that adds its options,
+A pipeline script passes ``main`` its ``__file__`` and its template's docstring, the function that adds its options,
 the function that returns its engines from the options (for ``serve``) and the function that builds the pipeline
 (``reader``, ``engines`` and ``pages`` help with the usual parts), with its pipeline id and slots. ``describe``
-builds a shape in this process without its engines. The builder may also return
+builds a template in this process without its engines. The builder may also return
 ``(pipeline, {"image": ..., "engines": False})``: the Jobs' container image, and whether a Job installs
 the pipeline's engine packages or linecaster alone.
 
@@ -1225,40 +1225,40 @@ def parse(argv: list[str], description: str | None, options: Callable, pipeline_
     return check(ap, a)
 
 
-def describe(shape, argv: list[str], c=None, script: str | None = None):
-    """The builder's plan of the pipeline shape ``shape`` (a module of ``linecaster.templates``, or anything with its
+def describe(template, argv: list[str], c=None, script: str | None = None):
+    """The builder's plan of the pipeline template ``template`` (a module of ``linecaster.templates``, or anything with its
     ``options``, ``models``, ``pipeline``, ``PIPELINE`` and ``SLOTS``) with the command line ``argv``, built in this
     process without its engines (the describe mode: presets name their engines without importing them, nothing is
     loaded or launched). ``c``: the catalog (default the installed one); ``script``: the pipeline script the components
     are told about (servers would start it; default the checkout's script of the same name, if there is one)."""
-    pipeline_id = getattr(shape, "PIPELINE", None)
-    a = parse(list(argv), shape.__doc__, shape.options, pipeline_id, getattr(shape, "SLOTS", None), c)
+    pipeline_id = getattr(template, "PIPELINE", None)
+    a = parse(list(argv), template.__doc__, template.options, pipeline_id, getattr(template, "SLOTS", None), c)
     a.describe_only = True
-    a.has_engines = bool(shape.models(a))
+    a.has_engines = bool(template.models(a))
     if script is None:
         from linecaster.catalog import code
 
-        found = code.script_of(shape)
+        found = code.script_of(template)
         script = str(found) if found is not None else None
-    built = shape.pipeline(a, script)
+    built = template.pipeline(a, script)
     pipeline = built[0] if isinstance(built, tuple) else built
     return build_plan(a, pipeline)
 
 
 def describe_recipe(ref: str, c=None) -> dict:
-    """A recipe's expanded pipeline: its pipeline shape (by the recipe's pipeline id,
+    """A recipe's expanded pipeline: its pipeline template (by the recipe's pipeline id,
     ``linecaster.templates``) described with ``--recipe REF`` on placeholder folders (``describe``), in-process, one
     task: ``{"pipeline": the functional components (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
     catalog the recipe is in (default the installed one)."""
     from linecaster.core import model
     from linecaster.catalog.registry import active, catalog
-    from linecaster.templates import shape
+    from linecaster.templates import template
     from linecaster.execution import provenance
 
     c = c if c is not None else catalog()
     pipeline_id = c.resolve_recipe(ref).content["pipeline"]
     try:
-        found = shape(pipeline_id)
+        found = template(pipeline_id)
     except PipelineConfigError as e:
         raise CatalogError(f"recipe {ref}: {e}") from e
     model._preset_produces.cache_clear()
@@ -1272,9 +1272,9 @@ def describe_recipe(ref: str, c=None) -> dict:
 
 
 def recipe(script: str, recipe_id: str) -> None:
-    """A recipe script's body (``recipes/<id>.py``): runs the catalog recipe ``recipe_id`` through its pipeline shape
+    """A recipe script's body (``recipes/<id>.py``): runs the catalog recipe ``recipe_id`` through its pipeline template
     (the recipe's ``pipeline:``, ``linecaster.templates``) with ``main``, ``--recipe`` set to it. The command line is
-    the shape's; slots on top (recorded as overrides) may be given, another recipe may not. The script itself holds only its environment (the engine packages its presets
+    the template's; slots on top (recorded as overrides) may be given, another recipe may not. The script itself holds only its environment (the engine packages its presets
     need) and this call.
 
     Example:
@@ -1284,28 +1284,28 @@ def recipe(script: str, recipe_id: str) -> None:
             run.recipe(__file__, "squiddle")
     """
     from linecaster.catalog.registry import catalog, entry_id
-    from linecaster.templates import shape as pipeline_shape
+    from linecaster.templates import template as pipeline_shape
 
     c = catalog()
     if recipe_id not in c.recipes:                # a command line's end, as main's: nothing launched
         print(CatalogError(f"{script}: no recipe {recipe_id!r} in the catalog (known: {', '.join(sorted(c.recipes))})"),
               file=sys.stderr)
         sys.exit(2)
-    shape = pipeline_shape(c.recipes[recipe_id][1].pipeline)
+    template = pipeline_shape(c.recipes[recipe_id][1].pipeline)
 
     def options(ap):
-        shape.options(ap)
+        template.options(ap)
         ap.set_defaults(recipe=recipe_id)        # run adds --recipe to the same parser before these options
         ap.set_defaults(script_name=f"recipes/{recipe_id}.py")   # the record's name for a copy run from the URL
 
     def build(a, path: str):
         if entry_id(a.recipe) != recipe_id:
             raise PipelineConfigError(f"{Path(script).name} runs the recipe {recipe_id}, not {a.recipe}")
-        return shape.pipeline(a, path)
+        return template.pipeline(a, path)
 
-    description = (f"The recipe {recipe_id} (the catalog's recipe, through the pipeline {shape.PIPELINE}).\n\n"
-                   + (shape.__doc__ or ""))
-    main(script, description, options, shape.models, build, shape.PIPELINE, shape.SLOTS)
+    description = (f"The recipe {recipe_id} (the catalog's recipe, through the pipeline {template.PIPELINE}).\n\n"
+                   + (template.__doc__ or ""))
+    main(script, description, options, template.models, build, template.PIPELINE, template.SLOTS)
 
 
 def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,

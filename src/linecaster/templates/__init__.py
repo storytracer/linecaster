@@ -1,19 +1,19 @@
-"""The pipeline shapes, each in a file of this package named like its pipeline script and its pipeline id
+"""The pipeline templates, each in a file of this package named like its pipeline script and its pipeline id
 (``linecaster.templates.transcribe_modular``: ``pipelines/transcribe_modular.py``, ``transcribe_modular.v1``).
 
-A shape has its command line's help text (its docstring), the options it adds (``options(ap)``), the engines the
+A template has its command line's help text (its docstring), the options it adds (``options(ap)``), the engines the
 parsed options ask for (``models(a)``), its components (``pipeline(a, script)``), its pipeline id (``PIPELINE``) and,
 when recipes fill it, its slots (``SLOTS``): what ``linecaster.execution.run.main`` takes. The pipeline script of the
-same name gives it an environment (its PEP 723 block) and its command line; a derivative's script imports a shape
+same name gives it an environment (its PEP 723 block) and its command line; a derivative's script imports a template
 the same way and can lay its own defaults over its options:
 
-    from linecaster.templates import transcribe_modular as shape
+    from linecaster.templates import transcribe_modular as template
     from linecaster.execution import run
 
     if __name__ == "__main__":
-        run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
+        run.main(__file__, template.__doc__, template.options, template.models, template.pipeline, template.PIPELINE, template.SLOTS)
 
-Importing a shape imports components and the runtime, never an engine (components and backends load their engines in
+Importing a template imports components and the runtime, never an engine (components and backends load their engines in
 ``warm_up``), so tests and the docs build them in linecaster's own environment (``run.describe``).
 """
 from __future__ import annotations
@@ -25,8 +25,8 @@ from types import ModuleType
 from linecaster.errors import PipelineConfigError
 
 
-def shapes() -> dict[str, ModuleType]:
-    """Every pipeline shape of this package by its pipeline id."""
+def templates() -> dict[str, ModuleType]:
+    """Every pipeline template of this package by its pipeline id."""
     found = {}
     for info in pkgutil.iter_modules(__path__):
         module = importlib.import_module(f"{__name__}.{info.name}")
@@ -35,10 +35,10 @@ def shapes() -> dict[str, ModuleType]:
     return found
 
 
-def shape(pipeline_id: str) -> ModuleType:
-    """The pipeline shape with the pipeline id ``pipeline_id`` (``transcribe_modular.v1``); a ``PipelineConfigError``
+def template(pipeline_id: str) -> ModuleType:
+    """The pipeline template with the pipeline id ``pipeline_id`` (``transcribe_modular.v1``); a ``PipelineConfigError``
     names the known ones when there is none."""
-    found = shapes()
+    found = templates()
     if pipeline_id not in found:
         raise PipelineConfigError(f"no pipeline {pipeline_id!r} in linecaster.templates (known: "
                                   f"{', '.join(sorted(found))})")

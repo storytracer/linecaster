@@ -144,9 +144,9 @@ def used_in(repo: Path | None) -> dict[str, list[code.Pipeline | Path]]:
     """Component name -> the pipelines whose shapes (``linecaster.templates``) construct it (a call of the name), found
     with ``ast``."""
     out: dict[str, list] = {}
-    for pl in sorted(code.pipelines(repo).values(), key=lambda pl: pl.shape.name):
+    for pl in sorted(code.pipelines(repo).values(), key=lambda pl: pl.template.name):
         names = set()
-        for node in ast.walk(ast.parse(pl.shape.read_text(encoding="utf-8"))):
+        for node in ast.walk(ast.parse(pl.template.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Call):
                 fn = node.func
                 names.add(fn.id if isinstance(fn, ast.Name) else getattr(fn, "attr", None))

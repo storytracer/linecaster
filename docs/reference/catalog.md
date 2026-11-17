@@ -29,7 +29,7 @@ format, id rule, index table and prose rule), so loading, the index and the chec
 | engine | code that implements one step: runs a model, or applies rules | versioned id: `kraken.recognition.v1`, `hierarchy.ratios.v1` | `engines/<engine>/` (a package each); `chat.v1` and the rule-based engines in linecaster (`linecaster.engines`) |
 | model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.yaml` |
 | preset | an engine, a model pin and the engine's options, ready to use | slug: `kraken-ppocrv6-medium` | `presets/<step>/<id>.yaml` |
-| pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
+| pipeline | code: a template with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
 | recipe | a named combination: a pipeline, a preset per slot, options | slug: `squiddle` | `recipes/<id>.yaml` |
 | policy | a [rendering policy](data-model.md#rendering): which annotations go into which layer of a rendering, and whose count where several annotators gave one | slug: `page-layers` | `policies/<id>.yaml` |
 | conventions | what one public source's markup means: rules an importer applies, each a match and a decision; may extend one other entry | slug: `enwikisource` | `conventions/<format>/<id>.yaml` |
@@ -293,7 +293,7 @@ in-process, one task) and records its `pipeline_sha256`, the hash a run record o
 it again, so a component, a parameter or a default that changed in code shows in the index.
 
 Building it needs no engine: the **describe mode** (`linecaster.execution.run.describe`) builds the recipe's pipeline
-shape (`linecaster.templates`) in the current process, and components and backends import no engine before
+template (`linecaster.templates`) in the current process, and components and backends import no engine before
 `warm_up()`; a preset whose engine is not installed names the engine's class from the repository's engine packages
 (`catalog.code`). So `verify` runs in the core environment, and its hash is the one a run of the pipeline script
 with its engines records.

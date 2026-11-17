@@ -36,7 +36,7 @@ built on top of it.
 | `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools ([http](http.md)) |
 | `linecaster.net.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
 | `linecaster.execution` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
-| `linecaster.templates` | the pipeline shapes, one per pipeline script ([pipelines](pipelines.md#pipeline-shapes)) |
+| `linecaster.templates` | the pipeline templates, one per pipeline script ([pipelines](pipelines.md#pipeline-templates)) |
 | `linecaster.catalog` | the catalog: its entries (normalizations and strategies among them), schemas, index, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
@@ -148,7 +148,7 @@ the index). Its
 environment and entry point is a uv script of its own, `recipes/<id>.py`: a PEP 723 block with `linecaster[ray]`
 and exactly the engine packages its presets need (recipe → presets → engines → packages:
 `linecaster.catalog.code.recipe_packages`), its lock, and a body that only calls
-`linecaster.execution.run.recipe(__file__, "<id>")`, which runs the recipe through its pipeline shape with `--recipe`
+`linecaster.execution.run.recipe(__file__, "<id>")`, which runs the recipe through its pipeline template with `--recipe`
 set. The pipeline scripts depend on no model choice (`pipelines/transcribe_modular.py` has PaddleX and Tesseract);
 the recipes bring theirs (`recipes/squiddle.py`: kraken and PaddleX).
 
@@ -165,10 +165,10 @@ zensical serve`.
 ## Pipeline scripts
 
 There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
-`<script>.py.lock` next to it, `uv run <script>`) that runs one pipeline shape with slots, one script per shape,
-never one per machine. The shape is library code, `linecaster.templates.<name>` (its options, engines, components,
+`<script>.py.lock` next to it, `uv run <script>`) that runs one pipeline template with slots, one script per template,
+never one per machine. The template is library code, `linecaster.templates.<name>` (its options, engines, components,
 pipeline id and slots), so a derivative's script can run it in its own environment with its own defaults
-([pipelines](pipelines.md#pipeline-shapes)):
+([pipelines](pipelines.md#pipeline-templates)):
 
 | Script | Pipeline id | Does |
 |---|---|---|

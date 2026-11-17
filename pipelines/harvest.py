@@ -8,10 +8,10 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # ///
-"""The harvest stage (``harvest.v1``): its components and options are the pipeline shape
+"""The harvest stage (``harvest.v1``): its components and options are the pipeline template
 ``linecaster.templates.harvest``; this script gives it its environment. ``--help`` lists the options."""
-from linecaster.templates import harvest as shape
+from linecaster.templates import harvest as template
 from linecaster.execution import run
 
 if __name__ == "__main__":
-    run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline)
+    run.main(__file__, template.__doc__, template.options, template.models, template.pipeline)

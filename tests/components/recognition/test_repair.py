@@ -1,6 +1,6 @@
 """The repair pass of the chat page recognizer: a page whose completion stopped at ``max_tokens`` is sent once more
 with a larger cap, against fake OpenAI-compatible servers (through saturate, as in production); inline, over page
-records (``repair_only``) and through ``pipelines/transcribe_vlm.py``'s shape; off by default."""
+records (``repair_only``) and through ``pipelines/transcribe_vlm.py``'s template; off by default."""
 from __future__ import annotations
 
 import base64
@@ -264,7 +264,7 @@ def test_a_warning_when_the_repair_cap_and_a_page_do_not_fit_the_context():
     assert len(seen) == 1 and "16384" in seen[0] and "repair_skipped" in seen[0]
 
 
-# -------------------------------------------------------------------------- the pipeline shape
+# -------------------------------------------------------------------------- the pipeline template
 def _images(folder: Path) -> str:
     folder.mkdir(parents=True)
     for name, w in (("stops", STOPS), ("long", LONG), ("loops", LOOPS)):
@@ -273,10 +273,10 @@ def _images(folder: Path) -> str:
 
 
 def _run(*argv):
-    from linecaster.templates import transcribe_vlm as shape
+    from linecaster.templates import transcribe_vlm as template
 
-    a = run.parse(list(argv), shape.__doc__, shape.options, shape.PIPELINE, shape.SLOTS)
-    pipeline, _ = shape.pipeline(a, __file__)
+    a = run.parse(list(argv), template.__doc__, template.options, template.PIPELINE, template.SLOTS)
+    pipeline, _ = template.pipeline(a, __file__)
     run.run(a, pipeline, __file__, argv=list(argv))
     return a
 
@@ -299,7 +299,7 @@ def _stage_component(out: str, name: str) -> dict:
 
 
 def test_transcribe_vlm_sets_the_options_and_records_them(tmp_path: Path):
-    from linecaster.templates import transcribe_vlm as shape
+    from linecaster.templates import transcribe_vlm as template
 
     images = _images(tmp_path / "images")
     with fake_chat_server(answer, models=[{"id": MODEL, "max_model_len": 18000}]) as server:
@@ -316,7 +316,7 @@ def test_transcribe_vlm_sets_the_options_and_records_them(tmp_path: Path):
 
     def hash_of(*sets):
         argv = ["IN", "OUT", "--recognition", PRESET, *[x for s in sets for x in ("--set", s)]]
-        return provenance.pipeline_sha256(run.describe(shape, argv))
+        return provenance.pipeline_sha256(run.describe(template, argv))
 
     plain = hash_of()
     assert rec["pipeline_sha256"] == hash_of("recognition.repair_max_tokens=8192") != plain
@@ -334,7 +334,7 @@ def test_transcribe_vlm_sets_the_options_and_records_them(tmp_path: Path):
     with pytest.raises(PipelineConfigError, match="must rise"):
         hash_of("recognition.repair_max_tokens=100")
     with pytest.raises(PipelineConfigError, match="--repair-only reads page records"):
-        run.describe(shape, ["IN", "OUT", "--recognition", PRESET, "--repair-only",
+        run.describe(template, ["IN", "OUT", "--recognition", PRESET, "--repair-only",
                              "--set", "recognition.repair_max_tokens=8192"])
 
 

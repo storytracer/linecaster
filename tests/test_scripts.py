@@ -36,15 +36,15 @@ def test_every_pipeline_script_has_its_id():
 
 
 def test_every_pipeline_script_runs_its_shape():
-    """A pipeline script is an environment and a command line: it imports the pipeline shape of its own name
+    """A pipeline script is an environment and a command line: it imports the pipeline template of its own name
     (``linecaster.templates.<name>``) and defines nothing itself."""
     import ast
 
     for script in sorted((ROOT / "pipelines").glob("*.py")):
         tree = ast.parse(script.read_text(encoding="utf-8"))
-        shapes = [(a.name, a.asname) for n in tree.body if isinstance(n, ast.ImportFrom)
+        templates = [(a.name, a.asname) for n in tree.body if isinstance(n, ast.ImportFrom)
                   and n.module == "linecaster.templates" for a in n.names]
-        assert shapes == [(script.stem, "shape")], script.name
+        assert templates == [(script.stem, "template")], script.name
         assert not [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef, ast.Assign))], script.name
 
 

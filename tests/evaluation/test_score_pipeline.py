@@ -15,7 +15,7 @@ from test_score_run import IDS, _setup  # noqa: E402
 
 from linecaster import cli  # noqa: E402
 from linecaster.catalog import yamlio  # noqa: E402
-from linecaster.templates import score as shape  # noqa: E402
+from linecaster.templates import score as template  # noqa: E402
 from linecaster.execution import run  # noqa: E402
 from linecaster.evaluation.run import read_truth  # noqa: E402
 
@@ -27,8 +27,8 @@ def _score_pipeline(tmp_path: Path, monkeypatch, out: str = "scores-pipeline") -
     monkeypatch.setattr(sys, "argv", ["score.py", str(folder), "--pages", str(tmp_path / "run" / "pages"),
                                       "--ground-truth", str(tmp_path / "gt"), "--benchmark", str(tmp_path / "bench.yaml"),
                                       "--tasks", "2", "--workers", "1"])
-    run.main(str(ROOT / "pipelines" / "score.py"), shape.__doc__, shape.options, shape.models, shape.pipeline,
-             shape.PIPELINE, shape.SLOTS)
+    run.main(str(ROOT / "pipelines" / "score.py"), template.__doc__, template.options, template.models, template.pipeline,
+             template.PIPELINE, template.SLOTS)
     return folder
 
 

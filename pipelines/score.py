@@ -8,10 +8,10 @@
 # [tool.uv.sources]
 # linecaster = { path = "..", editable = true }
 # ///
-"""Scoring (``score.v1``): its components, options and slots are the pipeline shape ``linecaster.templates.score``; this
+"""Scoring (``score.v1``): its components, options and slots are the pipeline template ``linecaster.templates.score``; this
 script gives it its environment. ``--help`` lists the options."""
-from linecaster.templates import score as shape
+from linecaster.templates import score as template
 from linecaster.execution import run
 
 if __name__ == "__main__":
-    run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
+    run.main(__file__, template.__doc__, template.options, template.models, template.pipeline, template.PIPELINE, template.SLOTS)

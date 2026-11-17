@@ -156,13 +156,13 @@ def test_a_loop_vllm_ended_is_stored_counted_and_never_repaired():
 
 
 def test_transcribe_vlm_turns_it_off_with_a_flag_and_takes_fields(tmp_path: Path):
-    from linecaster.templates import transcribe_vlm as shape
+    from linecaster.templates import transcribe_vlm as template
     from linecaster.execution import run
 
     def sets(*argv):
-        a = run.parse(["IMAGES", "OUT", "--recognition", PRESET, *argv], shape.__doc__, shape.options,
-                      shape.PIPELINE, shape.SLOTS)
-        return shape.sets(a).get("recognition", {})
+        a = run.parse(["IMAGES", "OUT", "--recognition", PRESET, *argv], template.__doc__, template.options,
+                      template.PIPELINE, template.SLOTS)
+        return template.sets(a).get("recognition", {})
 
     assert sets() == {}
     assert sets("--no-repetition-detection") == {"repetition_detection": False}

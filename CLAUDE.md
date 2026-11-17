@@ -100,10 +100,10 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 ## Pipeline scripts
 
 - **No environment folders: a pipeline is a self-contained uv script** (`pipelines/`, a PEP 723 block, a
-  `<script>.py.lock` next to it), **one per pipeline shape, never one per machine.** The machine is the executor's
+  `<script>.py.lock` next to it), **one per pipeline template, never one per machine.** The machine is the executor's
   business (`--on`), not the pipeline's.
-- **A pipeline script holds no pipeline code: it runs the pipeline shape of its name (`linecaster.templates.<name>`)**
-  (`tests/test_scripts.py`). Derivatives' scripts then run the same shapes, and tests and the docs build them without
+- **A pipeline script holds no pipeline code: it runs the pipeline template of its name (`linecaster.templates.<name>`)**
+  (`tests/test_scripts.py`). Derivatives' scripts then run the same templates, and tests and the docs build them without
   the scripts' environments.
 - **After changing a script's metadata: `uv lock --script <script>`**; `tests/test_scripts.py` checks pins,
   sources, locks and wheels for both architectures (aarch64 and x86_64). uv's `required-environments` does not work

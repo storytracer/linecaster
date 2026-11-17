@@ -1,4 +1,4 @@
-"""The rule-based slots of the pipeline shapes (``--hierarchy``, ``--paragraphs``, ``--document``), filled by
+"""The rule-based slots of the pipeline templates (``--hierarchy``, ``--paragraphs``, ``--document``), filled by
 hand or by a recipe, the item stage they make and the texts it writes (``--text``): built in the describe mode."""
 import pytest
 
@@ -14,8 +14,8 @@ PRESETS = ("--paragraphs", "unicode-paragraphs", "--document",
            "linked-document")
 
 
-def _stages(shape, argv):
-    plan = run.describe(shape, argv)
+def _stages(template, argv):
+    plan = run.describe(template, argv)
     plan.check()
     return [[type(b).__name__ for b in s.components] for s in plan.stages], plan
 
