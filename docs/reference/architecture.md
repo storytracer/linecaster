@@ -15,7 +15,7 @@ data model, writes it as page records and scores runs against it. It is a genera
 S3/fsspec, OAI-PMH, IIIF), formats (ALTO, PAGE-XML, hOCR, HTML, Parquet, JSON Lines) and standards (METS/MODS,
 Unicode, CSS selectors, JSONPath), its code depends on no collection, site, institution or project; what a public
 source's markup means is declarative data in its catalog (conventions). Everything that produces text from images,
-and that reads, prepares and scores ground truth, lives here; evaluations and project pipelines (derivatives) are
+and that reads, prepares and scores ground truth, lives here; evaluations and project pipelines (downstream projects) are
 built on top of it.
 
 ## Packages
@@ -43,7 +43,7 @@ built on top of it.
 | `linecaster.testing` | test helpers: sample pages, fake engines (`fake.<step>.v1`, the page engine `fake.recognition.page.v1`), a fake chat server, a fake HTTP service, the conformance checks `check_engine` and `check_component`, the pytest markers |
 
 The first five load neither datatrove nor saturate, nor linecaster's components or runtime (`tests/test_import_rule.py`),
-so derivatives can use the data model and the formats without the pipeline machinery. datatrove and saturate are
+so downstream projects can use the data model and the formats without the pipeline machinery. datatrove and saturate are
 required dependencies, datatrove with its `io` and `s3` extras (`s3://` paths work everywhere), and so is httpx
 (`http(s)://` through `linecaster.net`); engines, Ray and PDFium are not (engine packages and extras).
 
@@ -167,7 +167,7 @@ zensical serve`.
 There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
 `<script>.py.lock` next to it, `uv run <script>`) that runs one pipeline template with slots, one script per template,
 never one per machine. The template is library code, `linecaster.templates.<name>` (its options, engines, components,
-pipeline id and slots), so a derivative's script can run it in its own environment with its own defaults
+pipeline id and slots), so a downstream project's script can run it in its own environment with its own defaults
 ([pipelines](pipelines.md#pipeline-templates)):
 
 | Script | Pipeline id | Does |

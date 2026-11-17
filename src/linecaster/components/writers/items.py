@@ -114,7 +114,7 @@ def item_texts(doc: Document, texts=(("literal", "txt"),), token_counter=None, p
     """One datatrove document per text of the item record ``doc`` (``(strategy, format)`` pairs, ``parse_texts``):
     ``text`` the item's document written by the strategy in the format, the metadata the columns ``ItemTextWriter``
     writes (item id, strategy, its hash and normalizations, format, page ids, page count, and the token count with a
-    ``token_counter``). For a derivative writing the texts in a format of its own."""
+    ``token_counter``). For a downstream project writing the texts in a format of its own."""
     pages = item_pages(doc)
     item = doc.metadata[ITEM_KEY]["item_id"]
     ids = [p.page_id for p in pages]

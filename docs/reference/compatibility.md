@@ -1,6 +1,6 @@
 # Compatibility
 
-What linecaster keeps stable for derivatives, pipelines and stored outputs, and how a change that breaks it is
+What linecaster keeps stable for downstream projects, pipelines and stored outputs, and how a change that breaks it is
 announced. Terms are the [glossary](glossary.md)'s.
 
 ## What counts as a breaking change
@@ -55,14 +55,14 @@ A release bumps by its largest change; patches are the rule. Ranges such as the 
   patch.
 - **When:** when the maintainer decides; never one per piece of work or per commit. Finished work is merged into
   `main` and collects in `CHANGELOG.md`'s Unreleased section until then. A release is proposed to the maintainer
-  when it is due: the latest release is wrong or incomplete where its users meet it, a user or derivative needs what
+  when it is due: the latest release is wrong or incomplete where its users meet it, a user or downstream project needs what
   only `main` has, or Unreleased holds a finished piece of work. A commit that changes only the README is no release.
 - **How:** the version in `pyproject.toml` and `linecaster.__version__` (`tests/test_version.py` checks they agree),
   `CHANGELOG.md`'s Unreleased section as `## <version> (<date>)`, the scripts relocked, an annotated tag
   `v<version>`, pushed (the docs workflow publishes `<major>.<minor>`). A minor bump while 0.x (a major one from 1.0)
   also widens the engine packages' linecaster range to the next one and bumps each engine package's patch version.
 - **Engine packages** version on their own by the same table, applied to their engines (ids, options, defaults).
-- **A derivative** pins a linecaster release tag or follows `main` (a recipe script's raw URL), and versions, if at
+- **A downstream project** pins a linecaster release tag or follows `main` (a recipe script's raw URL), and versions, if at
   all, by its own interface, not by linecaster's numbers.
 - **1.0.0** is the maintainer's decision: from then on breaking changes get a deprecation period. No release reaches
   it on its own.

@@ -12,7 +12,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 
 - **linecaster is a generalist tool: it never depends on a specific collection, site, institution or project.** It
   is built on protocols (HTTP, S3/fsspec, OAI-PMH, IIIF), formats (ALTO, PAGE-XML, hOCR, Parquet, JSON Lines) and
-  standards (METS/MODS, Unicode). Project-specific code, defaults and names belong in derivatives, and no project,
+  standards (METS/MODS, Unicode). Project-specific code, defaults and names belong in downstream projects, and no project,
   collection, institution or machine is named in the repository (code, docs, catalog, tests, NOTES.md,
   CHANGELOG.md); examples use `example.org`, tests `library.test` and `example.org`. A project's choices would
   otherwise become everyone's defaults.
@@ -26,25 +26,25 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
     entry, which its annotator records with its hash;
   - **meaning, not a project's choices**: an entry says what the source's markup means, each rule with its `why` and
     `decided`, its Markdown sidecar what the rules cannot say; what one dataset counts as its ground truth stays in
-    that derivative, as its own policy;
+    that downstream project, as its own policy;
   - **no data**: tests use fixtures written for them, not copied pages; regression runs on real pages, and their
     records, live with the evaluations or datasets that run them;
   - **names stay inside the entries**: a source is named only in its conventions entry and that entry's generated
     docs; code, other docs and tests keep `example.org`;
   - **layered like every entry**: an entry extends at most one other (shared conventions once, each source only
     what differs); it is versioned by the release, like every catalog entry.
-  Conventions are facts about a source that every reader of it needs once; kept in derivatives, each would decide
+  Conventions are facts about a source that every reader of it needs once; kept in downstream projects, each would decide
   them again, differently.
 - **Everything that produces text from images, and that reads, prepares and scores ground truth, lives here**;
-  evaluations and project pipelines (derivatives) build on linecaster, never the other way round. One direction of
+  evaluations and project pipelines (downstream projects) build on linecaster, never the other way round. One direction of
   dependency keeps linecaster usable by all of them.
 - **No project chains in linecaster.** It ships components, backends, the data model, the run layout, the job helpers
   and pipeline-building helpers; example pipelines only as pipeline scripts (`pipelines/`), recipes as catalog
-  entries, and in `tests/`. A recipe's name is neutral (`squiddle`); a derivative may be named after it, and its
+  entries, and in `tests/`. A recipe's name is neutral (`squiddle`); a downstream project may be named after it, and its
   pipeline lives in its own repository.
 - **Generic readers only**: folders, buckets, HF datasets, and the standards for items' manifests (IIIF
   Presentation, METS/MODS, also via OAI-PMH), which linecaster parses itself (`linecaster.formats.manifests`), and
-  http(s) through its own HTTP layer (`linecaster.net`). Corpus or institution adapters belong in derivatives.
+  http(s) through its own HTTP layer (`linecaster.net`). Corpus or institution adapters belong in downstream projects.
   Standards outlive institutions' APIs.
 - **linecaster is not a data repository**: the catalog holds no evidence records and the docs quote no
   measurements. linecaster keeps the evidence format and the tooling that produces evidence, evaluations and
@@ -56,7 +56,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **Use the glossary's terms and no others; add a term there before using it.** A *component* is a datatrove
   `PipelineStep`, a *pipeline* a list of components, and *executor*, *job*, *task*, *shard*, *worker* mean what they
   mean in datatrove; never call a linecaster concept a "module". One word with one meaning is what keeps the code,
-  the docs and the derivatives readable together.
+  the docs and the downstream projects readable together.
 - **Follow the conventions** (names, American spelling, YAML and Markdown, contracts, docstrings, tracing,
   logging, errors, secrets). They are what makes names guessable and pipelines checkable.
 - **Data model classes are plain nouns** (`Item`, `Page`, `PageImage`, `Transcription`, `Text`): no "Class"
@@ -70,7 +70,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **The data model, the formats, the text transforms, the image helpers, the built-in engines and the scorer**
   (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines`,
   `linecaster.evaluation`) **import neither datatrove nor saturate, nor linecaster's components or runtime**
-  (`tests/test_import_rule.py`). Derivatives and evaluations use them without the pipeline machinery.
+  (`tests/test_import_rule.py`). Downstream projects and evaluations use them without the pipeline machinery.
 - **A light core**: no kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as an extra, and no
   LiteLLM anywhere. The one exception to few core dependencies is OpenTelemetry (`opentelemetry-api`, `-sdk`,
   `-exporter-otlp-proto-http`, with protobuf), required because tracing is always on. Engines bring their own
@@ -103,7 +103,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   `<script>.py.lock` next to it), **one per pipeline template, never one per machine.** The machine is the executor's
   business (`--on`), not the pipeline's.
 - **A pipeline script holds no pipeline code: it runs the pipeline template of its name (`linecaster.templates.<name>`)**
-  (`tests/test_scripts.py`). Derivatives' scripts then run the same templates, and tests and the docs build them without
+  (`tests/test_scripts.py`). Downstream projects' scripts then run the same templates, and tests and the docs build them without
   the scripts' environments.
 - **After changing a script's metadata: `uv lock --script <script>`**; `tests/test_scripts.py` checks pins,
   sources, locks and wheels for both architectures (aarch64 and x86_64). uv's `required-environments` does not work
@@ -204,7 +204,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **Reference docs (`docs/reference/`) describe what is, without history**; history belongs in `CHANGELOG.md` (with
   upgrade notes first) and NOTES.md. A reader needs the current state, and git keeps the rest.
 - **Breaking changes follow the [compatibility](docs/reference/compatibility.md) statement**: while the version is
-  0.x, no aliases, an upgrade note each. Derivatives pin linecaster and need to know what to change.
+  0.x, no aliases, an upgrade note each. Downstream projects pin linecaster and need to know what to change.
 
 ## Releases
 
@@ -212,9 +212,9 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   [versions and releases](docs/reference/compatibility.md#versions-and-releases); it never releases on its own and
   never at the end of each piece of work. Finished work is merged into `main` and collects under Unreleased in
   CHANGELOG.md, and patches are the rule. A release is due when the latest one is wrong or incomplete where its users
-  meet it (a wrong entry of the catalog, a bug in released code), when a user or derivative needs what only `main` has, or
+  meet it (a wrong entry of the catalog, a bug in released code), when a user or downstream project needs what only `main` has, or
   when Unreleased holds a finished piece of work; the agent then asks at the end of that task, naming what Unreleased
-  holds and the version it would get. A version that moves with every change tells derivatives nothing, and one that
+  holds and the version it would get. A version that moves with every change tells downstream projects nothing, and one that
   lags leaves them on known bugs.
 - **Breaking changes wait on a branch and go out together as one minor**; the agent asks when the branch's work is
   finished, and `main` carries only patch-level changes. A minor names in its upgrade notes what users must change.

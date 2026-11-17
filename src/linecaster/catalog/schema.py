@@ -468,7 +468,7 @@ class StrategyDoc(_Doc):
 
 class Evidence(_Doc):
     """One measurement of a preset or recipe edition, with its source. linecaster's catalog holds no evidence
-    records (it is not a data repository): the format is for evaluations kept elsewhere, in a derivative's or an
+    records (it is not a data repository): the format is for evaluations kept elsewhere, in a downstream project's or an
     evaluation's own repository, which name what they measured by edition and hash."""
 
     schema_: Literal["linecaster.evidence/1"] = Field(alias="schema")

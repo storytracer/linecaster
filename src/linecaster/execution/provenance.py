@@ -1,7 +1,7 @@
 """Provenance: what produced a transcription, for METS, and what a run resolved, for ``OUT/run.yaml``.
 
 * ``mets_agent(m)`` turns one step (an ``Annotator`` of kind model or rule) into an OCR-D-style METS ``agent`` (an lxml element, for a
-  derivative's METS output): ``TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER"``, ``OTHERROLE`` the OCR-D
+  downstream project's METS output): ``TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER"``, ``OTHERROLE`` the OCR-D
   functional step (``linecaster.catalog.schema.OCRD_STEPS``), ``name`` linecaster with its release and the
   model, a ``note`` with OCR-D's ``ocrd:option="parameter"`` for the settings (JSON) and one ``note`` per
   identifying field (``lc:option="preset"``, ``preset_sha256``, ``revision``, ...). ``from_mets_agent`` reads

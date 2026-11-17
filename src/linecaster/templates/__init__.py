@@ -4,7 +4,7 @@
 A template has its command line's help text (its docstring), the options it adds (``options(ap)``), the engines the
 parsed options ask for (``models(a)``), its components (``pipeline(a, script)``), its pipeline id (``PIPELINE``) and,
 when recipes fill it, its slots (``SLOTS``): what ``linecaster.execution.run.main`` takes. The pipeline script of the
-same name gives it an environment (its PEP 723 block) and its command line; a derivative's script imports a template
+same name gives it an environment (its PEP 723 block) and its command line; a downstream project's script imports a template
 the same way and can lay its own defaults over its options:
 
     from linecaster.templates import transcribe_modular as template

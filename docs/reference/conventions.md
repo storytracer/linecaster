@@ -128,7 +128,7 @@ traces.
 Library code raises the classes of `linecaster.errors` (`PipelineConfigError`, `CatalogError`, `PageError`,
 `ServerError`, all `LinecasterError`), never `SystemExit`; only the command line (`linecaster`, a pipeline script's
 `main`) turns them into exit codes, and a test fails on any other exit. Pure functions of the data model, the formats
-and the text transforms keep Python's own `ValueError` for a wrong argument. Reason: a derivative that embeds
+and the text transforms keep Python's own `ValueError` for a wrong argument. Reason: a downstream project that embeds
 linecaster can catch what went wrong, and a run's exit code says whether anything was launched.
 
 ## Secrets

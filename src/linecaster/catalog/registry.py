@@ -11,7 +11,7 @@ identified by its id and, for what it does, by the hash of its functional conten
 ``linecaster catalog index``, committed) lists every entry's hash, so a change of behaviour shows in review, and
 ``verify`` fails when it is stale. A reference from before 0.10 (``id@edition``) resolves to this release's entry,
 with a warning (``entry_id``). There is one catalog,
-linecaster's own, ``linecaster/catalog/data``: engine packages and derivatives ship none (other directories are
+linecaster's own, ``linecaster/catalog/data``: engine packages and downstream projects ship none (other directories are
 for tests). Engines are found through the entry-point group ``linecaster.engines`` (engine id -> ``module:Class``),
 plus linecaster's own (``BUILTIN_ENGINES``).
 """

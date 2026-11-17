@@ -145,7 +145,7 @@ are written by `linecaster catalog pin`.
 | `provenance`, `support`, `superseded_by` | as for presets |
 
 A recipe's environment and entry point is its script `recipes/<id>.py` (see Pipelines, recipes and `launch.py`); a
-recipe a derivative runs lives in this catalog too (`squiddle`).
+recipe a downstream project runs lives in this catalog too (`squiddle`).
 
 ### Policy (`policies/<id>.yaml`)
 
@@ -231,7 +231,7 @@ stay in code (`linecaster.data.policy.ROLES`); the role vocabulary's page shows 
 ## Measurements live elsewhere
 
 linecaster is not a data repository: the catalog holds no measurements, and neither do the docs. An evaluation
-(a derivative's, an evaluation project's) keeps its own records, in its own repository, and names what it measured
+(a downstream project's, an evaluation project's) keeps its own records, in its own repository, and names what it measured
 by id and hash. linecaster provides the format and the tooling to produce them:
 
 - **The evidence format** (`linecaster.evidence/3`, `linecaster.catalog.Evidence`, `schemas/evidence-3.json`): one

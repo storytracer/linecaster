@@ -1,6 +1,6 @@
 """``linecaster.execution.jobs.dependencies``: a Job's requirements from a pipeline script, its sources spelled out as
 PEP 508 URLs, the lock's versions as constraints and the script's overrides, for linecaster's scripts and for a
-derivative's script outside the checkout; and how ``JobsExecutor`` hands them to a Job (no Job is launched)."""
+downstream project's script outside the checkout; and how ``JobsExecutor`` hands them to a Job (no Job is launched)."""
 import argparse
 
 import pytest
@@ -14,7 +14,7 @@ ARCHIVE = f"{REPO}/archive/abc123.tar.gz"
 
 def script(tmp_path, dependencies: list[str], sources: dict[str, str], lock: str | None = None, name="pipe.py",
            overrides: list[str] | None = None):
-    """A derivative's script in ``tmp_path`` (outside the linecaster checkout), with its lock if given."""
+    """A downstream project's script in ``tmp_path`` (outside the linecaster checkout), with its lock if given."""
     lines = ["# /// script", '# requires-python = ">=3.12,<3.13"', "# dependencies = ["]
     lines += [f'#     "{d}",' for d in dependencies]
     lines += ["# ]", "#"]
@@ -72,7 +72,7 @@ def test_a_path_outside_the_checkout_is_an_error(tmp_path):
 
 
 def test_a_path_into_the_checkout_is_linecaster_at_the_commit(tmp_path):
-    """A derivative developed against a linecaster checkout (``path = ".../linecaster"``): the Jobs install linecaster
+    """A downstream project developed against a linecaster checkout (``path = ".../linecaster"``): the Jobs install linecaster
     at ``commit``, as with linecaster's own scripts."""
     s = script(tmp_path, ["linecaster", "linecaster-tesseract"], {
         "linecaster": f'{{ path = "{jobs.ROOT}", editable = true }}',

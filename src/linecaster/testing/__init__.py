@@ -1,4 +1,4 @@
-"""Test helpers for engine packages, derivatives and linecaster's own tests.
+"""Test helpers for engine packages, downstream projects and linecaster's own tests.
 
 * sample pages: ``sample_page`` (a synthetic page image with printed lines at known boxes, ``sample_boxes``),
   ``sample_png``, ``sample_layout`` (its regions and lines), ``sample_document`` and ``sample_documents`` (its

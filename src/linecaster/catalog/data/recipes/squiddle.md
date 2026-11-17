@@ -13,4 +13,4 @@ resolved by squiddleocr's rule with the item's words as its lexicon, the rows fl
   a lexicon). Name the texts with `--text` for others; the literal text is always the transcription as read.
 - Edition 2 composes the page document with linecaster's own document (`linked-document`) instead of Docling's:
   the HTML, Markdown, text and JSON files differ, the transcriptions do not.
-- A derivative that runs this recipe with other models runs a variation, not the recipe.
+- A downstream project that runs this recipe with other models runs a variation, not the recipe.

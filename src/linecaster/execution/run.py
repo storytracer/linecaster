@@ -986,7 +986,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, scri
 
 def check_commit(a: argparse.Namespace, script: str | None) -> None:
     """``--on hf-jobs`` needs ``--commit`` for linecaster's own scripts (``jobs.needs_commit``): their Jobs install
-    linecaster at that commit. A derivative's script outside the checkout that takes linecaster from a git tag,
+    linecaster at that commit. A downstream project's script outside the checkout that takes linecaster from a git tag,
     branch or rev runs without one."""
     if a.on != "hf-jobs":
         return

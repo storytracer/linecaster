@@ -1,7 +1,7 @@
 """Hugging Face Jobs helpers for linecaster pipelines (on datatrove's ``JobsPipelineExecutor``).
 
 * ``dependencies(commit, script, engines=True)``: what a Job installs to run a pipeline script (linecaster's or a
-  derivative's), as ``Dependencies``: its requirements with every source spelled out as a URL, the sources of the
+  downstream project's), as ``Dependencies``: its requirements with every source spelled out as a URL, the sources of the
   packages it installs taken from its lock (linecaster and the engine packages of the checkout from GitHub's source
   archive at ``commit``, git sources at their tag, branch or rev, the kraken fork, the OpenCV stub: PaddleX pins
   OpenCV's GUI build, which needs libGL; the Jobs image has none), every other package pinned at the lock's
@@ -88,7 +88,7 @@ def resolve_commit(commit: str) -> str:
 
 def at_commit(path: str | Path, commit: str | None) -> str:
     """The text of ``path`` as it is at linecaster ``commit``, so a Job's dependencies come from the commit it
-    installs and not from whatever the checkout holds now. A file outside the checkout (a derivative's own), or a
+    installs and not from whatever the checkout holds now. A file outside the checkout (a downstream project's own), or a
     commit the checkout does not know (not fetched, or not a git checkout), is read as it is on disk, with a
     warning for the latter."""
     import subprocess
@@ -254,7 +254,7 @@ def needs_commit(script: str | Path | None) -> bool:
     """Whether the Jobs of ``script`` need ``--commit``: without a script (linecaster alone), and for a script in the
     linecaster checkout that takes something from it by path (a pipeline script: linecaster and its engine packages
     at the commit). A script that takes linecaster from a git tag, branch or rev needs none: a recipe script
-    (``recipes/``, linecaster's ``main``) or a derivative's script outside the checkout (unless a source points into
+    (``recipes/``, linecaster's ``main``) or a downstream project's script outside the checkout (unless a source points into
     the checkout, which ``dependencies`` reports)."""
     if script is None:
         return True
@@ -265,11 +265,11 @@ def needs_commit(script: str | Path | None) -> bool:
 
 
 def dependencies(commit: str | None, script: str | Path | None = None, engines: bool = True) -> Dependencies:
-    """What a Job installs to run ``script`` (a pipeline script, linecaster's or a derivative's), as
+    """What a Job installs to run ``script`` (a pipeline script, linecaster's or a downstream project's), as
     ``Dependencies``: requirements with every source spelled out as a URL, since ``uv run`` outside a project
     ignores ``[tool.uv.sources]``; the lock's versions as constraints; the script's overrides. ``commit`` is the
     linecaster commit the Jobs install (it must be pushed); a script in the linecaster checkout is read as it is at
-    ``commit`` (``at_commit``), a derivative's as it is on disk. ``commit`` may be None for a derivative's script
+    ``commit`` (``at_commit``), a downstream project's as it is on disk. ``commit`` may be None for a downstream project's script
     outside the checkout whose sources need none (``needs_commit``); otherwise its absence is a
     ``PipelineConfigError``.
 

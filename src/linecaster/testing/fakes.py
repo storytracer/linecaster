@@ -1,5 +1,5 @@
 """Fake engines: deterministic, dependency-free CPU engines, one per model step, for tests of components, pipelines and
-derivatives. They follow the engine protocol (``linecaster.engines.api.Engine``) and are registered under
+downstream projects. They follow the engine protocol (``linecaster.engines.api.Engine``) and are registered under
 ``fake.<step>.v1`` (the page engine ``fake.recognition.page.v1``) only when ``register_fakes()`` is called (never
 through entry points), so they never show up in an installation."""
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """The engine API: what an engine package may import from linecaster besides the data model (``linecaster.data``).
 
-An engine package (``linecaster-kraken``, ``linecaster-paddlex``, ``linecaster-tesseract``, a derivative's own)
+An engine package (``linecaster-kraken``, ``linecaster-paddlex``, ``linecaster-tesseract``, a downstream project's own)
 depends on these names and on ``linecaster.data`` only, so linecaster's internals can change without breaking it
 (``tests/test_import_rule.py`` reads the engine packages in ``engines/`` and fails on any other ``linecaster``
 import):

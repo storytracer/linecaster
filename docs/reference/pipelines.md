@@ -571,7 +571,7 @@ if __name__ == "__main__":
              template.SLOTS)
 ```
 
-A derivative's script runs a shape the same way, in its own environment (the engine packages its slots need), and
+A downstream project's script runs a shape the same way, in its own environment (the engine packages its slots need), and
 may lay its own defaults over the shape's options: an `options` that calls the shape's and
 then `ap.set_defaults(...)` (`--recipe` too, which `run` adds before the script's options), and a `pipeline` that
 fills a default depending on other options before it calls the shape's. Its run records name its script; its
@@ -637,12 +637,12 @@ run record names it and `pipeline_sha256` covers it.
 A launch with `--on hf-jobs` names `--namespace`, the Hugging Face user or organization the Jobs run under and are
 billed to, and `--commit`, the linecaster commit the Jobs install (pushed). Neither has a default, and the namespace
 is not taken from the logged-in account, so the account a run spends is always the one its command line and run
-record name. `--commit` is required for linecaster's own scripts; a derivative's script outside the linecaster
+record name. `--commit` is required for linecaster's own scripts; a downstream project's script outside the linecaster
 checkout that takes linecaster from a git tag, branch or rev runs without it (`jobs.needs_commit`), since its Jobs
 install what its sources name.
 
 `linecaster.execution.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
-pipeline script, linecaster's or a derivative's, as `Dependencies`:
+pipeline script, linecaster's or a downstream project's, as `Dependencies`:
 
 - `requirements`: the script's dependencies with their sources as PEP 508 URLs (`url` as it is; `git` with its
   `tag`, `branch` or `rev` and its `subdirectory`, as `git+URL@REF#subdirectory=DIR`; a `path` into the linecaster
@@ -657,7 +657,7 @@ pipeline script, linecaster's or a derivative's, as `Dependencies`:
 
 linecaster's `ray` extra is left out. `engines=False` keeps linecaster with its extras and the sources they need, and
 the constraints of what those reach; without a script it raises unless `engines=False` (linecaster alone). A
-derivative's pipeline runs on Jobs from its own script (its sources pinned to a linecaster tag), read as it is on disk.
+downstream project's pipeline runs on Jobs from its own script (its sources pinned to a linecaster tag), read as it is on disk.
 
 `uv run --with` (datatrove's way of installing a Job's dependencies) ignores constraints and overrides, whether given
 as `UV_CONSTRAINT`, `UV_OVERRIDE` or a `uv.toml`; only a script's own `[tool.uv]` brings them to `uv run`. So

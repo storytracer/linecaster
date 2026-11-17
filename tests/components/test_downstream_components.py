@@ -1,4 +1,4 @@
-"""Components moved in from the derivatives: filters with rejects, media, text variants, item texts,
+"""Components moved in from the downstream projects: filters with rejects, media, text variants, item texts,
 Transcription.scaled, jobs helpers, PageRecordReader with Parquet rows."""
 from __future__ import annotations
 
