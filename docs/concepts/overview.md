@@ -64,6 +64,7 @@ Read more: [evaluation](evaluation.md).
 
 ## Where to go next
 
-- [Run a recipe](../start/first-run.md): your first transcription.
+- [Your first pipeline](../start/first-run.md): combine models on the command line.
+- [A pipeline in Python](../start/python.md).
 - [Run a vision-language model](../start/vlm.md).
 - [Score a run against ground truth](../start/score.md).

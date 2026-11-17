@@ -1,5 +1,7 @@
 # Page records
 
+A page record holds everything a pipeline found on one page, and which component found it.
+
 ## Items and pages
 
 An **item** is an ordered set of pages: a book, a newspaper issue, a PDF, a folder of images. A **page** is one

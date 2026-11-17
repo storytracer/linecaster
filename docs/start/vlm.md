@@ -5,26 +5,29 @@ tables. This tutorial runs one on a folder of page images.
 
 ## What you need
 
-- everything from [Run a recipe](first-run.md)
+- everything from [Your first pipeline](first-run.md)
 - an NVIDIA GPU
 - the `vllm` command on your `PATH`, or let linecaster build an environment for it with uv
 
 ## 1. Pick a preset
 
 ```bash
-uv run launch.py
+uv run linecaster presets --step recognition
 ```
 
-The list shows the VLM presets, for example `lightonocr-2-1b`.
+The presets whose engine is `chat.v1` are vision-language models, for example `lightonocr-2-1b`.
 
 ## 2. Run it
 
+The pipeline has one step to fill:
+
 ```bash
-uv run launch.py lightonocr-2-1b scans/ out/
+uv run pipelines/transcribe_vlm.py scans/ out/ --recognition lightonocr-2-1b
 ```
 
 Linecaster starts a vLLM server for the model, sends the pages to it and stops the server when the run ends.
-Starting the server takes a few minutes.
+Starting the server takes a few minutes. `uv run launch.py lightonocr-2-1b scans/ out/` is a shorter way to write
+the same run.
 
 ## 3. Use a server that is already running
 

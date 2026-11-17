@@ -1,5 +1,7 @@
 # Models, engines and presets
 
+A preset names the model that does a step's work, and the catalog lists the presets you can pick.
+
 ## The three parts
 
 | Part | What it is | Example |

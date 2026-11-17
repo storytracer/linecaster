@@ -17,7 +17,7 @@ RAW = "https://raw.githubusercontent.com/storytracer/linecaster/main"
 REFERENCE = ("glossary", "conventions", "architecture", "pipelines", "running", "data-model", "serialization", "catalog",
              "tracing", "compatibility")
 #: the hand-written tutorials and concept pages, by folder, in the site's order
-GUIDES = (("start", ("first-run", "vlm", "score")),
+GUIDES = (("start", ("first-run", "python", "vlm", "score")),
           ("concepts", ("overview", "pipelines", "models", "page-records", "text", "evaluation")))
 ALERTS = {"NOTE": "note", "TIP": "tip", "IMPORTANT": "info", "WARNING": "warning", "CAUTION": "danger"}
 
@@ -164,7 +164,8 @@ def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) ->
              "", "Every model configuration is a catalog preset at a pinned revision; tested combinations are recipes. "
              "The pages below are Markdown, except the generated Components and Catalog, which are the site's pages "
              "(llms-full.txt holds their indexes).", "", "## Start", "",
-             f"- [README]({raw(readme)}): why, quick start, how it works, running anywhere, outputs"]
+             f"- [README]({raw(readme)}): what it does, quick start, combining models, a pipeline in Python, input and "
+             "output, running anywhere"]
     guides = [out / folder / f"{name}.md" for folder, names in GUIDES for name in names]
     guides = [p for p in guides if p.is_file()]
     for p in guides:

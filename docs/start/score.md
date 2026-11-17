@@ -1,6 +1,6 @@
 # Score a run against ground truth
 
-This tutorial measures how well a run read its pages. You need a run (see [Run a recipe](first-run.md)) and
+This tutorial measures how well a run read its pages. You need a run (see [Your first pipeline](first-run.md)) and
 ground truth for the same pages: transcriptions made or checked by people.
 
 ## 1. Import the ground truth

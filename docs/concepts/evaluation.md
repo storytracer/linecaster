@@ -1,5 +1,7 @@
 # Evaluation
 
+Linecaster measures how well a run read its pages by comparing it with ground truth.
+
 ## The parts
 
 | Part | What it is |
