@@ -3,7 +3,7 @@ category prompt, the vendor's Markdown assembly) in the vendor's image, one page
 `POST /falconocr/parse`. The engine (`falcon.recognition.v1`, package `linecaster-services`) is its client in the
 pipeline's process.
 
-- The service: `ServiceServer` starts the image's own single-GPU entrypoint (`/app/entrypoint_single.sh`: vLLM with
+- The service: `VendorServer` starts the image's own single-GPU entrypoint (`/app/entrypoint_single.sh`: vLLM with
   the model on port 8000, the pipeline on 5002, both on GPU 0 of the container) and waits until both answer
   `/health`. The image's entrypoint binds both to every address of the container. The weights are the image's own
   (`/models/Falcon-OCR`, the model pin's files); the image digest fixes what runs.

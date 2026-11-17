@@ -29,8 +29,8 @@ FAST = {"retry_wait_min": 0, "retry_wait_max": 0, "max_retries": 1, "trust_env":
 SIZES = [5, 1, 8, 3, 6, 2, 7, 4]                 # pages of items i0 ... i7
 
 #: the item stage's presets (bind.v1's slots)
-PRESETS = ("--recomposition", "unicode-recomposition", "--composition",
-           "linked-composition")
+PRESETS = ("--paragraphs", "unicode-paragraphs", "--document",
+           "linked-document")
 
 
 def read(make, world_size: int) -> list[tuple[str, str]]:

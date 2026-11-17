@@ -356,11 +356,11 @@ def _random_transcription(seed: int) -> Transcription:
               "line\nbreak", "Déjà vu", [1, "2"], {"nested": {"k": [None]}}]
     steps = []
     for i in range(rnd.choice([0, 1, 3])):
-        step = rnd.choice(["layout", "lines", "recognition", "unicode", "typography", "page"])
+        step = rnd.choice(["layout", "lines", "recognition", "unicode", "hierarchy", "page"])
         steps.append(Annotator(
             kind="rule" if step in RULE_STEPS else "model", step=step,
             name=rnd.choice(["kraken-ppocrv6-medium", "PP-DocLayoutV3", "Qwen/Qwen3-VL 8B", "naïve name"]),
-            engine=rnd.choice([None, "kraken.recognition.v1", "typography.ratios.v1"]),
+            engine=rnd.choice([None, "kraken.recognition.v1", "hierarchy.ratios.v1"]),
             revision=rnd.choice([None, "0123abcd", "10.5281/zenodo.1"]),
             preset=rnd.choice([None, f"preset-{i}@{rnd.randint(1, 9)}"]),
             preset_sha256=rnd.choice([None, "sha256:" + "0f" * 32]),
@@ -396,7 +396,7 @@ def test_regions_the_policy_puts_nowhere_are_not_written(fmt):
     """A region classified removed (as typography drops one) is left out with its lines, and the order of what is
     written has no gap: the file is the one of a page without that region."""
     t = sample_transcription()
-    a = t.add_annotator(Annotator(kind="rule", step="typography", name="ratios"))
+    a = t.add_annotator(Annotator(kind="rule", step="hierarchy", name="ratios"))
     t.classify(a, "doc_title_1", "status", "removed")
     to, _ = FORMATS[fmt]
     regions, lines = _layout(t)

@@ -7,7 +7,7 @@ from typing import Any
 from linecaster.runtime.secrets import EnvVar
 from linecaster.backends.served import check_secrets, request_headers
 
-#: the port ``ChatModelServer`` starts its server on by default; ``Chat`` without an endpoint asks there
+#: the port ``VLMServer`` starts its server on by default; ``Chat`` without an endpoint asks there
 CHAT_PORT = 8000
 
 
@@ -22,7 +22,7 @@ class Chat:
     Args:
         preset: the chat preset (``id``, or a model's Hugging Face id: its preset with unit
             ``prefer``) or a configured adapter (``linecaster.adapters.chat_model``).
-        endpoint: the server's ``.../v1`` base URL; ``None``: the task's ``ChatModelServer`` on loopback port
+        endpoint: the server's ``.../v1`` base URL; ``None``: the task's ``VLMServer`` on loopback port
             ``CHAT_PORT`` (8000).
         served_name: the name the server hosts the model under; ``None``: the preset's, else the Hub id.
         max_window: the most requests in flight.

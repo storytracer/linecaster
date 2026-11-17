@@ -19,7 +19,7 @@ from linecaster.catalog.schema import STEPS
 
 STEP_TITLES = {"layout": "🗺️ Layout", "lines": "📏 Lines", "recognition": "👁️ Recognition", "tables": "📊 Tables",
                "formulas": "➗ Formulas", "image": "🖼️ Image", "normalization": "🔤 Normalization",
-               "typography": "🔠 Typography", "recomposition": "📝 Recomposition", "composition": "📄 Composition",
+               "hierarchy": "🔠 Typography", "paragraphs": "📝 Recomposition", "document": "📄 Composition",
                "import": "📥 Import", "tagging": "🏷️ Tagging"}
 #: the preset sections of the index: one per step, page presets (VLMs reading whole pages) last
 SECTIONS = (*((STEP_TITLES[s], s, False) for s in STEPS), ("🤖 Vision-language models, whole pages", "recognition", True))

@@ -1,6 +1,6 @@
 r"""A vision-language model reads the page: the whole page (``PageRecognizer``) or, with a --layout preset, each
 region it finds (``RegionRecognizer``, a region preset), on the ``Chat`` backend. Each task starts vLLM or SGLang for the model itself
-(``ChatModelServer``, last in the pipeline) unless --recognition-endpoint names a running server; with --layout it also
+(``VLMServer``, last in the pipeline) unless --recognition-endpoint names a running server; with --layout it also
 serves the layout model (``--backend``, ``--endpoint`` as for any engine). Page records in OUT/pages; the
 model's raw answer is in each page's transcription.
 
@@ -25,12 +25,12 @@ id (that model's page preset, with --layout its region preset where it has one).
 in the Job's image: the one the preset was validated with (its ``serve.image``) unless --image is given. It
 has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv environment the executor builds
 (linecaster alone for page presets; with --layout also linecaster-paddlex for the layout model), and
-``ChatModelServer`` starts the image's own server. SGLang presets and region reading start it outside that
+``VLMServer`` starts the image's own server. SGLang presets and region reading start it outside that
 environment (``outside_venv``), so neither the image's Python nor its CUDA libraries see the pipeline's
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, linecaster's default; SGLang: the preset's own
 share); with --layout the layout server loads into the rest after vLLM's memory profiling. The server listens on port
 8000 in every run: two runs on one machine need a GPU each (``CUDA_VISIBLE_DEVICES``) and cannot both start their own
-server; on a machine without a CUDA toolkit vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` (``ChatModelServer``).
+server; on a machine without a CUDA toolkit vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` (``VLMServer``).
 
 --set STEP.OPTION=VALUE sets an option over the preset's: for --recognition the chat engine's ``max_tokens``,
 ``temperature``, ``top_p``, ``repair_max_tokens``, ``repair_temperature`` and ``repetition_detection``
@@ -63,7 +63,7 @@ from linecaster.adapters import preset_ref
 from linecaster.backends import Chat
 from linecaster.components.layout.layout_detector import LayoutDetector
 from linecaster.components.recognition.page_recognizer import PageRecognizer, RegionRecognizer
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
@@ -140,7 +140,7 @@ def pipeline(a, script: str):
         extra = [] if a.no_speculative or not draft else spec.speculative_args(draft, spec.draft_revision)
         gmu = a.gpu_memory_utilization if a.gpu_memory_utilization is not None or sglang else 0.8
         # last: boots first, so vLLM's memory profiling is done before a layout server loads
-        servers.append(ChatModelServer(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
+        servers.append(VLMServer(spec, port=VLM_PORT, gpu_memory_utilization=gmu, extra_args=extra,
                                       outside_venv=sglang or regions, server_env=run.server_env(a)))
     return steps + [run.pages(a)] + servers, {"image": spec.job_image, "engines": regions}
 

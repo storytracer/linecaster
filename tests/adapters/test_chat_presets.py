@@ -9,7 +9,7 @@ import pytest
 from linecaster.adapters import ADAPTERS, ENGINE, ChatAdapter, adapter, chat_model, chat_presets, preset_ref
 from linecaster.backends import Chat
 from linecaster.components.recognition.page_recognizer import PageRecognizer, RegionRecognizer
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 from linecaster.catalog.registry import catalog
 from linecaster.errors import CatalogError
 
@@ -85,11 +85,11 @@ def test_blocks_take_preset_refs():
     regions = RegionRecognizer(Chat("lightonocr-2-1b-regions", "http://127.0.0.1:1/v1", served_name="m"))
     assert regions.pad == 8 and regions.adapter.page_longest == 1540 and regions.adapter.served_name == "m"
     assert RegionRecognizer("minicpm-ocr-1.0").pad == 0
-    # a preset by name: Chat on the task's ChatModelServer; a Hugging Face id picks the preset of the block's unit
+    # a preset by name: Chat on the task's VLMServer; a Hugging Face id picks the preset of the block's unit
     assert PageRecognizer("lightonocr-2-1b").backend.endpoint == "http://127.0.0.1:8000/v1"
     assert RegionRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b-regions"
     assert PageRecognizer("lightonai/LightOnOCR-2-1B").adapter.preset == "lightonocr-2-1b"
-    serve = ChatModelServer("unlimited-ocr-2")
+    serve = VLMServer("unlimited-ocr-2")
     assert serve.server == "sglang" and serve.spec.served_name == "Unlimited-OCR-2"
 
 

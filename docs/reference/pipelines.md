@@ -49,13 +49,13 @@ class Contract:
   names its copy; `PageFileWriter`: `lines` for hOCR, ALTO and PAGE, `text` for
   md and txt, `document` for HTML and JSON, `image` for plots). **Servers** have role `server` and unit
   `any`.
-- **The `Binder`** changes the unit from pages to items, the **`Splitter`** back: an item record holds its page
+- **The `ItemAssembler`** changes the unit from pages to items, the **`ItemSplitter`** back: an item record holds its page
   records, so what the pages carried stays available across either (the checks carry the parts over), apart from
   the page image's bytes (`image`: an item record has none) at the binder and the item's `document` at the splitter.
-- **Item-unit components** (`Recomposer(unit="item")`, `Composer(unit="item")`)
+- **Item-unit components** (`ParagraphBuilder(unit="item")`, `DocumentComposer(unit="item")`)
   read item records: one datatrove document per item, `doc.metadata["item"]` holding the item id and its page records
   in order (`linecaster.core.item`); they read and add the parts of the pages' transcriptions, the item
-  `Composer` adds the item's `document` next to the record. **Item writers** (`ItemDocumentWriter`, `ItemTextWriter`)
+  `DocumentComposer` adds the item's `document` next to the record. **Item writers** (`ItemDocumentWriter`, `ItemTextWriter`)
   read the `document` and write it by each text's transcription strategy.
   `RecipeStamper` has unit `any`: before an item writer it stamps the pages of each item record.
 - A step without a contract (a plain datatrove step) passes pages and touches no part.
@@ -63,9 +63,9 @@ class Contract:
 | Component | Reads | Adds | Replaces, removes |
 |---|---|---|---|
 | `LineAssigner` | `lines`, `regions` | `line_regions` | `regions`, `reading_order`, `lines` |
-| `Typographer` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
-| `Recomposer` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
-| `Composer` | `regions`, `lines` (and `paragraphs` when there are) | `document` (rendered, not stored; no annotator) | |
+| `HierarchyDetector` | `regions`, `lines` | `hierarchy` | `regions`, `lines` |
+| `ParagraphBuilder` | `regions`, `lines` | `paragraphs` | `paragraphs` (made anew where they exist) |
+| `DocumentComposer` | `regions`, `lines` (and `paragraphs` when there are) | `document` (rendered, not stored; no annotator) | |
 | `Tagger` | `regions`, `lines` (the model tagger: `image` and its targets, regions or lines) | `tags` | |
 | `ImageFetcher` | `metadata` | | `image` |
 | `ImageConverter` | `metadata` | | `metadata` (with `keep_bytes` also `image`; without it removes `image`) |
@@ -97,7 +97,7 @@ A model component's backend (`linecaster.backends`) says where its engine runs:
 - `Chat(preset, endpoint=None, served_name=None, max_window=32, initial_window=4, read_timeout=600.0, api_key=None,
   headers=None, prefer="page")`: a chat preset's VLM behind an OpenAI-compatible server (vLLM, SGLang, a hosted
   endpoint) on `/v1/chat/completions`; `preset` is a preset ref, a model's Hugging Face id (its preset with unit
-  `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `ChatModelServer` on port 8000.
+  `prefer`) or a configured adapter (`chat_model`); without an endpoint, the task's `VLMServer` on port 8000.
   `PageRecognizer(backend)` and `RegionRecognizer(backend, labels=..., pad=None)` (`pad`: the adapter's `region_pad`, else 8) take it (or a chat preset's ref).
   `Chat(..., overrides={...})` sets the chat engine's options over the preset's settings (`max_tokens`, `temperature`,
   `top_p`, `repair_max_tokens`, `repair_temperature`, `repetition_detection`; `--set recognition.<option>=<value>` in
@@ -169,7 +169,7 @@ pipeline, unless the reader already gives each task whole items (`ManifestReader
 True)`). The first stage writes its page records in item shards into `<run_folder>/pages/` (the pipeline's own
 `PageJsonlWriter` there, now with `item_shards=N`, N = `tasks` unless it set its own); the second starts with
 `PageRecordReader(item_shards=True, fetch_images=False)` declaring the parts the first stage added, runs the binder
-and what follows, as N tasks. A `Splitter` after the binder needs no cut of its own: the items are whole in the
+and what follows, as N tasks. A `ItemSplitter` after the binder needs no cut of its own: the items are whole in the
 task, so its pages are too. One stage logs to `OUT/logs/`, two to `OUT/logs/pages/` and `OUT/logs/items/`; the run
 record lists the stages. Each stage gets its own executor, and the later one `depends=` on the earlier one:
 
@@ -218,7 +218,7 @@ observer (`build(..., trace_sample=SHARE)`, `--trace-sample`; [tracing](tracing.
 ## Warm-up
 
 Every component has `warm_up()` (idempotent): engines load there (`InProcess.warm_up()`), servers start there
-(`ModelServer`, `ChatModelServer`), a served backend reads its secrets there; components with nothing to load keep the
+(`EngineServer`, `VLMServer`), a served backend reads its secrets there; components with nothing to load keep the
 no-op. A component's `__call__`, which datatrove's executors call, warms it up before its `run` starts: components warm up
 as the stream reaches them, the last one first (the servers before the components that call them). The time is the
 component's own stat, `warm_up_seconds` (per task), and goes to the observers (`on_warm_up(component, seconds)`); a page's
@@ -263,8 +263,8 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
 
 ## The run record
 
-`OUT/run.yaml` (schema `linecaster.run-record/1`, the pydantic model `linecaster.runtime.record.RunRecord`, JSON
-Schema `catalog/schemas/run-record-1.json`) records the script, the recipe, the command line, the options, where it
+`OUT/run.yaml` (schema `linecaster.run-record/2`, the pydantic model `linecaster.runtime.record.RunRecord`, JSON
+Schema `catalog/schemas/run-record-2.json`) records the script, the recipe, the command line, the options, where it
 ran and the software, and:
 
 - `pipeline`: per stage its name, tasks and components in order, each component as its `to_dict()` (below) with its
@@ -291,7 +291,7 @@ server is reached. `pipeline_sha256` covers the functional ones (`provenance.fun
 | which input files a task reads and how: `paths_file`, `glob_pattern`, `recursive`, `limit`, `skip`, `shuffle_files`, `batch_size` (a reader's), `http` (rate limits, the IIIF format asked for), `uri_map`, progress bars | the pages themselves are recorded per page |
 | servers and clients: `port`, `host`, `python`, `script`, `vllm`, `outside_venv`, `boot_timeout`, `max_queue`, `prepare_workers`, `gpu_memory_utilization`, `extra_args`; an in-process engine's `endpoint` and `timeout` (`ENGINE_OPERATIONAL`: where its service is); a served backend's `endpoint`, `model` (the name it is hosted under, unless nothing else names its engine), `max_window`, `initial_window`, `read_timeout`, `api_key`, `headers`; a chat backend's `served_name` and the same (it counts by its adapter, preset and hash, model and revision) | how a server is started and reached |
 | `name` (datatrove's display name), `compression`, `max_file_size`, `ImageConverter.keep_bytes`, `.skip_existing`, `.window`, `.initial_window`, `.max_window`, `ImageFolderReader.read_images` | presentation, file handling, memory, how many pages are in flight |
-| server components (`ModelServer`, `ChatModelServer`, `ServiceServer`) as a whole | their models count through the components they serve |
+| server components (`EngineServer`, `VLMServer`, `VendorServer`) as a whole | their models count through the components they serve |
 | the backend (in-process or served) | a model component counts by its engine, the engine's options and the preset with its hash, wherever it runs |
 
 Everything else is functional: component classes and their order, transcription names, engine options, presets and
@@ -587,15 +587,15 @@ are the document's context, `record`, `revision` and `dataset` its source's fiel
 
 ## The item stage
 
-The item-level steps follow a `Binder`; the usual shape (`pipelines/bind.py`, and `--item-texts` of
+The item-level steps follow a `ItemAssembler`; the usual shape (`pipelines/bind.py`, and `--item-texts` of
 `pipelines/transcribe_modular.py`):
 
 ```python
 texts = ("literal:txt", "latin-historic+unicode-marks+flow:md")   # --text, repeatable
 [PageRecordReader(pages, fetch_images=False, item_shards=True),
- Binder(),                                                  # page records -> item records
- Recomposer("unicode-recomposition", unit="item"),        # paragraphs continued across page breaks
- Composer("linked-composition", unit="item"),             # the item's document, literal
+ ItemAssembler(),                                                  # page records -> item records
+ ParagraphBuilder("unicode-paragraphs", unit="item"),        # paragraphs continued across page breaks
+ DocumentComposer("linked-document", unit="item"),             # the item's document, literal
  ItemDocumentWriter(f"{out}/documents", texts=texts),     # documents/<strategy>/<item>.<ext>
  ItemTextWriter(f"{out}/texts", texts=texts)]             # texts/<strategy>.<format>/<rank>.jsonl.gz (bind: --jsonl)
 ```
@@ -607,15 +607,15 @@ others. A JSON Lines row holds `id` (the item), `text`, `spec`, `strategy`, `str
 `format`, `page_ids`, `pages` and `token_count` with a token counter. The page files (`PageFileWriter`) take one
 `strategy` too (`--strategy`, default `literal`).
 
-A `Splitter` after the item-level components passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
+A `ItemSplitter` after the item-level components passes each item's pages on as pages (e.g. to a `PageJsonlWriter`), with
 the paragraphs of the item recomposition.
 
 ## Page records
 
-Stored page records are rows `{"schema": "linecaster.page/5", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
+Stored page records are rows `{"schema": "linecaster.page/6", "id", "text", "page", "errors"}` (`PageJsonlWriter`,
 `PageParquetWriter`; `PAGE_SCHEMA` in `linecaster.data.page`): `page` is the page record of the
 [data model](data-model.md), its annotation sets with their annotators, raw outputs and annotations. Renderings
-(the Composer's document, the files, the texts) are not part of it. `PageRecordReader` brings older rows to
+(the DocumentComposer's document, the files, the texts) are not part of it. `PageRecordReader` brings older rows to
 today's format (`UPGRADES`, keyed by the row's `schema`, one version at a time): a `linecaster.page/4` row through
 `page_4_to_5` (the derived text dropped, [data model](data-model.md#from-linecasterpage4)); a `linecaster.page/2` row through
 `linecaster.data.upgrade.page_2_to_3` (field by field in the [data model](data-model.md#from-linecasterpage2)); a
@@ -625,7 +625,7 @@ its sibling `rows/` (the folder's earlier name).
 
 ## Rendering policy
 
-The components that render (`Composer`, `PageFileWriter`, `ItemDocumentWriter`, `ItemTextWriter`) take `policy`, a
+The components that render (`DocumentComposer`, `PageFileWriter`, `ItemDocumentWriter`, `ItemTextWriter`) take `policy`, a
 catalog policy (`id`, default `page-layers`; [catalog](catalog.md#policy-policiesidyaml)), which decides the layer of
 each region in the documents, files and texts they write ([data model](data-model.md#rendering)).
 `pipelines/transcribe_modular.py` and `pipelines/bind.py` set it with `--policy`; it is a functional parameter, so the

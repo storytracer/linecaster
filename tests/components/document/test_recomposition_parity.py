@@ -18,7 +18,7 @@ from legacy_docling import page2  # noqa: E402
 from linecaster.data import Transcription  # noqa: E402
 from linecaster.data.upgrade import upgrade_transcription  # noqa: E402
 from linecaster.document.strategy import apply  # noqa: E402
-from linecaster.engines import LinkedCompositionEngine, UnicodeRecompositionEngine  # noqa: E402
+from linecaster.engines import LinkedDocumentEngine, UnicodeParagraphsEngine  # noqa: E402
 from linecaster.text.recomposition import paragraphs, split_ref  # noqa: E402
 
 #: the legacy builder's Docling labels -> the document's block kinds
@@ -170,8 +170,8 @@ def ours(pages, text, sections, name="item"):
     pages = [t.model_copy(deep=True) for t in pages]
     ids = [f"p{k}" for k in range(len(pages))]
     if text == "reflow":
-        UnicodeRecompositionEngine()(pages, page_ids=ids)
-    doc = LinkedCompositionEngine(sections=sections).item_document(pages, name, page_ids=ids,
+        UnicodeParagraphsEngine()(pages, page_ids=ids)
+    doc = LinkedDocumentEngine(sections=sections).item_document(pages, name, page_ids=ids,
                                                                   sizes=[(1000, 2000)] * len(pages))
     return _content(_as_legacy(doc, text))
 
@@ -179,8 +179,8 @@ def ours(pages, text, sections, name="item"):
 def ours_page(t, text, sections):
     t = t.model_copy(deep=True)
     if text == "reflow":
-        UnicodeRecompositionEngine()([t])
-    return _content(_as_legacy(LinkedCompositionEngine(sections=sections)(t, name="item", width=1000, height=2000), text))
+        UnicodeParagraphsEngine()([t])
+    return _content(_as_legacy(LinkedDocumentEngine(sections=sections)(t, name="item", width=1000, height=2000), text))
 
 
 def two_pages():
@@ -221,7 +221,7 @@ def test_random_items_exercise_the_rules():
     for seed in range(40):
         rng = random.Random(seed)
         pages = [random_page(rng, n) for n in range(rng.randint(1, 5))]
-        for t in UnicodeRecompositionEngine()(pages, page_ids=[str(k) for k in range(len(pages))]):
+        for t in UnicodeParagraphsEngine()(pages, page_ids=[str(k) for k in range(len(pages))]):
             seen |= {(d.kind, d.reason) for p in paragraphs(t) for d in p.decisions}
             seen |= {("across pages", "") for p in paragraphs(t)
                      if (ref := t.link(p.id, "continues")) is not None and split_ref(ref)[0] is not None}

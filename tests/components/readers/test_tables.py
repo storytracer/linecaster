@@ -313,12 +313,12 @@ def test_a_pipeline_that_starts_a_vlm_server_gets_one_task_per_gpu(monkeypatch):
     """A VLM page pipeline lists no engines (its model is the server each task starts), yet runs models: on Ray one task
     per GPU and all at once, not a task per input file capped by the launching machine's CPUs; locally one task (two
     servers would take the same port)."""
-    from linecaster.components.servers.serve import ChatModelServer
+    from linecaster.components.servers.serve import VLMServer
     from linecaster.runtime import run
 
     monkeypatch.setattr(run, "ray_gpus", lambda a: 6)
     monkeypatch.setattr(run, "available_cpus", lambda: 4)
-    server = ChatModelServer.__new__(ChatModelServer)
+    server = VLMServer.__new__(VLMServer)
 
     class Reader:
         def auto_tasks(self):

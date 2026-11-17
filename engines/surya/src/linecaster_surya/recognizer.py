@@ -7,7 +7,7 @@ then one request per block). The engine calls exactly that and keeps the result;
 
 The package normally starts ``vllm/vllm-openai`` with ``docker run``. Here it attaches to a running vLLM server
 (``SURYA_INFERENCE_URL``, the package's documented attach path) that serves the catalog's pin under the package's
-model name: ``ServiceServer`` starts it from the preset, with the flags the package's own launcher passes for
+model name: ``VendorServer`` starts it from the preset, with the flags the package's own launcher passes for
 ``gpu_type`` (``package_flags``). ``gpu_type`` also sets the package's client concurrency (block mode only). Every
 other setting is the package's default (``fullpage_regen`` off, as the package ships it: the regeneration at rising
 temperature is opt-in "for benchmarking"). The package reads its settings when it is first imported, so the engine
@@ -63,7 +63,7 @@ def blocks_of(page) -> list[dict]:
 class SuryaRecognitionEngine:
     """linecaster engine for the recognition step: Surya OCR 2.5 on the whole page through the ``surya-ocr`` package
     (full-page mode with its block-mode fallback), attached to a vLLM server that serves the pinned checkpoint
-    (``ServiceServer`` starts it). Returns the page's HTML blocks as a text-only transcription, the package's result
+    (``VendorServer`` starts it). Returns the page's HTML blocks as a text-only transcription, the package's result
     verbatim as JSON its raw output."""
 
     engine_id: ClassVar[str] = "surya.recognition.v1"

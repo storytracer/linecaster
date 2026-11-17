@@ -9,7 +9,7 @@ from linecaster.data.transcription import Transcription
 from linecaster.engines.base import RuleEngine
 
 
-class LinkedCompositionEngine(RuleEngine):
+class LinkedDocumentEngine(RuleEngine):
     """Composes a page's or an item's document (``linecaster.document``) from its regions, paragraphs or lines, and
     tables, following the continuation links.
 
@@ -28,8 +28,8 @@ class LinkedCompositionEngine(RuleEngine):
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
             ``options`` construct it."""
 
-    engine_id: ClassVar[str] = "composition.linked.v1"
-    step = "composition"
+    engine_id: ClassVar[str] = "document.linked.v1"
+    step = "document"
     capabilities: ClassVar[dict] = {"unit": "page", "produces": ["document"]}
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 

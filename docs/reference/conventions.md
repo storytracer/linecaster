@@ -7,16 +7,16 @@ Rules that hold across the repository. Each rule is followed by its reason. Term
 
 | What | Pattern | Examples |
 |---|---|---|
-| component | `<Object><RoleNoun>`; readers and writers `<Object><Format>Reader` / `Writer` | `LineRecognizer`, `Typographer`, `Composer`, `Binder`, `ManifestReader`, `PageJsonlWriter` |
+| component | `<Object><RoleNoun>`; readers and writers `<Object><Format>Reader` / `Writer` | `LineRecognizer`, `HierarchyDetector`, `DocumentComposer`, `ItemAssembler`, `ManifestReader`, `PageJsonlWriter` |
 | composite component | `<Purpose><RoleNoun>` | `ModularTranscriber` |
 | component base classes | `<Kind>Component` | `PageComponent`, `ModelComponent`, `RuleComponent` |
-| engine class | `<Provider><Step>Engine` | `KrakenRecognitionEngine`, `UnicodeRecompositionEngine` |
-| engine id | `<provider>.<step>.v<n>` | `kraken.recognition.v1`, `recomposition.unicode.v1` |
+| engine class | `<Provider><Step>Engine` | `KrakenRecognitionEngine`, `UnicodeParagraphsEngine` |
+| engine id | `<provider>.<step>.v<n>` | `kraken.recognition.v1`, `paragraphs.unicode.v1` |
 | VLM adapter | `<Model>Adapter` | `ChandraOCRAdapter` |
 | pipeline script | a verb, `<verb>[_<kind>].py` | `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `transcribe_page.py`, `bind.py` |
 | pipeline id | the script's file name, `.v<n>` | `transcribe_modular.v1` |
 | slot and its flag | the step's name | `--layout`, `--lines`, `--recognition` |
-| catalog step | a noun for the activity | `layout`, `recognition`, `recomposition` |
+| catalog step | a noun for the activity | `layout`, `recognition`, `paragraphs` |
 | transcription names | `ocr_new`, `ocr_original`, `ground_truth`, or `<source>` | |
 
 Reason: one pattern makes names guessable, and role nouns say what a component is in a pipeline. Pipeline scripts are
@@ -50,8 +50,8 @@ Reason: one spelling for everything typed, matching Python and its ecosystem.
 
 Schemas: the catalog's kinds without a version (`preset`, `recipe`, `model`, `policy`, `conventions`,
 `normalization`, `strategy`: the release versions them), the data formats with theirs (`benchmark-2`, `evidence-3`,
-and the older evidence formats readers upgrade, `run-record-1`, `page-5`, `document-2`). Stored page records name
-their format in a `schema` field of their row (`linecaster.page/5`).
+and the older evidence formats readers upgrade, `run-record-2`, `page-6`, `document-2`). Stored page records name
+their format in a `schema` field of their row (`linecaster.page/6`).
 
 ## Docstrings
 

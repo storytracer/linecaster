@@ -237,9 +237,9 @@
         "tables",
         "formulas",
         "image",
-        "typography",
-        "recomposition",
-        "composition",
+        "hierarchy",
+        "paragraphs",
+        "document",
         "import",
         "tagging"
       ],

@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.olmocr2 import body, split_front_matter
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 
 PROMPT = chat_model("olmocr-2-7b-1025-fp8").prompt
 
@@ -66,7 +66,7 @@ def test_serve_args_match_the_card():
         assert args[i:i + 2] == flag
     assert "--no-enable-prefix-caching" in args and "--trust-remote-code" not in args
     assert spec.sampling["max_tokens"] < 16384
-    cmd = ChatModelServer(spec, port=8123, gpu_memory_utilization=0.8).command()
+    cmd = VLMServer(spec, port=8123, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", MODEL]
 
 

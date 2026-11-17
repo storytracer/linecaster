@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 
 from linecaster.adapters import chat_model
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 
 PROMPT = chat_model("ovisocr3").prompt
 
@@ -92,7 +92,7 @@ def test_request_image_bytes_equal_the_reference(fmt, mode):
 
 @pytest.mark.parametrize("model", list(REVISIONS))
 def test_serve_args_match_the_card(model):
-    cmd = ChatModelServer(chat_model(model), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = VLMServer(chat_model(model), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", model]
     args = cmd[7:]
     for flag in (["--revision", REVISIONS[model]], ["--max-model-len", "32768"], ["--mm-processor-cache-gb", "0"],

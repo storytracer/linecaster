@@ -1,4 +1,4 @@
-"""A fake HTTP service on loopback, for tests of engines that call a vendor's service and of ``ServiceServer``."""
+"""A fake HTTP service on loopback, for tests of engines that call a vendor's service and of ``VendorServer``."""
 from __future__ import annotations
 
 import json

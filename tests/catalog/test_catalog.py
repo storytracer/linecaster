@@ -366,7 +366,7 @@ def test_a_missing_engine_names_its_package_and_the_scripts_that_install_it():
     with pytest.raises(CatalogError, match=r"`linecaster-paddlex` .*`pipelines/transcribe_modular.py` and "
                                            r"`pipelines/transcribe_vlm.py` install\); installed: "):
         engine_class("paddlex.layout.v1")
-    assert install_hint("recomposition.unicode.v1") == "" and install_hint("nowhere.recognition.v1") == ""
+    assert install_hint("paragraphs.unicode.v1") == "" and install_hint("nowhere.recognition.v1") == ""
     script = Path(__file__).resolve().parents[2] / "pipelines" / "transcribe_modular.py"
     assert {"linecaster", "linecaster-paddlex", "linecaster-tesseract"} == set(script_dependencies(script))
 

@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.qianfan_ocr import sniff_mime
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 
 MODEL = "baidu/Qianfan-OCR"
 
@@ -42,7 +42,7 @@ def test_unknown_image_bytes_raise():
 
 def test_serve_args_match_the_card():
     spec = chat_model("qianfan-ocr")
-    assert ChatModelServer(spec, port=8000).command()[:3] == ["vllm", "serve", MODEL]
+    assert VLMServer(spec, port=8000).command()[:3] == ["vllm", "serve", MODEL]
     args = spec.vllm_args(0.85)
     assert args[:2] == ["--revision", "623bf5d20d446abdb36606aa4547cd0c18886fe5"]
     for flag, value in (("--max-model-len", "16384"), ("--limit-mm-per-prompt", '{"image": 1}'),

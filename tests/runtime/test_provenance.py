@@ -323,7 +323,7 @@ def test_run_writes_the_record_and_the_files_carry_the_preset(tmp_path: Path):
     text = (tmp_path / "out" / "run.yaml").read_text()
     assert "secret" not in text
     rec = yamlio.load(text)
-    assert rec["schema"] == "linecaster.run-record/1" and rec["created"].endswith("Z")
+    assert rec["schema"] == "linecaster.run-record/2" and rec["created"].endswith("Z")
     assert len(rec["run_id"]) == 32 and int(rec["run_id"], 16) >= 0
     assert isinstance(rec.get("hardware", {}), dict) and set(rec.get("hardware", {})) <= {
         "gpu", "gpu_count", "driver", "cuda", "cpu", "machine"}
@@ -401,7 +401,7 @@ def test_dry_run_prints_the_record_and_writes_nothing(tmp_path: Path, capsys):
     run.run(a, _pipeline(a, str(tmp_path / "files")), __file__, argv=[images, out, "--dry-run"])
     printed = capsys.readouterr().out
     plan, end = json.JSONDecoder().raw_decode(printed)
-    assert plan["record"]["schema"] == "linecaster.run-record/1"
+    assert plan["record"]["schema"] == "linecaster.run-record/2"
     assert plan["record"]["pipeline"][0]["components"][2]["params"]["backend"]["preset"] == "stamp"
     assert plan["record"]["pipeline_sha256"].startswith("sha256:")
     assert [b["component"] for b in plan["plan"]["stages"][0]["components"]][:3] == ["ImageFolderReader", "LineDetector",
@@ -428,7 +428,7 @@ def test_served_and_in_process_are_the_same_pipeline():
     """The hash covers what a component does: the engine, its options and preset, wherever it runs."""
     from linecaster.components.readers.images import ImageFolderReader
     from linecaster.components.recognition.line_recognizer import LineRecognizer
-    from linecaster.components.servers.serve import ModelServer
+    from linecaster.components.servers.serve import EngineServer
     from linecaster.components.writers.records import PageJsonlWriter
     from linecaster.runtime.builder import build
 
@@ -440,7 +440,7 @@ def test_served_and_in_process_are_the_same_pipeline():
     in_process = build([reader, LineRecognizer(local), PageJsonlWriter("out/pages")], run_folder="out")
     served = build([ImageFolderReader("elsewhere"), LineRecognizer(Served("http://127.0.0.1:8100/v1", model="recognition",
                                                                           max_window=8)),
-                    PageJsonlWriter("other/pages"), ModelServer([m], port=8100)], run_folder="other")
+                    PageJsonlWriter("other/pages"), EngineServer([m], port=8100)], run_folder="other")
     assert provenance.functional_pipeline(in_process) == provenance.functional_pipeline(served)
     assert provenance.pipeline_sha256(in_process) == provenance.pipeline_sha256(served)
     f = provenance.functional_pipeline(in_process)

@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=../../../schemas/preset.json
 schema: linecaster.preset
-id: unicode-recomposition
-step: recomposition
-engine: recomposition.unicode.v1
+id: unicode-paragraphs
+step: paragraphs
+engine: paragraphs.unicode.v1
 options:
   rtl: false
   convention_marks: ¬

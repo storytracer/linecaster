@@ -1,6 +1,6 @@
 """A page engine reads the whole page (``PageRecognizer`` on its engine): a vendor's package in the pipeline's process
 (Indra OCR), a vendor's package attached to a vLLM server (Surya OCR), or a client of a vendor's page pipeline behind
-its own HTTP API (Falcon-OCR, OXR). Each task starts the service the preset names (``ServiceServer``, last in the
+its own HTTP API (Falcon-OCR, OXR). Each task starts the service the preset names (``VendorServer``, last in the
 pipeline: ``vllm serve`` on the pinned checkpoint, or the vendor image's entrypoint) unless --recognition-endpoint
 names a running one. Page records in OUT/pages; the engine's raw output is in each page's transcription.
 
@@ -12,13 +12,13 @@ names a running one. Page records in OUT/pages; the engine's raw output is in ea
 --recognition takes a page engine's preset (``linecaster models``; ``id``); chat presets run in
 ``pipelines/transcribe_vlm.py``. A vendor's service runs inside the vendor's image (the preset's ``serve.image``):
 the pipeline runs there too, in its own uv environment, and the service in the image's own environments
-(``ServiceServer`` leaves the pipeline's out of its environment). Its entrypoint listens on the image's ports, so
+(``VendorServer`` leaves the pipeline's out of its environment). Its entrypoint listens on the image's ports, so
 one task per machine starts it; more tasks share one service with --recognition-endpoint. On HF Jobs the Job's
 image is the preset's ``serve.image`` unless --image is given; it needs uv (the vLLM and OXR images have it, the
 Falcon-OCR image does not).
 """
 from linecaster.components.recognition.page_recognizer import PageRecognizer
-from linecaster.components.servers.service import ServiceServer
+from linecaster.components.servers.service import VendorServer
 from linecaster.catalog.registry import catalog
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
@@ -58,7 +58,7 @@ def pipeline(a, script: str):
     steps = [run.reader(a), PageRecognizer(b["recognition"]), run.pages(a)]
     if p.serve is not None and not a.recognition_endpoint:
         # last: the service starts before the engine loads (components warm up as the stream reaches them, the last first)
-        servers.append(ServiceServer(a.recognition, boot_timeout=a.boot_timeout, server_env=run.server_env(a)))
+        servers.append(VendorServer(a.recognition, boot_timeout=a.boot_timeout, server_env=run.server_env(a)))
     return steps + servers, {"image": p.serve.image if p.serve is not None else None, "engines": True}
 
 

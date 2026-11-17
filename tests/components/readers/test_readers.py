@@ -82,8 +82,8 @@ def test_parquet_with_bytes_structs_and_paths(tmp_path):
 
 def test_item_shards_bring_an_items_pages_together(tmp_path):
     """Stage 1: four tasks each read some pages of three items and write them into item shards. Stage 2: two
-    tasks read whole shards, so each item's pages all arrive in one task, and the Binder emits it whole."""
-    from linecaster.components.items import Binder
+    tasks read whole shards, so each item's pages all arrive in one task, and the ItemAssembler emits it whole."""
+    from linecaster.components.items import ItemAssembler
     from linecaster.components.writers.records import PageJsonlWriter
     from linecaster.components.writers.shards import item_shard
 
@@ -100,7 +100,7 @@ def test_item_shards_bring_an_items_pages_together(tmp_path):
                                                                                                      world_size=2):
             seen.setdefault(page_of(doc).item_id, set()).add(rank)
     assert set(seen) == {"a", "b", "c"} and all(len(ranks) == 1 for ranks in seen.values())
-    items = list(Binder().run(PageRecordReader(str(tmp_path / "pages"), fetch_images=False, item_shards=True).run()))
+    items = list(ItemAssembler().run(PageRecordReader(str(tmp_path / "pages"), fetch_images=False, item_shards=True).run()))
     assert sorted((d.id, len(d.metadata["item"]["pages"])) for d in items) == [("a", 4), ("b", 4), ("c", 4)]
 
 
@@ -119,7 +119,7 @@ def test_page_records_carry_their_format(tmp_path):
     with PageJsonlWriter(str(tmp_path / "jsonl")) as w:
         w.write(doc, 0)
     (row,) = [json.loads(x) for x in gzip.open(tmp_path / "jsonl" / "00000.jsonl.gz", "rt")]
-    assert PAGE_SCHEMA == "linecaster.page/5" and list(row)[:2] == ["schema", "id"] and row["schema"] == PAGE_SCHEMA
+    assert PAGE_SCHEMA == "linecaster.page/6" and list(row)[:2] == ["schema", "id"] and row["schema"] == PAGE_SCHEMA
     with PageParquetWriter(str(tmp_path / "parquet")) as w:
         w.write(doc, 0)
     for folder in ("jsonl", "parquet"):
@@ -153,7 +153,7 @@ def test_page_records_of_format_1(tmp_path):
         ("layout", "PP-DocLayoutV3", "pp-doclayoutv3@1"), ("recognition", "kraken-ppocrv6-medium", "kraken-ppocrv6-medium@1")]
     assert new.annotators[0].measurements == {"seconds": 0.12, "datetime": "2026-11-04T10:00:00Z"}
     assert [m.name for m in original.annotators] == ["ABBYY FineReader"] and new.paragraphs == []
-    assert upgrade(row)["schema"] == PAGE_SCHEMA == "linecaster.page/5"
+    assert upgrade(row)["schema"] == PAGE_SCHEMA == "linecaster.page/6"
 
 
 def test_parquet_page_records_keep_errors_after_a_page_without(tmp_path):
@@ -341,7 +341,7 @@ def test_more_tasks_than_files_share_each_file_and_read_every_record_once(tmp_pa
             pid = f"f{f}_{k:02d}"
             from linecaster.data import Page
 
-            rows.append({"schema": "linecaster.page/5", "id": pid, "text": "",
+            rows.append({"schema": "linecaster.page/6", "id": pid, "text": "",
                          "page": Page(page_id=pid, item_id="item").record()})
         (folder / f"{f:05d}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
         ids[f] = [r["id"] for r in rows]

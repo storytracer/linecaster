@@ -56,7 +56,7 @@ class _Written:
 class ItemDocumentWriter(Contracted, PipelineStep):
     """Writes the document of each item record by transcription strategies, one file per item and text.
 
-    It reads the item's ``document`` (an item-level ``Composer``'s, ``doc.metadata["document"]``: the literal
+    It reads the item's ``document`` (an item-level ``DocumentComposer``'s, ``doc.metadata["document"]``: the literal
     document), writes it by each text's strategy (``linecaster.document.strategy``) in the text's format
     (``linecaster.document.export``) to ``<strategy>/<item id><suffix>.<ext>``; an item record without a document is
     counted (``no_document``). Item records pass through.
@@ -136,7 +136,7 @@ def item_texts(doc: Document, texts=(("literal", "txt"),), token_counter=None, p
 class ItemTextWriter(Contracted, JsonlWriter):
     """Writes the texts of each item record as JSON Lines, a row per item and text.
 
-    Each text (``<strategy>:<format>``) is the item's document (an item-level ``Composer``'s) written by the strategy
+    Each text (``<strategy>:<format>``) is the item's document (an item-level ``DocumentComposer``'s) written by the strategy
     in the format (``item_texts``); a row holds ``id`` (the item), ``text`` and ``item_id``, ``strategy``,
     ``strategy_sha256``, ``normalizations``, ``format``, ``page_ids``, ``pages`` (count) and ``token_count`` with a
     ``token_counter``, in ``<strategy>.<format>/<rank>.jsonl.gz``. A stream entry that is no item record, or one

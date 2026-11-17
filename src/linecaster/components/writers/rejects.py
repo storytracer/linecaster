@@ -23,7 +23,7 @@ OWN = ("field", "error", "raw_value")
 def reject(key: str, entry: dict) -> dict:
     """One reject line for the error ``entry`` of page ``key``: its ``field`` (else the step or component that failed),
     ``error``, ``raw_value``, and the entry's other keys."""
-    field = entry.get("field") or entry.get("step") or entry.get("component")
+    field = entry.get("field") or entry.get("step") or entry.get("component") or entry.get("block")
     return {"key": key, "field": field, "error": entry.get("error"), "raw_value": entry.get("raw_value"),
             **{k: v for k, v in entry.items() if k not in OWN}}
 

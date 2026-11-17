@@ -66,7 +66,16 @@ SPLIT: dict[str, dict[str, str]] = {
 NAMES: list[tuple[str, str]] = [
     ("PageBlock", "PageComponent"), ("ModelBlock", "ModelComponent"), ("RuleBlock", "RuleComponent"),
     ("check_block", "check_component"),
+    ("Typographer", "HierarchyDetector"), ("Recomposer", "ParagraphBuilder"), ("Composer", "DocumentComposer"),
+    ("Binder", "ItemAssembler"), ("Splitter", "ItemSplitter"),
+    ("ChatModelServer", "VLMServer"), ("ModelServer", "EngineServer"), ("ServiceServer", "VendorServer"),
+    ("RatiosTypographyEngine", "RatiosHierarchyEngine"), ("UnicodeRecompositionEngine", "UnicodeParagraphsEngine"),
+    ("ByScriptRecompositionEngine", "ByScriptParagraphsEngine"), ("LinkedCompositionEngine", "LinkedDocumentEngine"),
+    ("unicode-recomposition", "unicode-paragraphs"), ("linked-composition", "linked-document"),
 ]
+
+#: step ids, old -> new: renamed where they are ids (quoted, a flag, an attribute, a key), not in running prose
+STEPS: list[tuple[str, str]] = [("typography", "hierarchy"), ("recomposition", "paragraphs"), ("composition", "document")]
 
 #: modules whose ``Block`` is the pipeline's (a document's ``Block`` keeps its name)
 BLOCK_HOMES = ("linecaster.core", "linecaster.core.component")
@@ -81,6 +90,19 @@ def _modules(text: str) -> str:
 def _names(text: str) -> str:
     for old, new in NAMES:
         text = re.sub(rf"(?<![\w]){re.escape(old)}(?![\w])", new, text)
+    return text
+
+
+def _steps(text: str) -> str:
+    for old, new in STEPS:
+        text = re.sub(rf"(?<![\w-]){old}(\.[a-z-]+\.v\d+)", rf"{new}\1", text)                 # engine ids
+        text = re.sub(rf"([\"'`]){old}(\1|\.[a-z_]+)", rf"\1{new}\2", text)                    # "id", `id`, "id.option"
+        text = re.sub(rf"--{old}(?![\w-])", f"--{new}", text)                                    # flags
+        text = re.sub(rf"(?<!text)(?<!engines)(?<!\d)\.{old}(?![\w.(])", f".{new}", text)          # attributes
+        text = re.sub(rf"^(\s*(?:step|{old}): ){old}$", rf"\1{new}", text, flags=re.M)            # step: id
+        text = re.sub(rf"^(\s+){old}(: [\w-]+)$", rf"\1{new}\2", text, flags=re.M)               # a recipe's key
+        text = re.sub(rf"\b{old}=", f"{new}=", text)                                             # keywords, --set
+        text = re.sub(rf"presets/{old}\b", f"presets/{new}", text)
     return text
 
 
@@ -124,7 +146,7 @@ def _fenced(text: str) -> str:
 
 
 def rewrite(text: str, python: bool) -> str:
-    text = _names(_modules(text))
+    text = _steps(_names(_modules(text)))
     return _pipeline_block(_split_imports(text)) if python else _fenced(text)
 
 

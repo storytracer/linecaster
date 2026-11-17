@@ -1,4 +1,4 @@
-"""``Splitter``: item records -> their page records, in order."""
+"""``ItemSplitter``: item records -> their page records, in order."""
 from __future__ import annotations
 
 from datatrove.data import Document
@@ -9,12 +9,12 @@ from linecaster.core.item import ITEM_KEY, item_pages
 from linecaster.core.page import set_page
 
 
-class Splitter(Contracted, PipelineStep):
+class ItemSplitter(Contracted, PipelineStep):
     """Splits each item record into its page records again, in the item's order, with what the item-level components
     added.
 
     Each page is a page document again (``doc.id`` the page id, ``doc.metadata["page"]``, ``doc.text`` the text of
-    ``primary``) carrying what the item-level components added to it: the paragraphs of an item-level ``Recomposer``
+    ``primary``) carrying what the item-level components added to it: the paragraphs of an item-level ``ParagraphBuilder``
     (continued across pages, the links naming the other page), the normalized texts, the annotators. It
     changes the stream's unit from items to pages. The item's own parts (its ``document``) stay with the item; the
     pages carry no image bytes (``PageRecordReader`` fetches them again by URI). A stream entry that is no item

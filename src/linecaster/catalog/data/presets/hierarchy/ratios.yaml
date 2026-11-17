@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=../../../schemas/preset.json
 schema: linecaster.preset
 id: ratios
-step: typography
-engine: typography.ratios.v1
+step: hierarchy
+engine: hierarchy.ratios.v1
 options:
   page_number_min_conf: 0.75
   demote: 1.2

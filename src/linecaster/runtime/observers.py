@@ -19,7 +19,7 @@ An ``Observer`` gets, per task:
 * ``on_leave(doc)`` when a page comes out of the stage's last component;
 * ``on_task_end(error=None)`` after the last page, also when the task fails (``error``: the exception).
 
-``environment()`` gives the variables a server started in the task gets (``ModelServer``, ``ChatModelServer``):
+``environment()`` gives the variables a server started in the task gets (``EngineServer``, ``VLMServer``):
 the tracing observer names the file the server writes its spans to.
 
 The builder (``linecaster.runtime.builder``) installs them: one ``Observers`` hub per stage, shared by the

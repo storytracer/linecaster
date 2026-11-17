@@ -1,4 +1,4 @@
-"""``ServiceServer``: starts the service a page engine's preset names (its ``serve`` block) inside the task: vLLM for
+"""``VendorServer``: starts the service a page engine's preset names (its ``serve`` block) inside the task: vLLM for
 an engine package that attaches to it (surya-ocr), or a vendor's own image entrypoint (Falcon-OCR's, OXR's). Like
 the other server components it goes **last** in the pipeline, after the writer."""
 from __future__ import annotations
@@ -23,7 +23,7 @@ PIPELINE_ENV = ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME", "UV_PROJECT_ENVIRONME
 HEALTH_POLL = 2.0
 
 
-class ServiceServer(Contracted, PipelineStep):
+class VendorServer(Contracted, PipelineStep):
     """Starts the service a page engine's preset names inside the task, and stops it when the task's pages are through.
 
     The preset's ``serve`` block says what runs:
@@ -44,7 +44,7 @@ class ServiceServer(Contracted, PipelineStep):
 
     Args:
         preset: the page preset whose ``serve`` block names the service (``id``); a chat preset
-            (``ChatModelServer`` starts its server), or a preset without such a component, is refused
+            (``VLMServer`` starts its server), or a preset without such a component, is refused
             (``PipelineConfigError``).
         port: the port vLLM listens on (``server: vllm``); a vendor's entrypoint uses the image's own ports.
         host: the address vLLM binds to; default loopback only.
@@ -65,17 +65,17 @@ class ServiceServer(Contracted, PipelineStep):
                  boot_timeout: int = 1800, server_env: str = "path"):
         super().__init__()
         if server_env not in ("path", "uv", "auto"):
-            raise PipelineConfigError(f"ServiceServer: server_env {server_env!r} (path, uv or auto)")
+            raise PipelineConfigError(f"VendorServer: server_env {server_env!r} (path, uv or auto)")
         from linecaster.catalog.registry import catalog
 
         r = catalog().resolve(preset)
         serve = dict(r.content.get("serve") or {})
         if r.engine == "chat.v1":
-            raise PipelineConfigError(f"ServiceServer: {r.ref} is a chat preset; ChatModelServer starts its server")
+            raise PipelineConfigError(f"VendorServer: {r.ref} is a chat preset; VLMServer starts its server")
         if serve.get("server") not in ("vllm", "vendor"):
-            raise PipelineConfigError(f"ServiceServer: preset {r.ref} names no service (serve.server vllm or vendor)")
+            raise PipelineConfigError(f"VendorServer: preset {r.ref} names no service (serve.server vllm or vendor)")
         if serve["server"] == "vendor" and not (serve.get("command") and serve.get("health")):
-            raise PipelineConfigError(f"ServiceServer: preset {r.ref} names no command or health URLs")
+            raise PipelineConfigError(f"VendorServer: preset {r.ref} names no command or health URLs")
         self.preset, self.ref = preset, r.ref
         self.serve = serve
         pin = r.content.get("model")
@@ -96,7 +96,7 @@ class ServiceServer(Contracted, PipelineStep):
         if self.server == "vendor":
             return list(self.serve["command"])
         if self.weights is None:
-            raise PipelineConfigError(f"ServiceServer: preset {self.ref} serves vLLM but pins no model")
+            raise PipelineConfigError(f"VendorServer: preset {self.ref} serves vLLM but pins no model")
         repo = self.weights["source"]["ref"]
         folder = model_dir or f"<{repo}@{self.weights['revision']}>"
         return [self.vllm, "serve", folder, "--host", self.host, "--port", str(self.port),

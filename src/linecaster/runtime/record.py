@@ -1,5 +1,5 @@
-"""The run record's format (``OUT/run.yaml``, schema ``linecaster.run-record/1``) as pydantic models: the source of
-its JSON Schema (``catalog/schemas/run-record-1.json``, ``linecaster catalog schemas``) and the check
+"""The run record's format (``OUT/run.yaml``, schema ``linecaster.run-record/2``) as pydantic models: the source of
+its JSON Schema (``catalog/schemas/run-record-2.json``, ``linecaster catalog schemas``) and the check
 ``provenance.run_record`` runs before a record is written. Import-light: pydantic only."""
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ class CatalogEntry(_Record):
 
 
 class RunRecord(_Record):
-    schema_: Literal["linecaster.run-record/1"] = Field("linecaster.run-record/1", alias="schema")
+    schema_: Literal["linecaster.run-record/2"] = Field("linecaster.run-record/2", alias="schema")
     run_id: str = Field(default_factory=_run_id, description="the run's id, made when the record is: 32 hex digits, "
                                                              "named by every annotator the run adds (Annotator.run)")
     created: str = Field(description="when the run was launched, UTC (YYYY-MM-DDTHH:MM:SSZ)")

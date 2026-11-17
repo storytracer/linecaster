@@ -76,7 +76,7 @@ def test_an_export_is_the_truth_json_one_prediction_per_page_and_what_made_them(
 
     def row(pid, name, t):
         page = Page(page_id=pid, item_id="item", transcriptions={name: t})
-        return {"schema": "linecaster.page/5", "id": pid, "text": t.text, "page": page.record()}
+        return {"schema": "linecaster.page/6", "id": pid, "text": t.text, "page": page.record()}
 
     gt = {f"p{i}": _page([("paragraph", [f"page {i} cafe\u0301"])]) for i in range(3)}
     truth = {pid: row(pid, "ground_truth", t) for pid, t in gt.items()}
@@ -118,7 +118,7 @@ def test_linecaster_export_omnidocbench_reads_page_records_and_writes_the_folder
 
     def write(folder, name, ts):
         folder.mkdir()
-        lines = [json.dumps({"schema": "linecaster.page/5", "id": pid, "text": t.text,
+        lines = [json.dumps({"schema": "linecaster.page/6", "id": pid, "text": t.text,
                              "page": Page(page_id=pid, item_id="item", transcriptions={name: t}).record()})
                  for pid, t in ts.items()]
         (folder / "00000.jsonl").write_text("\n".join(lines) + "\n")

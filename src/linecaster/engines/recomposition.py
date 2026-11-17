@@ -58,7 +58,7 @@ class _Open:
         self.paragraph, self.page, self.chain, self.t = paragraph, page, chain, t
 
 
-class UnicodeRecompositionEngine(RuleEngine):
+class UnicodeParagraphsEngine(RuleEngine):
     """Recomposes the rows of each text region into paragraphs from geometry and Unicode's character properties.
 
     ``linecaster.text.recomposition``: the rows of each text region joined into
@@ -80,8 +80,8 @@ class UnicodeRecompositionEngine(RuleEngine):
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
             ``options`` construct it."""
 
-    engine_id: ClassVar[str] = "recomposition.unicode.v1"
-    step = "recomposition"
+    engine_id: ClassVar[str] = "paragraphs.unicode.v1"
+    step = "paragraphs"
     capabilities: ClassVar[dict] = {"unit": "item", "produces": ["paragraphs"]}
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
@@ -211,7 +211,7 @@ class UnicodeRecompositionEngine(RuleEngine):
         stats.paragraphs -= 1
 
 
-class ByScriptRecompositionEngine(RuleEngine):
+class ByScriptParagraphsEngine(RuleEngine):
     """Recomposes an item with each decision at a row end made by the strategy for the script around it.
 
     A decision (a division mark, the separator between two rows) goes to the strategy for the script of the
@@ -222,8 +222,8 @@ class ByScriptRecompositionEngine(RuleEngine):
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
             ``options`` construct it."""
 
-    engine_id: ClassVar[str] = "recomposition.by-script.v1"
-    step = "recomposition"
+    engine_id: ClassVar[str] = "paragraphs.by-script.v1"
+    step = "paragraphs"
     capabilities: ClassVar[dict] = {"unit": "item", "produces": ["paragraphs"]}
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 

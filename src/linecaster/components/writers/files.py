@@ -45,7 +45,7 @@ class PageFileWriter(Contracted, PipelineStep):
       page image's size; ``detail="line"`` leaves the words out (text per line);
     * ``md``, ``txt``, ``html``, ``json``: the document's serializations (``linecaster.document.export``), written
       by the transcription ``strategy`` (``literal`` by default: as read; ``linecaster.document.strategy``): the
-      document a ``Composer`` composed for the page (``doc.metadata["document"]``), else the transcription rendered
+      document a ``DocumentComposer`` composed for the page (``doc.metadata["document"]``), else the transcription rendered
       with the default options (``linecaster.document.build_document``) when it has regions or paragraphs; for a
       page of lines only, md and txt fall back to its literal text (``linecaster.text.page.page_text``: lines in
       reading order, tables as Markdown/HTML, the regions the policy puts nowhere left out; counted as
@@ -123,7 +123,7 @@ class PageFileWriter(Contracted, PipelineStep):
             for ln in t.lines]})
 
     def composed(self, doc, page, t):
-        """The page's document: the ``Composer``'s for this transcription, else ``t`` rendered (``build_document``,
+        """The page's document: the ``DocumentComposer``'s for this transcription, else ``t`` rendered (``build_document``,
         default options) when it has regions or paragraphs; None for a page of lines only."""
         from linecaster.document import COMPOSED_KEY, DOCUMENT_KEY, build_document, load_document
 

@@ -3,7 +3,7 @@ and its full-page path, the call its `surya_ocr` command makes (`RecognitionPred
 full_page=True)`), with the package's parser, blank-region filter and block-mode fallback. The engine
 (`surya.recognition.v1`, package `linecaster-surya`) reimplements none of it.
 
-- The server: the package would start `vllm/vllm-openai:v0.25.1` with `docker run`. `ServiceServer` starts
+- The server: the package would start `vllm/vllm-openai:v0.25.1` with `docker run`. `VendorServer` starts
   linecaster's vLLM (validated on 0.25.1) on the pinned checkpoint instead (fetched, every pinned file checked, and served under the package's model
   name `datalab-to/surya-ocr-2.5`), with the flags the package's launcher passes for `VLLM_GPU_TYPE=a100-80` (an
   A100 80 GB): `--max-num-seqs 104 --max-num-batched-tokens 16384`, the package's dtype, model length, memory share,

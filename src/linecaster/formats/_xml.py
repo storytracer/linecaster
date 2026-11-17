@@ -566,10 +566,10 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
                                 name=source.format or "unknown")]
     t = Transcription(source=source, annotators=annotators)
     layout = _by(annotators, "layout", "recognition", "lines")
-    role_by = _by(annotators, "typography", "layout", "recognition")
+    role_by = _by(annotators, "hierarchy", "layout", "recognition")
     lines_by = _by(annotators, "lines", "recognition", "layout")
     reading_by = _by(annotators, "recognition", "lines")
-    order_by = _by(annotators, "typography", "assignment", "ordering", "lines", "layout", "recognition")
+    order_by = _by(annotators, "hierarchy", "assignment", "ordering", "lines", "layout", "recognition")
     for r in regions:
         t.regions.append(Region(annotator=layout, id=r.id, box=r.bbox, polygon=r.polygon, label=r.raw_label or "",
                                 confidence=r.score, **r.fields))

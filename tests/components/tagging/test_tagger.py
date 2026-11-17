@@ -28,7 +28,7 @@ def test_the_geometry_tagger_by_preset():
 
 
 def test_a_preset_of_another_step_is_refused():
-    with pytest.raises(PipelineConfigError, match="typography preset"):
+    with pytest.raises(PipelineConfigError, match="hierarchy preset"):
         Tagger("ratios")
 
 

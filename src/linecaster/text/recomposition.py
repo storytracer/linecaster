@@ -1,6 +1,6 @@
 """Recomposition: running text from the visual rows of a region (the reading transcription).
 
-The engine ``recomposition.unicode.v1`` (``linecaster.engines.recomposition``) runs it, the ``Composer`` builds
+The engine ``paragraphs.unicode.v1`` (``linecaster.engines.recomposition``) runs it, the ``DocumentComposer`` builds
 documents from what it makes. It records structure only (paragraphs, their rows, breaks and continuations); a
 transcription strategy writes the text (``linecaster.document.strategy``). Every threshold below is a field of
 ``Thresholds`` (today's values its defaults), the engine's options.
@@ -72,7 +72,7 @@ CONVENTION_MARKS = "¬"
 @dataclass(frozen=True)
 class Thresholds:
     """The geometric thresholds of the recomposition, in ems (the region's median row height) unless said
-    otherwise, and the convention marks; the defaults are the ``unicode-recomposition`` preset's values."""
+    otherwise, and the convention marks; the defaults are the ``unicode-paragraphs`` preset's values."""
 
     indent: float = 0.8              # a row indented this far starts a paragraph; a region's first row, no continuation
     gap_leading: float = 0.6         # a gap above a row larger than this share of the leading ...

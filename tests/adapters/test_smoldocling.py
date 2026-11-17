@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.smoldocling import to_markdown
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 
 PROMPT = chat_model("smoldocling-256m-preview").prompt
 
@@ -52,7 +52,7 @@ def test_serve_args_match_the_card():
     assert args[i + 1] == "8192" and spec.sampling["max_tokens"] + 1600 <= 8192
     assert "--no-enable-prefix-caching" in args and "--trust-remote-code" not in args
     assert args[args.index("--limit-mm-per-prompt") + 1] == '{"image": 1}'
-    assert ChatModelServer(spec, port=8123).command()[:3] == ["vllm", "serve", MODEL]
+    assert VLMServer(spec, port=8123).command()[:3] == ["vllm", "serve", MODEL]
 
 
 def test_parse_keeps_doctags_verbatim_and_converts_with_docling_core():

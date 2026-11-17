@@ -81,7 +81,7 @@ def test_alto_subs_content_is_the_sources_divided_word():
     """ALTO's ``SUBS_TYPE``/``SUBS_CONTENT`` (HypPart1, HypPart2) read as each half's joined edit, written back as
     they were; recomposed, ``divided-words+flow`` writes the word whole and ``flow`` alone keeps it as printed."""
     from linecaster.document import build_document
-    from linecaster.engines import UnicodeRecompositionEngine
+    from linecaster.engines import UnicodeParagraphsEngine
     from linecaster.formats import from_alto, to_alto
 
     t = from_alto(ALTO)
@@ -91,7 +91,7 @@ def test_alto_subs_content_is_the_sources_divided_word():
     written = to_alto(t).decode()
     assert 'SUBS_TYPE="HypPart1" SUBS_CONTENT="depends"' in written and 'SUBS_TYPE="HypPart2"' in written
     assert [(e.target, e.text) for e in from_alto(written).edits] == [(e.target, e.text) for e in t.edits]
-    (r,) = UnicodeRecompositionEngine()([t])
+    (r,) = UnicodeParagraphsEngine()([t])
     doc = build_document(r)
     assert to_text(apply(doc, "divided-words+flow")) == "The cicada depends upon it."
     assert to_text(apply(doc, "flow")) == "The cicada de-pends upon it."

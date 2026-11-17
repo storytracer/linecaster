@@ -26,7 +26,7 @@ from linecaster_services.page import png, rgb, text_transcription
 class OxrRecognitionEngine:
     """linecaster engine for the recognition step: a whole page through OXR's all-in-one service (D-FINE layout,
     the OXR VLM per region and its reading order, the vendor's assembly), behind its HTTP API. The service runs in
-    the vendor's image (``ServiceServer`` starts it); the engine is its client, in the pipeline's process."""
+    the vendor's image (``VendorServer`` starts it); the engine is its client, in the pipeline's process."""
 
     engine_id: ClassVar[str] = "oxr.recognition.v1"
     step = "recognition"
@@ -54,7 +54,7 @@ class OxrRecognitionEngine:
         status = http.get(f"{self.options.endpoint.rstrip('/')}/docs")
         if status != 200:
             raise ConnectionError(f"OXR's API at {self.options.endpoint} does not answer /docs (status {status}): "
-                                  "start it (ServiceServer) or give its endpoint")
+                                  "start it (VendorServer) or give its endpoint")
 
     def request(self, image) -> tuple[dict, dict]:
         """The form fields and files for one page (an RGB array)."""

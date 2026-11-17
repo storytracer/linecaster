@@ -1,5 +1,5 @@
-"""Components that host models for a task's served components: ``ModelServer`` starts ``linecaster serve``,
-``ChatModelServer`` starts vLLM or SGLang for the ``Chat`` backend of a ``PageRecognizer`` or ``RegionRecognizer``
+"""Components that host models for a task's served components: ``EngineServer`` starts ``linecaster serve``,
+``VLMServer`` starts vLLM or SGLang for the ``Chat`` backend of a ``PageRecognizer`` or ``RegionRecognizer``
 (both through saturate's ``Engine``) when the task starts, and stops it when all its pages are through. For a
 pipeline that brings its own GPU, e.g. one HF Job per datatrove task.
 
@@ -22,7 +22,7 @@ CUDA_TOOLKIT_VARS = ("CUDA_HOME", "CUDA_PATH")
 _flashinfer_logged = False
 
 
-class ModelServer(Contracted, PipelineStep):
+class EngineServer(Contracted, PipelineStep):
     """Starts ``linecaster serve`` inside the task for its served model components, through saturate's ``Engine``.
 
     The server starts in ``warm_up()`` and is ready when every model is loaded; it stops when the task's pages are
@@ -81,7 +81,7 @@ class ModelServer(Contracted, PipelineStep):
         return {**self.__dict__, "_server": None}
 
 
-class ChatModelServer(Contracted, PipelineStep):
+class VLMServer(Contracted, PipelineStep):
     """Starts a chat VLM server (vLLM or SGLang) inside the task for its ``Chat`` backends, through saturate's ``Engine``.
 
     The command comes from the chat preset's ``serve`` block (server, flags, environment, packages), whose ``server``
@@ -107,7 +107,7 @@ class ChatModelServer(Contracted, PipelineStep):
     gets its own port and its own GPU (``CUDA_VISIBLE_DEVICES``): a second vLLM on a GPU that one already uses does
     not get its memory share, and a second server on the same port does not start.
 
-    Its kind is ``server`` and its unit ``any``: it touches no part. Like ``ModelServer``, it goes **last** in the
+    Its kind is ``server`` and its unit ``any``: it touches no part. Like ``EngineServer``, it goes **last** in the
     pipeline (after the writer): datatrove chains generators, and only the last one lives until every page is
     written.
 
@@ -143,7 +143,7 @@ class ChatModelServer(Contracted, PipelineStep):
                  outside_venv: bool = False, python: str = "python3", server_env: str = "path"):
         super().__init__()
         if server_env not in ("path", "uv", "auto"):
-            raise PipelineConfigError(f"ChatModelServer: server_env {server_env!r} (path, uv or auto)")
+            raise PipelineConfigError(f"VLMServer: server_env {server_env!r} (path, uv or auto)")
         if isinstance(spec, str):
             from linecaster.adapters import chat_model
 

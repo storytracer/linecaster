@@ -2,14 +2,14 @@
 from linecaster.backends import Served
 from linecaster.components.layout.layout_detector import LayoutDetector
 from linecaster.components.recognition.line_recognizer import LineRecognizer
-from linecaster.components.servers.serve import ModelServer
+from linecaster.components.servers.serve import EngineServer
 from linecaster.runtime.jobs import point_to_gpu
 
 
 def test_point_to_gpu_moves_servers_and_loopback_clients():
     pipeline = [LayoutDetector(Served("http://127.0.0.1:8100/v1", model="layout")),
                 LineRecognizer(Served("https://example.org/v1", model="recognition")),
-                ModelServer([{"name": "layout", "spec": "x:Y"}], port=8100)]
+                EngineServer([{"name": "layout", "spec": "x:Y"}], port=8100)]
     moved = point_to_gpu(pipeline, 3)
     assert moved[0].backend.endpoint == "http://127.0.0.1:8103/v1"
     assert moved[1].backend.endpoint == "https://example.org/v1"
@@ -19,10 +19,10 @@ def test_point_to_gpu_moves_servers_and_loopback_clients():
 
 def test_point_to_gpu_keeps_two_servers_apart():
     from linecaster.adapters import chat_model
-    from linecaster.components.servers.serve import ChatModelServer
+    from linecaster.components.servers.serve import VLMServer
 
     spec = chat_model("lightonai/LightOnOCR-2-1B")
     pipeline = [LayoutDetector(Served("http://127.0.0.1:8100/v1", model="layout")),
-                ModelServer([{"name": "layout", "spec": "x:Y"}], port=8100), ChatModelServer(spec, port=8000)]
+                EngineServer([{"name": "layout", "spec": "x:Y"}], port=8100), VLMServer(spec, port=8000)]
     moved = point_to_gpu(pipeline, 2)
     assert (moved[0].backend.endpoint, moved[1].port, moved[2].port) == ("http://127.0.0.1:8102/v1", 8102, 8002)

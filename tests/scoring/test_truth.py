@@ -44,7 +44,7 @@ def _truth(lines: list[str], language: str | None = "en", boxes: bool = True, or
 def _row(pid: str, t: Transcription, item: str = "item", image: str | None = None) -> str:
     page = Page(page_id=pid, item_id=item, transcriptions={"ground_truth": t},
                 image=PageImage(uri=image, width=1000, height=1400) if image else None)
-    return json.dumps({"schema": "linecaster.page/5", "id": pid, "text": t.text, "page": page.record()},
+    return json.dumps({"schema": "linecaster.page/6", "id": pid, "text": t.text, "page": page.record()},
                       ensure_ascii=False)
 
 

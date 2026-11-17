@@ -11,7 +11,7 @@ from typing import Any
 
 from linecaster.testing.samples import sample_documents, sample_layout, sample_page, sample_png
 
-#: a code id: two or three dotted names and a version (``kraken.recognition.v1``, ``recomposition.unicode.v1``)
+#: a code id: two or three dotted names and a version (``kraken.recognition.v1``, ``paragraphs.unicode.v1``)
 ENGINE_ID = re.compile(r"[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*){1,2}\.v[0-9]+")
 #: a part any declared part of the transcription accounts for (``source``, ``language``, ``extra``)
 ANY = frozenset({"*"})
@@ -458,7 +458,7 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
             if not _annotators(d):
                 problems.append("the transcription names no annotator")
             result, dump = out, _without_varying([d])
-        elif step == "composition":         # a rendering: it returns the document and adds nothing
+        elif step == "document":         # a rendering: it returns the document and adds nothing
             t = _engine_input(engine_cls, copy.deepcopy(transcription))
             kept = t.model_dump(mode="json", by_alias=True)
             out = engine(t)
@@ -652,9 +652,9 @@ def _sample_docs(unit: str, component=None) -> list:
             set_page(d, page)
     if unit != "item":
         return docs
-    from linecaster.components.items import Binder
+    from linecaster.components.items import ItemAssembler
 
-    return list(Binder().run(iter(docs)))
+    return list(ItemAssembler().run(iter(docs)))
 
 
 def check_component(component, docs=None, *, run: bool = True) -> list:

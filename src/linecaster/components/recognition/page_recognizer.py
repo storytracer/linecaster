@@ -13,7 +13,7 @@ whose boxes the component places on the page image at its full size (``ChatAdapt
     from linecaster.backends import Chat
 
     PageRecognizer(Chat("lightonocr-2-1b", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
-    PageRecognizer("lightonocr-2-1b")             # a preset by name: Chat on the task's ChatModelServer
+    PageRecognizer("lightonocr-2-1b")             # a preset by name: Chat on the task's VLMServer
 
 Every result's ``Annotator`` records the preset and its hash (``preset``, ``preset_sha256``) next to the
 settings.
@@ -193,7 +193,7 @@ class PageRecognizer(ModelComponent):
     Args:
         backend: a ``Chat`` backend, an ``InProcess`` or ``Served`` backend of a page engine, or a preset's ref:
             a chat preset's (or a model's Hugging Face id: its page preset) for ``Chat`` on the task's
-            ``ChatModelServer``, a page engine's for its engine in the pipeline's process; a preset of another
+            ``VLMServer``, a page engine's for its engine in the pipeline's process; a preset of another
             unit or any other backend is refused (``PipelineConfigError``).
         transcription: the transcription the completion becomes.
         primary: the transcription whose text becomes the datatrove document's ``text``; ``None``:
@@ -583,7 +583,7 @@ class RegionRecognizer(PageRecognizer):
 
     Args:
         backend: a ``Chat`` backend, or a chat preset's ref (a model's Hugging Face id picks its region preset) for
-            one on the task's ``ChatModelServer``; any other backend is refused (``PipelineConfigError``).
+            one on the task's ``VLMServer``; any other backend is refused (``PipelineConfigError``).
         transcription: the transcription it reads the regions of and adds the lines to.
         labels: the regions' region labels it reads (``Transcription.label``; default: text-like regions and
             tables, no pictures or formulas).

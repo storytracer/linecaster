@@ -12,7 +12,7 @@ that share that code share an adapter (both DeepSeek-OCRs, both LightOnOCR-3s, b
 
 ``chat_model(ref)`` is the one way in: a preset ref (``dots-ocr``, ``dots-ocr``) or, for compatibility, the
 Hugging Face id (``rednote-hilab/dots.ocr``, the model's page preset). It returns a configured adapter, the
-object ``PageRecognizer`` / ``RegionRecognizer`` and ``ChatModelServer`` take: plain and picklable (datatrove
+object ``PageRecognizer`` / ``RegionRecognizer`` and ``VLMServer`` take: plain and picklable (datatrove
 dill-pickles the pipeline), importing neither vLLM nor torch (only Pillow, to re-encode the image).
 
 Adapters register by name in ``ADAPTERS`` (``adapters()``), one module per answer format or family.

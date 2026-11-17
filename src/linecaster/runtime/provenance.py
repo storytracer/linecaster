@@ -33,7 +33,7 @@ from lxml import etree
 from linecaster.data.transcription import Annotator
 from linecaster.formats import _provenance as P
 
-RUN_SCHEMA = "linecaster.run-record/1"
+RUN_SCHEMA = "linecaster.run-record/2"
 METS = "http://www.loc.gov/METS/"
 OCRD = "https://ocr-d.de"
 LC = "https://github.com/storytracer/linecaster"
@@ -189,10 +189,10 @@ def pipeline_section(plan) -> list[dict[str, Any]]:
 
 
 def _served_models(components: list) -> dict[str, dict]:
-    """Model name -> the model dict of the ``ModelServer`` components (name, spec, kwargs, preset, preset_sha256)."""
+    """Model name -> the model dict of the ``EngineServer`` components (name, spec, kwargs, preset, preset_sha256)."""
     out = {}
     for b in components:
-        if type(b).__name__ == "ModelServer":
+        if type(b).__name__ == "EngineServer":
             for m in getattr(b, "models", []):
                 out[m["name"]] = m
     return out
@@ -460,7 +460,7 @@ def run_record(options: dict[str, Any], plan=None, *, script: str | None = None,
                executor: str | None = None, extra: dict[str, Any] | None = None,
                created: dt.datetime | None = None, recipe: dict[str, Any] | None = None,
                script_name: str | None = None, run_id: str | None = None) -> dict[str, Any]:
-    """The run record (schema ``linecaster.run-record/1``, ``linecaster.runtime.record.RunRecord``): the run id
+    """The run record (schema ``linecaster.run-record/2``, ``linecaster.runtime.record.RunRecord``): the run id
     (``run_id``, default a new one: ``new_run_id``), the time, the pipeline script, the recipe (its id, hash, what the command line changed in it), the command line (``--env``
     values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline of the
     builder's ``plan`` (per stage its components as dicts, in order, with their contracts) and its ``pipeline_sha256``,

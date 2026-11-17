@@ -1,5 +1,5 @@
 """The Unlimited-OCR (vLLM) and Unlimited-OCR-2 (SGLang) specs, after the model cards, and
-ChatModelServer's SGLang path (command, environment, server packages, pin check)."""
+VLMServer's SGLang path (command, environment, server packages, pin check)."""
 from __future__ import annotations
 
 import base64
@@ -12,7 +12,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.components.servers import serve as serve_mod
-from linecaster.components.servers.serve import ChatModelServer, check_default_branch
+from linecaster.components.servers.serve import VLMServer, check_default_branch
 from linecaster.errors import CatalogError, PipelineConfigError, ServerError
 
 NGRAM_PROCESSOR = chat_model("unlimited-ocr-2").custom_logit_processor
@@ -52,7 +52,7 @@ def test_v1_grey_page_becomes_full_size_rgb_png():
 
 
 def test_v1_serve_args_keep_the_logits_processor_last():
-    cmd = ChatModelServer(chat_model("unlimited-ocr"), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = VLMServer(chat_model("unlimited-ocr"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "baidu/Unlimited-OCR"]
     args = cmd[7:]
     assert args[:2] == ["--revision", "07dea832e22aefee32ad281d4b80551282e1c168"]
@@ -101,7 +101,7 @@ def test_v2_sglang_command_and_environment(monkeypatch):
     own = os.path.join(sys.prefix, "bin")
     monkeypatch.setenv("PATH", os.pathsep.join([own, "/opt/sglang/bin", "/usr/bin"]))
     monkeypatch.setenv("VIRTUAL_ENV", "/opt/sglang")   # the SGLang image sets it to its own environment: keep that
-    block = ChatModelServer(chat_model("unlimited-ocr-2"), port=8000, outside_venv=True)
+    block = VLMServer(chat_model("unlimited-ocr-2"), port=8000, outside_venv=True)
     cmd = block.command("/opt/sglang/bin/python3")
     assert cmd[:10] == ["/opt/sglang/bin/python3", "-m", "sglang.launch_server", "--model-path", "baidu/Unlimited-OCR-2",
                         "--host", "127.0.0.1", "--port", "8000", "--enable-metrics"]
@@ -116,19 +116,19 @@ def test_v2_sglang_command_and_environment(monkeypatch):
     assert "SGLANG_UOCR_EANABLE_DOC_LIMIT=1" in launch and "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True" in launch
     assert launch[-len(cmd):] == cmd
     # a deployment's memory share becomes SGLang's flag (after the spec's: the later one wins)
-    assert ChatModelServer(chat_model("unlimited-ocr-2"), gpu_memory_utilization=0.6).command()[-2:] == ["--mem-fraction-static", "0.6"]
+    assert VLMServer(chat_model("unlimited-ocr-2"), gpu_memory_utilization=0.6).command()[-2:] == ["--mem-fraction-static", "0.6"]
     with pytest.raises(PipelineConfigError):
         chat_model("unlimited-ocr-2").vllm_args()
 
 
 def test_v2_server_packages_come_from_the_pinned_revision():
-    block = ChatModelServer(chat_model("unlimited-ocr-2"))
+    block = VLMServer(chat_model("unlimited-ocr-2"))
     wheel, fastokens = block.install_commands("/opt/sglang/bin/python3")
     assert wheel == ["uv", "pip", "install", "-q", "--python", "/opt/sglang/bin/python3", "--no-deps",
                      "https://huggingface.co/baidu/Unlimited-OCR-2/resolve/9cf077c4b206e0e2a31879df937b0b0bcba3661c"
                      "/wheel/sglang-0.5.20.dev10%2Bg8d62f5fb9c-py3-none-any.whl"]
     assert fastokens[-1] == "fastokens==0.3.2"
-    assert ChatModelServer(chat_model("unlimited-ocr")).install_commands("python3") == []
+    assert VLMServer(chat_model("unlimited-ocr")).install_commands("python3") == []
 
 
 def fake_hub(monkeypatch, files: dict[str, dict[str, str]]):
@@ -159,7 +159,7 @@ def test_serve_block_runs_sglang_after_installing_and_checking(monkeypatch):
 
     calls = []
     monkeypatch.setattr(serve_mod, "check_default_branch", lambda *a: calls.append(("check", a)))
-    monkeypatch.setattr(ChatModelServer, "server_python", lambda self: "/opt/sglang/bin/python3")
+    monkeypatch.setattr(VLMServer, "server_python", lambda self: "/opt/sglang/bin/python3")
     monkeypatch.setattr("subprocess.run", lambda cmd, **kw: calls.append(("run", cmd[:6])))
 
     class Engine:
@@ -173,7 +173,7 @@ def test_serve_block_runs_sglang_after_installing_and_checking(monkeypatch):
             calls.append(("down",))
 
     monkeypatch.setattr(saturate, "Engine", Engine)
-    block = ChatModelServer(chat_model("unlimited-ocr-2"), port=8000, outside_venv=True)
+    block = VLMServer(chat_model("unlimited-ocr-2"), port=8000, outside_venv=True)
     assert list(block.run(iter([1, 2]))) == [1, 2]
     assert calls[0] == ("check", ("baidu/Unlimited-OCR-2", chat_model("unlimited-ocr-2").revision, chat_model("unlimited-ocr-2").pin_ignore))
     assert [c[0] for c in calls] == ["check", "run", "run", "engine", "up", "down"]
@@ -185,7 +185,7 @@ def test_serve_block_runs_sglang_after_installing_and_checking(monkeypatch):
 def test_serve_block_vllm_spec_needs_no_preparation(monkeypatch):
     monkeypatch.setattr(serve_mod, "check_default_branch", lambda *a: pytest.fail("vLLM specs pass --revision"))
     monkeypatch.setattr("subprocess.run", lambda *a, **k: pytest.fail("nothing to install"))
-    assert ChatModelServer(chat_model("unlimited-ocr")).prepare() is None
+    assert VLMServer(chat_model("unlimited-ocr")).prepare() is None
 
 
 def test_v2_settings_record_the_server():
@@ -198,7 +198,7 @@ def test_server_python_takes_the_first_python_that_imports_sglang(monkeypatch, t
     import os
     import stat
 
-    from linecaster.components.servers.serve import ChatModelServer
+    from linecaster.components.servers.serve import VLMServer
 
     bad, good = tmp_path / "venv" / "bin", tmp_path / "opt" / "bin"
     for d, code in ((bad, 1), (good, 0)):
@@ -207,8 +207,8 @@ def test_server_python_takes_the_first_python_that_imports_sglang(monkeypatch, t
         py.write_text(f"#!/bin/sh\nexit {code}\n")
         py.chmod(py.stat().st_mode | stat.S_IXUSR)
     monkeypatch.setenv("PATH", os.pathsep.join([str(bad), str(good), "/usr/bin"]))
-    monkeypatch.setattr(ChatModelServer, "SERVER_PYTHONS", ())
-    block = ChatModelServer(chat_model("unlimited-ocr-2"), outside_venv=True)
+    monkeypatch.setattr(VLMServer, "SERVER_PYTHONS", ())
+    block = VLMServer(chat_model("unlimited-ocr-2"), outside_venv=True)
     assert block.server_python() == str(good / "python3")
     good.joinpath("python3").write_text("#!/bin/sh\necho 'No module named sglang' >&2\nexit 1\n")
     with pytest.raises(ServerError, match="No module named sglang"):

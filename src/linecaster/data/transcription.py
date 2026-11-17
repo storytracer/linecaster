@@ -26,7 +26,7 @@ Box = list[float]               # [x, y, width, height]
 Ref = str                       # a reference (linecaster.data.refs)
 
 #: the format of a stored page record
-SCHEMA = "linecaster.page/5"
+SCHEMA = "linecaster.page/6"
 
 _EXTENSION = re.compile(r"^[a-z][a-z0-9_]*__[a-z0-9_]+$")
 
@@ -59,7 +59,7 @@ class _Extensible(_Model):
 
 # ---------------------------------------------------------------------------------------------- provenance
 #: the steps whose annotators are rules (no model), for annotators upgraded from page/2 and for ``Annotator.kind``
-RULE_STEPS = frozenset({"unicode", "typography", "recomposition", "normalization", "composition", "assignment",
+RULE_STEPS = frozenset({"unicode", "hierarchy", "paragraphs", "normalization", "document", "assignment",
                         "ordering", "image", "import"})
 
 

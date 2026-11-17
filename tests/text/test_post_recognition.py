@@ -4,8 +4,8 @@ from __future__ import annotations
 import pytest
 
 from linecaster.core.page import new_page_document, page_of, set_page
-from linecaster.components.document.document_builder import Composer
-from linecaster.components.hierarchy.hierarchy_detector import Typographer
+from linecaster.components.document.document_builder import DocumentComposer
+from linecaster.components.hierarchy.hierarchy_detector import HierarchyDetector
 from linecaster.components.writers.files import PageFileWriter
 from linecaster.data.page import Page
 from linecaster.document import build_document, to_markdown, to_text
@@ -32,7 +32,7 @@ def test_heading_levels_and_demotion():
     assert (stats.leveled, stats.demoted) == (2, 1)
     # the layout's own classification stays; typography's counts
     assert t.role("section_header_2", precedence=["layout"]) == "heading" and t.role("section_header_2") == "paragraph"
-    assert t.annotators[-1].step == "typography"
+    assert t.annotators[-1].step == "hierarchy"
 
 
 def test_headline_split_off_a_body_region():
@@ -138,11 +138,11 @@ def test_blocks_run_and_write_files(tmp_path):
     set_page(doc, page, "ocr_new")
     out = list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                               bucket_by_item=False).run(
-        Composer("linked-composition").run(Typographer("ratios").run(iter([doc])))))
+        DocumentComposer("linked-document").run(HierarchyDetector("ratios").run(iter([doc])))))
     t = page_of(out[0]).transcriptions["ocr_new"]
-    assert out[0].metadata["document"]["name"] == "p1" and t.annotators[-1].step == "typography"   # composing adds none
+    assert out[0].metadata["document"]["name"] == "p1" and t.annotators[-1].step == "hierarchy"   # composing adds none
     a = t.annotators[-1]
-    assert (a.kind, a.engine, a.preset) == ("rule", "typography.ratios.v1", "ratios")
+    assert (a.kind, a.engine, a.preset) == ("rule", "hierarchy.ratios.v1", "ratios")
     assert a.measurements["leveled"] == 2 and {"seconds", "datetime"} <= set(a.measurements)
     assert (tmp_path / "p1.x.md").read_text().startswith("# THE TITLE")
     assert "12" in (tmp_path / "p1.x.txt").read_text()

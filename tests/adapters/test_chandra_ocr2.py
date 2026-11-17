@@ -11,7 +11,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.chandra_ocr2 import scale_to_fit
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 
 OCR_LAYOUT_PROMPT = chat_model("chandra-ocr-2").prompt   # the preset's, verbatim
 
@@ -74,7 +74,7 @@ def test_scale_to_fit_matches_the_vendor():
 
 
 def test_serve_args_match_the_card():
-    cmd = ChatModelServer(chat_model("chandra-ocr-2"), port=8000, gpu_memory_utilization=0.8).command()
+    cmd = VLMServer(chat_model("chandra-ocr-2"), port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", "datalab-to/chandra-ocr-2"]
     args = cmd[7:]
     for flag in (["--revision", REVISION], ["--max-model-len", "20480"],

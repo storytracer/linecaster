@@ -1,7 +1,7 @@
 r"""The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster models`):
 a layout (a layout model, or `single-region` for the page as one region), text lines and a line recognizer,
-optionally table and formula models after; then the rule-based steps, each a preset too: typography (--typography),
-recomposition (--recomposition; without one the page stays as laid out) and page composition (--composition). Page
+optionally table and formula models after; then the rule-based steps, each a preset too: typography (--hierarchy),
+recomposition (--paragraphs; without one the page stays as laid out) and page composition (--document). Page
 records in OUT/pages; with --files per-page files in the --formats asked for (`<item>/<page><suffix>.<ext>`, or with
 --naming flat `<page><suffix>.<ext>` in one folder; --suffix SUFFIX, e.g. `.paddle`), written literally or by a
 --strategy; with --item-texts one file per item and --text (an item stage: the item recomposed and composed as one,
@@ -13,8 +13,8 @@ server started from it.
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout single-region --lines pp-ocrv6-medium-det \
         --recognition paddlex-ppocrv6-medium
     uv run recipes/squiddle.py IMAGES OUT                     # the recipe squiddle, in its own environment
-    ... --typography ratios --recomposition unicode-recomposition --composition linked-composition
-    ... --item-texts OUT/texts --recomposition unicode-recomposition --composition linked-composition \
+    ... --hierarchy ratios --paragraphs unicode-paragraphs --document linked-document
+    ... --item-texts OUT/texts --paragraphs unicode-paragraphs --document linked-document \
         --text literal:txt --text latin-historic+flow+unicode-marks:md     # texts by named strategies
     uv run pipelines/transcribe_modular.py IMAGES OUT --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
         --recognition tesseract-best-latin --tables slanet-plus --formulas pp-formulanet-plus-l
@@ -28,11 +28,11 @@ server started from it.
 
 ``linecaster.runtime.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
-from linecaster.components.items import Binder
+from linecaster.components.items import ItemAssembler
 from linecaster.components.composites.modular_transcriber import ModularTranscriber
-from linecaster.components.document import Composer
-from linecaster.components.hierarchy import Typographer
-from linecaster.components.paragraphs import Recomposer
+from linecaster.components.document import DocumentComposer
+from linecaster.components.hierarchy import HierarchyDetector
+from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.layout.layout_detector import LayoutDetector
 from linecaster.components.lines.line_detector import LineDetector
 from linecaster.components.formulas.formula_recognizer import FormulaRecognizer
@@ -45,7 +45,7 @@ from linecaster.runtime import run
 
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 #: the rule-based steps, each a slot (a preset; none: the step does not run)
-RULE_SLOTS = ("typography", "recomposition", "composition")
+RULE_SLOTS = ("hierarchy", "paragraphs", "document")
 #: --naming: where per-page files go (a folder per item, or one folder)
 NAMING = {"item": {"bucket_by_item": True}, "flat": {"bucket_by_item": False}}
 
@@ -61,11 +61,11 @@ def options(ap):
                     help="the pages' writing direction the line assigner orders rows in (default: each region's "
                          "recorded direction, else horizontal-lr); a layout model without learned order takes its "
                          "own option (--set layout.direction=...)")
-    ap.add_argument("--typography", help="typography preset: headings and their levels, initials (e.g. ratios)")
-    ap.add_argument("--recomposition", help="recomposition preset: the text regions as running text, in paragraphs "
-                                            "(e.g. unicode-recomposition; none: the page stays as laid out)")
-    ap.add_argument("--composition", help="page composition preset: the page's document, for md, txt, html and json "
-                                          "(e.g. linked-composition)")
+    ap.add_argument("--hierarchy", help="typography preset: headings and their levels, initials (e.g. ratios)")
+    ap.add_argument("--paragraphs", help="recomposition preset: the text regions as running text, in paragraphs "
+                                            "(e.g. unicode-paragraphs; none: the page stays as laid out)")
+    ap.add_argument("--document", help="page composition preset: the page's document, for md, txt, html and json "
+                                          "(e.g. linked-document)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. recognition.batch_size=4; repeatable")
     ap.add_argument("--files", metavar="DIR", help="per-page files here, one per format (--formats, --naming, "
@@ -86,7 +86,7 @@ def options(ap):
                          "(the default: as read), a catalog strategy, or normalizations joined by +")
     ap.add_argument("--item-texts", metavar="DIR",
                     help="per-item texts, one file per item and --text (<strategy>/<item>.<ext>) and JSON Lines "
-                         "(<strategy>.<format>/<rank>.jsonl.gz), from the item's document (needs --composition)")
+                         "(<strategy>.<format>/<rank>.jsonl.gz), from the item's document (needs --document)")
     ap.add_argument("--text", action="append", default=[], metavar="STRATEGY:FORMAT",
                     help="an item text (--item-texts): a transcription strategy (literal, a catalog strategy, or "
                          "normalizations joined by +) and a format (md, txt, html, json); repeatable; default "
@@ -121,9 +121,9 @@ def pipeline(a, script: str) -> list:
     if missing:
         raise PipelineConfigError(f"modular: pick {' and '.join(missing)} (`linecaster models` lists the presets; "
                                   "--layout single-region reads the page as one region)")
-    if a.item_texts and not a.composition:
-        raise PipelineConfigError("modular: --item-texts writes the item's document; pick --composition (e.g. "
-                                  "linked-composition)")
+    if a.item_texts and not a.document:
+        raise PipelineConfigError("modular: --item-texts writes the item's document; pick --document (e.g. "
+                                  "linked-document)")
     texts = parse_texts(a.text or ["literal:txt"]) if a.item_texts else ()
     formats = tuple(a.formats.split(","))
     unknown = sorted(set(formats) - set(PAGE_FILE_EXTENSIONS))
@@ -143,19 +143,19 @@ def pipeline(a, script: str) -> list:
                            direction=a.direction),
         *([TableRecognizer(b["tables"])] if "tables" in b else []),
         *([FormulaRecognizer(b["formulas"])] if "formulas" in b else []),
-        *([Typographer(a.typography, options=over.get("typography"))] if a.typography else []),
-        *([Recomposer(a.recomposition, options=over.get("recomposition"))] if a.recomposition else []),
-        *([Composer(a.composition, options=over.get("composition"), policy=a.policy)] if a.composition else []),
+        *([HierarchyDetector(a.hierarchy, options=over.get("hierarchy"))] if a.hierarchy else []),
+        *([ParagraphBuilder(a.paragraphs, options=over.get("paragraphs"))] if a.paragraphs else []),
+        *([DocumentComposer(a.document, options=over.get("document"), policy=a.policy)] if a.document else []),
         # no files for a page a component failed on: OUT/rejects lists it, the page records keep it with its errors
         *([PageFileWriter(a.files, formats=formats, furniture=a.furniture, skip_failed=True, suffix=a.suffix,
                           policy=a.policy, strategy=a.strategy, **NAMING[a.naming])]
           if a.files else []),
         run.pages(a),
-        # after the page writers, the item stage: the Binder gathers each item's pages into an item record; with
+        # after the page writers, the item stage: the ItemAssembler gathers each item's pages into an item record; with
         # several tasks the builder cuts here (the pages in item shards, then a stage over whole items)
-        *([Binder(), *([Recomposer(a.recomposition, unit="item", options=over.get("recomposition"))]
-                       if a.recomposition else []),
-           Composer(a.composition, unit="item", options=over.get("composition"), policy=a.policy),
+        *([ItemAssembler(), *([ParagraphBuilder(a.paragraphs, unit="item", options=over.get("paragraphs"))]
+                       if a.paragraphs else []),
+           DocumentComposer(a.document, unit="item", options=over.get("document"), policy=a.policy),
            ItemDocumentWriter(a.item_texts, texts=[f"{s}:{f}" for s, f in texts], policy=a.policy),
            ItemTextWriter(a.item_texts, texts=[f"{s}:{f}" for s, f in texts], policy=a.policy)]
           if a.item_texts else []),
@@ -166,4 +166,4 @@ def pipeline(a, script: str) -> list:
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
 PIPELINE = "transcribe_modular.v1"
 SLOTS = {"layout": "layout", "lines": "lines", "recognition": "recognition", "tables": "tables", "formulas": "formulas",
-         "typography": "typography", "recomposition": "recomposition", "composition": "composition"}
+         "hierarchy": "hierarchy", "paragraphs": "paragraphs", "document": "document"}

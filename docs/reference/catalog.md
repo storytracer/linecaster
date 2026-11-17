@@ -26,7 +26,7 @@ format, id rule, index table and prose rule), so loading, the index and the chec
 
 | Kind | Is | Named | Lives in |
 |---|---|---|---|
-| engine | code that implements one step: runs a model, or applies rules | versioned id: `kraken.recognition.v1`, `typography.ratios.v1` | `engines/<engine>/` (a package each); `chat.v1` and the rule-based engines in linecaster (`linecaster.engines`) |
+| engine | code that implements one step: runs a model, or applies rules | versioned id: `kraken.recognition.v1`, `hierarchy.ratios.v1` | `engines/<engine>/` (a package each); `chat.v1` and the rule-based engines in linecaster (`linecaster.engines`) |
 | model | one upstream artifact at pinned revisions, with its card | slug: `kraken-ppocrv6-medium` | `models/<id>/model.yaml` |
 | preset | an engine, a model pin and the engine's options, ready to use | slug: `kraken-ppocrv6-medium` | `presets/<step>/<id>.yaml` |
 | pipeline | code: a shape with slots and the run-anywhere command line | versioned id: `transcribe_modular.v1` (the script's name) | `pipelines/<name>.py` |
@@ -84,8 +84,8 @@ exports) is JSON Lines or Parquet, not catalog data.
 | vocabulary | `linecaster.vocabulary` | `schemas/vocabulary.json` |
 | evidence (not catalog data; its schema ships here) | `linecaster.evidence/3` (`/2` and `/1` are read too) | `schemas/evidence-3.json`, `-2`, `-1` |
 | benchmark (not catalog data) | `linecaster.benchmark/2` (`/1` is read, upgraded) | `schemas/benchmark-2.json` |
-| run record (`OUT/run.yaml`, not catalog data) | `linecaster.run-record/1` | `schemas/run-record-1.json` |
-| page record, document (data, not catalog data) | `linecaster.page/5`, `linecaster.document/2` | `schemas/page-5.json`, `schemas/document-2.json` |
+| run record (`OUT/run.yaml`, not catalog data) | `linecaster.run-record/2` | `schemas/run-record-2.json` |
+| page record, document (data, not catalog data) | `linecaster.page/6`, `linecaster.document/2` | `schemas/page-6.json`, `schemas/document-2.json` |
 
 Catalog entries carry no version in their schema id: the release versions them. The data formats keep their own
 versions ([compatibility](compatibility.md)).
@@ -333,14 +333,14 @@ counts, hold no copied pages (tests use fixtures written for them), and keep the
 ## Steps, capabilities, labels
 
 Steps (`STEPS`): `layout`, `lines`, `recognition`, `tables`, `formulas`, whose engines run models, and the
-rule-based steps (`RULE_STEPS`) `image` (the working image), `typography` (the hierarchy from type sizes),
-`recomposition` (the paragraphs of the rows: structure, no text),
-`composition` (the document) and `import` (a source document read into a transcription: the importers), and
+rule-based steps (`RULE_STEPS`) `image` (the working image), `hierarchy` (the hierarchy from type sizes),
+`paragraphs` (the paragraphs of the rows: structure, no text),
+`document` (the document) and `import` (a source document read into a transcription: the importers), and
 `tagging` (classifications in property schemes: [taggers](#taggers), rules and a panel of models). Recognition reads a `unit` (`capabilities.unit`): `line` (kraken, PaddleX,
 Tesseract), `region` (a VLM per layout region) or `page` (a VLM or a page engine reads the whole page: a **page preset**, which
 `launch.py` runs by name); a rule-based engine reads a `page` or an `item` (the pages of one item, in order).
 `OCRD_STEPS` maps the steps to OCR-D's functional steps for METS agents where OCR-D has one (`image`:
-`preprocessing/optimization`, `typography` and `tagging`: `layout/segmentation/classification`, `composition`:
+`preprocessing/optimization`, `hierarchy` and `tagging`: `layout/segmentation/classification`, `document`:
 `layout/analysis`); the others are post-processing (`recognition/post-correction`).
 
 What depends on the code belongs to the engine (`capabilities` on the class), e.g. kraken's word boxes with
@@ -386,7 +386,7 @@ A page engine is an engine of the recognition step whose unit is the page (`capa
 page image and returns the page's transcription, text-only, its raw output verbatim as a raw output (`RawOutput`),
 as a chat preset's completion is kept. `PageRecognizer` runs it like any model component (`InProcess`, or `Served` through
 `linecaster serve`); `pipelines/transcribe_page.py` is its pipeline. Where the engine talks to a **service**, its
-preset's `serve` block names it and `ServiceServer` starts it in the task:
+preset's `serve` block names it and `VendorServer` starts it in the task:
 
 | `serve.server` | The service | Fields |
 |---|---|---|
@@ -409,8 +409,8 @@ pipeline's process only. `pipelines/transcribe_modular.py --layout single-region
 
 The engines of the rule-based steps (**strategies**) live in `linecaster.engines`, are pure Python and run in the
 pipeline's process only (`IN_PROCESS_ONLY`; `linecaster serve` refuses them): `image.webp-lossless.v1`,
-`typography.ratios.v1`, `recomposition.unicode.v1`, `composition.linked.v1` and the by-script engine
-`recomposition.by-script.v1`. None of them changes a text: they add structure (headings, paragraphs, links), and a
+`hierarchy.ratios.v1`, `paragraphs.unicode.v1`, `document.linked.v1` and the by-script engine
+`paragraphs.by-script.v1`. None of them changes a text: they add structure (headings, paragraphs, links), and a
 strategy writes the text when it is written. Each has no weights; its
 `Options` turn the rules' thresholds into options whose defaults are the values the rules have always had, and it
 declares `scripts`: the ISO 15924 scripts it covers (`Latn`, `Hebr`, ...), `"*"` for all. The rules themselves stay
@@ -427,11 +427,11 @@ an item's document is no transcription.
 
 Their components take a preset (`id`) or an engine spec (`InProcess("module:Class", **options)`), with `options`
 over either, like model components but without a backend choice: `ImageConverter(output_folder, preset)` (`image`),
-`Typographer(preset)` (`typography`), `Recomposer(preset,
-unit="page"|"item")` (`recomposition`), `Composer(preset, unit="page"|"item")` (`composition`). The presets of the
+`HierarchyDetector(preset)` (`hierarchy`), `ParagraphBuilder(preset,
+unit="page"|"item")` (`paragraphs`), `DocumentComposer(preset, unit="page"|"item")` (`document`). The presets of the
 `squiddle` recipe's rules: `working-image`, `ratios`,
-`unicode-recomposition`, `linked-composition`. Running text or the page as laid out is the presence of a
-`Recomposer`: the `Composer` composes from paragraphs when there are, else from lines (diplomatic composition).
+`unicode-paragraphs`, `linked-document`. Running text or the page as laid out is the presence of a
+`ParagraphBuilder`: the `DocumentComposer` composes from paragraphs when there are, else from lines (diplomatic composition).
 
 ### Taggers
 
@@ -469,11 +469,11 @@ needs its own rules, `"*"` for every other script.
 
 ```yaml
 id: hebrew-latin-recomposition
-step: recomposition
-engine: recomposition.by-script.v1
+step: paragraphs
+engine: paragraphs.by-script.v1
 by_script:
   Hebr: hebrew-recomposition
-  "*": unicode-recomposition
+  "*": unicode-paragraphs
 ```
 
 `engine_spec` resolves them into the engine's `strategies` (each strategy's engine, options, id and hash).
@@ -491,8 +491,8 @@ Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`
 `transcribe_modular.v1`, `transcribe_vlm.v1`, `transcribe_page.v1`, `bind.v1`, `convert.v1`,
 `import_transcriptions.v1`, `score.v1`). A script with slots also declares `SLOTS` (slot →
 option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...; the rule-based steps are slots
-too: `transcribe_modular.v1` has `--typography`, `--recomposition` and `--composition`, `bind.v1`
-`--recomposition` and `--composition`; a slot left empty leaves its step out, e.g. no recomposition: the page stays
+too: `transcribe_modular.v1` has `--hierarchy`, `--paragraphs` and `--document`, `bind.v1`
+`--paragraphs` and `--document`; a slot left empty leaves its step out, e.g. no recomposition: the page stays
 as laid out). It has no default presets: the user fills every slot, or names a recipe (`--recipe id`), with single
 flags on top recorded as overrides in the run record (`recipe`: the id, the pipeline id, the hash and the
 overrides). The texts a run writes are no slot: `--text <strategy>:<format>` names each (a recipe may name them in
@@ -500,7 +500,7 @@ its `options`).
 
 The recipe: `squiddle` (`transcribe_modular.v1`: PP-DocLayoutV3, PP-OCRv6 line detection and kraken's PP-OCRv6
 recognition, tables, formulas and the rule-based steps). The item stage (`bind.v1`) has no recipe: its presets are
-named (`--recomposition unicode-recomposition --composition linked-composition`, and the texts with `--text`). A
+named (`--paragraphs unicode-paragraphs --document linked-document`, and the texts with `--text`). A
 recipe has its script,
 `recipes/<id>.py` ([architecture](architecture.md#recipe-scripts)): its environment, with exactly the engine packages
 its presets need, and its entry point. `recipes/squiddle.py` is the environment with kraken;

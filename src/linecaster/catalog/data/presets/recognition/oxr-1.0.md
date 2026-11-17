@@ -4,7 +4,7 @@ engine (`oxr.recognition.v1`, package `linecaster-services`) is its client in th
 
 - The service: an image built unmodified from the vendor's `docker/Dockerfile.allinone` at
   github.com/SoMarkAI/OXR@c1a1dcb3 (on the vendor's pinned `vllm/vllm-openai:v0.25.1`; the vendor's plugin and
-  entrypoint require vLLM 0.25.1 and Transformers 5.13.1), by digest. `ServiceServer` downloads the model pin to
+  entrypoint require vLLM 0.25.1 and Transformers 5.13.1), by digest. `VendorServer` downloads the model pin to
   `/models/oxr-model` (every pinned file checked, rather than mounting the weights) and starts the image's
   entrypoint, which serves vLLM on 8080 and the layout model on 8081 (loopback) and the API on 8000
   (`OXR_API_HOST` 127.0.0.1); the API answers `/docs` once both model services are ready.

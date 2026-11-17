@@ -74,16 +74,16 @@ uv run pipelines/transcribe_modular.py scans/ out/ \
   --layout pp-doclayoutv3 \
   --lines pp-ocrv6-medium-det \
   --recognition paddlex-ppocrv6-medium \
-  --typography ratios --recomposition unicode-recomposition --composition linked-composition
+  --hierarchy ratios --paragraphs unicode-paragraphs --document linked-document
 ```
 
 | Flag | Effect |
 |---|---|
 | `--layout single-region` | the whole page as one region, no layout model |
 | `--tables`, `--formulas` | add table and formula recognition |
-| `--typography` | headings and their levels |
-| `--recomposition` | running text in paragraphs (without it, the page stays as laid out) |
-| `--composition` | the page's document, for Markdown, HTML and JSON |
+| `--hierarchy` | headings and their levels |
+| `--paragraphs` | running text in paragraphs (without it, the page stays as laid out) |
+| `--document` | the page's document, for Markdown, HTML and JSON |
 | `--set recognition.batch_size=4` | change one option of a preset |
 | `--files DIR --formats md,alto` | per-page files: ALTO, PAGE-XML, hOCR, text, Markdown, HTML, JSON |
 | `--dry-run` | print the plan and its graph, run nothing |
@@ -111,7 +111,7 @@ For large collections, fetch the images once, then transcribe, then bind the pag
 uv run pipelines/harvest.py --manifests items.parquet --manifest-key url OUT --rate-limit 5/1
 uv run pipelines/transcribe_modular.py --pages OUT/pages OUT2 --layout pp-doclayoutv3 --lines pp-ocrv6-medium-det \
   --recognition paddlex-ppocrv6-medium --item-shards 64
-uv run pipelines/bind.py OUT2/pages OUT3 --recomposition unicode-recomposition --composition linked-composition \
+uv run pipelines/bind.py OUT2/pages OUT3 --paragraphs unicode-paragraphs --document linked-document \
   --text literal:txt --text latin-historic+flow:md
 ```
 
@@ -215,9 +215,9 @@ A pipeline is a list of components; [datatrove] runs it. This is the modular pip
 ```python
 from datatrove.executor import LocalPipelineExecutor
 from linecaster.backends import InProcess as P
-from linecaster.components.document import Composer
-from linecaster.components.hierarchy import Typographer
-from linecaster.components.paragraphs import Recomposer
+from linecaster.components.document import DocumentComposer
+from linecaster.components.hierarchy import HierarchyDetector
+from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.layout import LayoutDetector
 from linecaster.components.lines import (
     LineAssigner, LineDetector)
@@ -232,9 +232,9 @@ pipeline = [
     LineAssigner(),
     LineRecognizer(
         P("linecaster_paddlex:PaddleRecognitionEngine")),
-    Typographer("ratios"),
-    Recomposer("unicode-recomposition"),
-    Composer("linked-composition"),
+    HierarchyDetector("ratios"),
+    ParagraphBuilder("unicode-paragraphs"),
+    DocumentComposer("linked-document"),
     PageFileWriter("out/", formats=("md", "alto"),
                    strategy="latin-historic+flow"),
 ]

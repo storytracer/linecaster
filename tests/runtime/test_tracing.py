@@ -20,7 +20,7 @@ from linecaster.backends import InProcess, Served
 from linecaster.core.page import PageComponent, new_page_document
 from linecaster.components.lines import LineDetector
 from linecaster.components.readers import ImageFolderReader, PageRecordReader
-from linecaster.components.servers import ChatModelServer, ModelServer
+from linecaster.components.servers import VLMServer, EngineServer
 from linecaster.components.writers import PageJsonlWriter
 from linecaster.errors import ServerError
 from linecaster.runtime.builder import build, run_plan
@@ -194,13 +194,13 @@ def _free_port() -> int:
 
 
 def test_the_trace_context_reaches_linecaster_serve_and_its_spans_join(tmp_path: Path, monkeypatch):
-    """A real ``linecaster serve`` process started by ``ModelServer`` in the task, with a fake engine."""
+    """A real ``linecaster serve`` process started by ``EngineServer`` in the task, with a fake engine."""
     monkeypatch.setenv("PYTHONPATH", str(Path(__file__).parent) + ":" + __import__("os").environ.get("PYTHONPATH", ""))
     src = images(tmp_path / "images", 3)
     out = tmp_path / "out"
     port = _free_port()
     endpoint = f"http://127.0.0.1:{port}/v1"
-    server = ModelServer([{"name": "lines", "spec": "linecaster.testing:FakeLineEngine", "kwargs": {}}], port=port,
+    server = EngineServer([{"name": "lines", "spec": "linecaster.testing:FakeLineEngine", "kwargs": {}}], port=port,
                          python=sys.executable, boot_timeout=120)
     plan = build([ImageFolderReader(src), LineDetector(Served(endpoint, model="lines", max_window=4)),
                   PageJsonlWriter(str(out / "pages")), server], run_folder=str(out), trace_sample=1)
@@ -300,7 +300,7 @@ def test_no_otlp_without_the_variables(tmp_path: Path, monkeypatch):
 def test_vllm_traces_to_otlp_when_configured(monkeypatch):
     from linecaster.adapters import chat_model
 
-    component = ChatModelServer(chat_model("lightonocr-2-1b"))
+    component = VLMServer(chat_model("lightonocr-2-1b"))
     assert "--otlp-traces-endpoint" not in component.launch_command()
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318/")
     cmd = component.launch_command()

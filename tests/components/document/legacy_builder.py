@@ -1,5 +1,5 @@
 """The DocumentBuilder as it was before the recomposition moved into its engine (linecaster 531a422): it recomposed
-while it built (``text="reflow"``). Kept verbatim as the reference the recomposition engine and the Composer are
+while it built (``text="reflow"``). Kept verbatim as the reference the recomposition engine and the DocumentComposer are
 compared with (``test_recomposition_parity.py``)."""
 from __future__ import annotations
 

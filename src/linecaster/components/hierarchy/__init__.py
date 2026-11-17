@@ -1,4 +1,4 @@
 """Hierarchy: heading levels, headline splits and drop capitals."""
-from linecaster.components.hierarchy.hierarchy_detector import Typographer
+from linecaster.components.hierarchy.hierarchy_detector import HierarchyDetector
 
-__all__ = ["Typographer"]
+__all__ = ["HierarchyDetector"]

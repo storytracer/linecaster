@@ -3,7 +3,7 @@ the dispatch of their decisions by script.
 
 A rule-based engine (a **strategy**) is a class like a model engine, without weights:
 
-* ``engine_id`` (its code id, e.g. ``typography.ratios.v1``), ``step``, ``capabilities`` (``unit``, ``produces``),
+* ``engine_id`` (its code id, e.g. ``hierarchy.ratios.v1``), ``step``, ``capabilities`` (``unit``, ``produces``),
   ``scripts`` (the ISO 15924 scripts it covers, ``("*",)`` for all) and ``Options`` (a Pydantic model whose fields
   have descriptions and today's values as defaults);
 * constructed with its options as keyword arguments (``Engine(**preset.options)``), ``load()`` (nothing to load);
@@ -17,7 +17,7 @@ A rule-based engine (a **strategy**) is a class like a model engine, without wei
 They run in the pipeline's process only (``linecaster.catalog.registry.IN_PROCESS_ONLY``): rules are cheaper than a
 request.
 
-**Dispatch by script.** A by-script engine (``recomposition.by-script.v1``) is
+**Dispatch by script.** A by-script engine (``paragraphs.by-script.v1``) is
 constructed with ``strategies``: ISO 15924 code -> strategy, and ``"*"`` -> the default strategy, each as
 ``Strategy`` (the engine as ``module:Class``, its options, the preset it came from), which a preset's
 ``by_script`` resolves to. ``ScriptDispatch`` builds them and routes each decision to the strategy of the script

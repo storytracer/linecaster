@@ -7,7 +7,7 @@ import pytest
 
 from linecaster.backends import Served
 from linecaster.components.layout.layout_detector import LayoutDetector
-from linecaster.components.servers.serve import ModelServer
+from linecaster.components.servers.serve import EngineServer
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime.ray import GIB, RayExecutor, RayGPUExecutor, assigned_gpu, task_resources, tasks_on_node
 
@@ -103,7 +103,7 @@ def test_assigned_gpu(monkeypatch):
 
 def test_task_moves_to_its_gpu_port(monkeypatch, tmp_path):
     pipeline = [LayoutDetector(Served("http://127.0.0.1:8100/v1", model="layout")),
-                ModelServer([{"name": "layout", "spec": "x:Y"}], port=8100)]
+                EngineServer([{"name": "layout", "spec": "x:Y"}], port=8100)]
     ex = RayGPUExecutor(pipeline, tasks=2, logging_dir=str(tmp_path / "logs"))
     seen = {}
     monkeypatch.setattr("datatrove.executor.ray.RayPipelineExecutor._run_for_rank",

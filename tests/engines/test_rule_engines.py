@@ -19,7 +19,7 @@ from linecaster.engines import scripts
 MODEL_STEP_ENGINES = {"layout.single-region.v1", "tagging.geometry.v1", "tagging.chat.v1"}
 RULE_ENGINES = sorted(set(BUILTIN_ENGINES) - SERVED_ONLY - MODEL_STEP_ENGINES)
 #: engines whose options have no defaults (a by-script engine's strategies come from its preset)
-NEEDS_OPTIONS = {"image.convert.v1", "recomposition.by-script.v1"}
+NEEDS_OPTIONS = {"image.convert.v1", "paragraphs.by-script.v1"}
 
 
 def test_the_rule_based_steps_are_steps():
@@ -59,26 +59,26 @@ def test_the_docs_describe_every_builtin_engine():
 
 
 def test_options_default_to_todays_constants():
-    from linecaster.engines import (LinkedCompositionEngine, RatiosTypographyEngine, UnicodeRecompositionEngine,
+    from linecaster.engines import (LinkedDocumentEngine, RatiosHierarchyEngine, UnicodeParagraphsEngine,
                                     WebpLosslessImageEngine)
     from linecaster.images.convert import to_working_webp
     from linecaster.text import recomposition as R
     from linecaster.text import typography as T
 
-    o = RatiosTypographyEngine.Options()
+    o = RatiosHierarchyEngine.Options()
     assert (o.page_number_min_conf, o.demote, o.split, o.max_headline_rows) == (
         T.PAGE_NUMBER_MIN_CONF, T.DEMOTE, T.SPLIT, T.MAX_HEADLINE_ROWS)
     assert o.levels == [tuple(x) for x in T.LEVELS] and tuple(o.heading_labels) == T.HEADING_LABELS
-    assert RatiosTypographyEngine.ratios(o) == T.Ratios()
-    r = UnicodeRecompositionEngine.Options()
+    assert RatiosHierarchyEngine.ratios(o) == T.Ratios()
+    r = UnicodeParagraphsEngine.Options()
     assert r.convention_marks == R.CONVENTION_MARKS and not r.rtl
-    assert UnicodeRecompositionEngine.thresholds(r) == R.Thresholds()
+    assert UnicodeParagraphsEngine.thresholds(r) == R.Thresholds()
     assert WebpLosslessImageEngine.Options().effort == inspect.signature(to_working_webp).parameters["effort"].default
-    assert LinkedCompositionEngine.Options().model_dump() == {"sections": False}
+    assert LinkedDocumentEngine.Options().model_dump() == {"sections": False}
 
 
-@pytest.mark.parametrize("step,preset", [("image", "working-image"), ("typography", "ratios"), ("recomposition", "unicode-recomposition"),
-                                         ("composition", "linked-composition")])
+@pytest.mark.parametrize("step,preset", [("image", "working-image"), ("hierarchy", "ratios"), ("paragraphs", "unicode-paragraphs"),
+                                         ("document", "linked-document")])
 def test_the_presets_are_the_engines_defaults(step, preset):
     """Each rule-based preset names every option of its engine, with the engine's defaults: today's behavior."""
     from linecaster.catalog.registry import catalog
@@ -112,17 +112,17 @@ def _typography_page():
 
 
 def test_typography_is_the_retyper_and_records_its_step():
-    from linecaster.engines import RatiosTypographyEngine
+    from linecaster.engines import RatiosHierarchyEngine
     from linecaster.text.typography import retype
 
     want, got = _typography_page(), _typography_page()
     n = len(want.annotators)
-    stats = retype(want, annotator=want.add_annotator(RatiosTypographyEngine().annotator()))
-    RatiosTypographyEngine()(got)
+    stats = retype(want, annotator=want.add_annotator(RatiosHierarchyEngine().annotator()))
+    RatiosHierarchyEngine()(got)
     m = got.annotators[-1]
     assert len(got.annotators) == n + 1 and (m.kind, m.step, m.name, m.engine) == (
-        "rule", "typography", "typography.ratios.v1", "typography.ratios.v1")
-    assert m.measurements == stats.counts() and m.settings == RatiosTypographyEngine.Options().model_dump(mode="json")
+        "rule", "hierarchy", "hierarchy.ratios.v1", "hierarchy.ratios.v1")
+    assert m.measurements == stats.counts() and m.settings == RatiosHierarchyEngine.Options().model_dump(mode="json")
     want.annotators[-1].measurements = m.measurements
     assert got == want
     # every annotation it added names it; nothing that was there changed
@@ -133,11 +133,11 @@ def test_typography_is_the_retyper_and_records_its_step():
 
 
 def test_every_typography_threshold_is_an_option():
-    from linecaster.engines import RatiosTypographyEngine
+    from linecaster.engines import RatiosHierarchyEngine
 
     def run(**options):
         t = _typography_page()
-        RatiosTypographyEngine(**options)(t)
+        RatiosHierarchyEngine(**options)(t)
         return ({r.id: (t.label(r.id), t.heading_level(r.id)) for r in t.regions if t.status(r.id) is None},
                 t.annotators[-1].measurements)
 
@@ -152,10 +152,10 @@ def test_every_typography_threshold_is_an_option():
     assert "text_5_head" not in run(max_headline_rows=0)[0]
     assert run(heading_labels=["title"])[0]["section_header_2"] == ("section_header", None)  # not a heading: untouched
     assert run(demote=1.0)[1]["demoted"] == 0
-    e = RatiosTypographyEngine(demote=1.0)
+    e = RatiosHierarchyEngine(demote=1.0)
     assert e(_typography_page(), demote=1.2).annotators[-1].settings["demote"] == 1.2      # a call's options win
     with pytest.raises(ValueError):
-        RatiosTypographyEngine(no_such=1)
+        RatiosHierarchyEngine(no_such=1)
 
 
 # ------------------------------------------------------------------------------------- the others
@@ -198,7 +198,7 @@ def test_the_items_words_are_the_lexicon():
     hyphen on page 2; the page alone has no such word."""
     from conftest import line, page_with, region
 
-    from linecaster.engines import UnicodeRecompositionEngine
+    from linecaster.engines import UnicodeParagraphsEngine
 
     def page(rows):
         return page_with([region("text_0", "text", 100, 100, 800, 30 * len(rows), 0)],
@@ -208,15 +208,15 @@ def test_the_items_words_are_the_lexicon():
     second = page(["Die Nord-", "see liegt kalt."])
     from linecaster.document import build_document
     from linecaster.document.strategy import apply
-    from linecaster.engines import LinkedCompositionEngine
+    from linecaster.engines import LinkedDocumentEngine
 
     ids = ["p1", "p2"]
-    pages = UnicodeRecompositionEngine()([first.model_copy(deep=True), second.model_copy(deep=True)], page_ids=ids)
-    doc = LinkedCompositionEngine().item_document(pages, "item", page_ids=ids, sizes=[(1000, 1000)] * 2)
+    pages = UnicodeParagraphsEngine()([first.model_copy(deep=True), second.model_copy(deep=True)], page_ids=ids)
+    doc = LinkedDocumentEngine().item_document(pages, "item", page_ids=ids, sizes=[(1000, 1000)] * 2)
     texts = [b.text for b in apply(doc, "unicode-marks+flow").blocks]
     assert [x[:12] for x in texts] == ["Die Nord-see"] * 2
-    alone = UnicodeRecompositionEngine()([second.model_copy(deep=True)])
+    alone = UnicodeParagraphsEngine()([second.model_copy(deep=True)])
     assert apply(build_document(alone[0]), "unicode-marks+flow").blocks[0].text.startswith("Die Nordsee")
-    assert all(len(p.annotators) == 2 and p.annotators[-1].step == "recomposition" for p in pages)
+    assert all(len(p.annotators) == 2 and p.annotators[-1].step == "paragraphs" for p in pages)
     assert all(q.annotator == 1 for p in pages for q in p.paragraphs)
     assert Transcription.model_validate_json(pages[1].model_dump_json()) == pages[1]

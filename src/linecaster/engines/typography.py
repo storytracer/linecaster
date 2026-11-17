@@ -10,7 +10,7 @@ from linecaster.text import typography as T
 from linecaster.engines.base import RuleEngine
 
 
-class RatiosTypographyEngine(RuleEngine):
+class RatiosHierarchyEngine(RuleEngine):
     """Determines a page's hierarchy from its type sizes, every rule a ratio to the page's own body type.
 
     The rules of ``linecaster.text.typography``. Heading levels from the type size, section headers in body
@@ -25,8 +25,8 @@ class RatiosTypographyEngine(RuleEngine):
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
             ``options`` construct it."""
 
-    engine_id: ClassVar[str] = "typography.ratios.v1"
-    step = "typography"
+    engine_id: ClassVar[str] = "hierarchy.ratios.v1"
+    step = "hierarchy"
     capabilities: ClassVar[dict] = {"unit": "page", "produces": ["hierarchy"]}
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 

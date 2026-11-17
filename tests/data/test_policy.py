@@ -18,11 +18,11 @@ def test_the_default_policy_is_the_catalog_s():
 
 
 def test_an_unknown_policy_is_refused():
-    from linecaster.components.document import Composer
+    from linecaster.components.document import DocumentComposer
     from linecaster.errors import CatalogError
 
     with pytest.raises(CatalogError):
-        Composer("linked-composition", policy="nowhere")
+        DocumentComposer("linked-document", policy="nowhere")
 
 
 @pytest.mark.parametrize("label,role,production", [

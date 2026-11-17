@@ -5,7 +5,7 @@ from linecaster.document.model import KINDS, SCHEMA, Block, Document, Grid, Orig
 from linecaster.document.serialize import EXPORT_FORMATS, export, from_json, load_document, table_html, to_html, to_json, to_markdown, \
     to_text
 
-#: the ``Document.metadata`` keys of a composed page or item (``Composer``): the document (as a dict) and, for a page,
+#: the ``Document.metadata`` keys of a composed page or item (``DocumentComposer``): the document (as a dict) and, for a page,
 #: the transcription it was composed from
 DOCUMENT_KEY, COMPOSED_KEY = "document", "document_transcription"
 

@@ -1,7 +1,7 @@
 # The data model
 
 `linecaster.data` holds what is read from a page and how it is rendered; `linecaster.data.page` the page record it
-travels in. A stored page record names its format in its row's `schema`: `linecaster.page/5`. Importing
+travels in. A stored page record names its format in its row's `schema`: `linecaster.page/6`. Importing
 `linecaster.data` needs neither datatrove nor saturate nor an engine.
 
 ## Principles
@@ -118,7 +118,7 @@ or people. Annotations name it by its index in `annotators`.
 | Field | Holds |
 |---|---|
 | `kind` | `model`, `rule`, `file`, `human` |
-| `step` | the catalog step: `layout`, `lines`, `recognition`, `tables`, `formulas`, `typography`, `recomposition`, `assignment`, `ordering`, `import`, ...; for a file or people: `transcription` |
+| `step` | the catalog step: `layout`, `lines`, `recognition`, `tables`, `formulas`, `hierarchy`, `paragraphs`, `assignment`, `ordering`, `import`, ...; for a file or people: `transcription` |
 | `name` | the model (`kraken-ppocrv6-medium`); for a rule, what ran (`unicodedata`, the engine's id); for people, the group (`proofreaders`) |
 | `engine`, `revision` | the engine's code id, the model's revision |
 | `preset`, `preset_sha256`, `recipe`, `recipe_sha256` | the preset and recipe it ran as, and their hashes |
@@ -516,7 +516,7 @@ the document as JSON, literal. The scope (full page or body only) is the layer c
 | a VLM page step | regions, lines with readings, tables, formulas, descriptions, classifications, raw outputs |
 | a ground-truth import | everything its source has, `source.kind` `ground_truth`, an annotator of kind `human` or `file` |
 
-Composition (the `Composer`) adds nothing: it renders the set as a document (`linecaster.document`), which travels
+Composition (the `DocumentComposer`) adds nothing: it renders the set as a document (`linecaster.document`), which travels
 with the datatrove document (`doc.metadata["document"]`) to the writers and is not stored in the page record.
 
 **Nothing is overwritten**: an engine call appends one annotator and adds annotations; it changes none that was there
@@ -533,9 +533,9 @@ sy)` moves every coordinate to another image size and records the factors in `so
 
 An item travels as one datatrove `Document`: `id` is the item id, `metadata["item"]` the item record, `{"item_id":
 ..., "pages": [...]}`, its page records (as JSON-compatible dicts) in order (sequence, then page id), without the
-image bytes. The `Binder` makes it from a page stream; the item-unit blocks add to the page records inside it
-(`Recomposer(unit="item")`: paragraphs whose pieces span pages), and `Composer(unit="item")` adds the item's
-document next to it; the renderers join a range's pieces across pages; the `Splitter` passes the pages on again, each with what the
+image bytes. The `ItemAssembler` makes it from a page stream; the item-unit blocks add to the page records inside it
+(`ParagraphBuilder(unit="item")`: paragraphs whose pieces span pages), and `DocumentComposer(unit="item")` adds the item's
+document next to it; the renderers join a range's pieces across pages; the `ItemSplitter` passes the pages on again, each with what the
 item-level blocks added.
 
 ## Mappings

@@ -7,12 +7,12 @@ import unicodedata
 from PIL import Image
 
 from linecaster.core.page import new_page_document, page_of, set_page
-from linecaster.components.items import Binder
-from linecaster.components.document import Composer
-from linecaster.components.paragraphs import Recomposer
+from linecaster.components.items import ItemAssembler
+from linecaster.components.document import DocumentComposer
+from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.writers.items import ItemDocumentWriter
 from linecaster.data.transcription import Annotator, Transcription, Word
-from linecaster.engines import UnicodeRecompositionEngine
+from linecaster.engines import UnicodeParagraphsEngine
 from linecaster.document import DocumentBuilder, to_markdown, to_text
 
 from conftest import page_t
@@ -52,8 +52,8 @@ def two_pages():
 
 
 def recomposed_item(pages, ids=("b1-1", "b1-2")):
-    """The pages recomposed as one item (``recomposition.unicode.v1``), with their page ids."""
-    return UnicodeRecompositionEngine()(pages, page_ids=list(ids))
+    """The pages recomposed as one item (``paragraphs.unicode.v1``), with their page ids."""
+    return UnicodeParagraphsEngine()(pages, page_ids=list(ids))
 
 
 def test_paragraph_continues_across_the_page_break_with_page_provenance():
@@ -104,8 +104,8 @@ def test_item_blocks_group_pages_and_write(tmp_path):
         set_page(d, p)
         docs.append(d)
     stream = iter(docs)
-    for block in (Binder(), Recomposer("unicode-recomposition", unit="item"),
-                  Composer("linked-composition", unit="item", options={"sections": True}),
+    for block in (ItemAssembler(), ParagraphBuilder("unicode-paragraphs", unit="item"),
+                  DocumentComposer("linked-document", unit="item", options={"sections": True}),
                   ItemDocumentWriter(str(tmp_path), texts=("literal:md", "literal:txt", "literal:json", "flow:md"),
                                      dividers=True)):
         stream = block.run(stream)

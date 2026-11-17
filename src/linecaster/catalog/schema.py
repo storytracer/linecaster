@@ -29,10 +29,10 @@ from linecaster.runtime.record import RunRecord
 #: the others rules (their engines are built in, ``linecaster.engines``, or come with an engine package); ``import``
 #: reads a source document (a transcription file, a source's markup) into a transcription; ``tagging`` classifies
 #: zones in property schemes (``linecaster.engines.tagging``: rules, and a panel of models behind chat servers)
-STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "typography", "recomposition", "composition",
+STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "hierarchy", "paragraphs", "document",
          "import", "tagging")
 #: the steps whose engines are rules (strategies), in the pipeline's process only
-RULE_STEPS = ("image", "typography", "recomposition", "composition", "import")
+RULE_STEPS = ("image", "hierarchy", "paragraphs", "document", "import")
 #: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``); steps without one are
 #: post-processing (``linecaster.runtime.provenance.OCRD_FALLBACK_STEP``)
 OCRD_STEPS = {
@@ -43,8 +43,8 @@ OCRD_STEPS = {
     "tables": "layout/segmentation/region",
     "formulas": "recognition/text-recognition",
     "image": "preprocessing/optimization",
-    "typography": "layout/segmentation/classification",
-    "composition": "layout/analysis",
+    "hierarchy": "layout/segmentation/classification",
+    "document": "layout/analysis",
     "tagging": "layout/segmentation/classification",
 }
 #: what a preset can put into a transcription
@@ -752,7 +752,7 @@ FORMATS: dict[str, type[BaseModel]] = {
     "linecaster.evidence/2": Evidence2,
     "linecaster.evidence/3": Evidence3,
     "linecaster.benchmark/2": Benchmark,
-    "linecaster.run-record/1": RunRecord,
+    "linecaster.run-record/2": RunRecord,
     PAGE_SCHEMA: Page,                   # a page record's `page` (the row: schema, id, text, page, errors)
     DOCUMENT_SCHEMA: Document,
 }

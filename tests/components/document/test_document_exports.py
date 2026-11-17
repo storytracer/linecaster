@@ -9,9 +9,9 @@ import pytest
 from PIL import Image
 
 from linecaster.core.page import page_of
-from linecaster.components.items import Binder
-from linecaster.components.document.document_builder import Composer
-from linecaster.components.hierarchy.hierarchy_detector import Typographer
+from linecaster.components.items import ItemAssembler
+from linecaster.components.document.document_builder import DocumentComposer
+from linecaster.components.hierarchy.hierarchy_detector import HierarchyDetector
 from linecaster.components.layout import LayoutDetector
 from linecaster.components.lines.line_assigner import LineAssigner
 from linecaster.components.readers.images import ImageFolderReader
@@ -27,7 +27,7 @@ from conftest import line, page_doc, page_t, page_to_compose, page_with, recompo
 
 
 def _composed_doc(**options):
-    return list(Composer("linked-composition", options=options).run(Typographer("ratios").run(iter([page_doc()]))))
+    return list(DocumentComposer("linked-document", options=options).run(HierarchyDetector("ratios").run(iter([page_doc()]))))
 
 
 def test_html_follows_the_furniture_layer():
@@ -57,7 +57,7 @@ def test_page_writers_write_every_document_format(tmp_path: Path):
     docs = _composed_doc()
     fmts = ("md", "txt", "html", "json")
     list(PageFileWriter(str(tmp_path / "a"), formats=fmts, suffix=".x", bucket_by_item=False).run(iter(docs)))
-    data = docs[0].metadata[DOCUMENT_KEY]                 # the Composer's document
+    data = docs[0].metadata[DOCUMENT_KEY]                 # the DocumentComposer's document
     for fmt in fmts:
         name = f"p1.x.{EXPORT_FORMATS[fmt]}"
         assert (tmp_path / "a" / name).read_bytes() == export(load_document(data), fmt).encode("utf-8"), name
@@ -165,7 +165,7 @@ def test_item_exports_every_format(tmp_path: Path):
         t = page_t(n, [f"Page {n} text."], heading="Chapter" if n == 1 else None)
         d = page_doc(page_id=f"p{n}", item="book", t=t, seq=n)
         docs.append(d)
-    items = list(Composer("linked-composition", unit="item", options={"sections": True}).run(Binder().run(iter(docs))))
+    items = list(DocumentComposer("linked-document", unit="item", options={"sections": True}).run(ItemAssembler().run(iter(docs))))
     list(ItemDocumentWriter(str(tmp_path), texts=[f"literal:{f}" for f in EXPORT_FORMATS], suffix=".x").run(iter(items)))
     names = sorted(p.name for p in (tmp_path / "literal").iterdir())
     assert names == sorted(f"book.x.{ext}" for ext in EXPORT_FORMATS.values())
@@ -267,7 +267,7 @@ def test_the_rendering_policy_places_the_regions():
     from linecaster.data.policy import RenderingPolicy, RenderingRule
 
     t = page_to_compose()
-    a = t.add_annotator(Annotator(kind="rule", step="typography", name="ratios"))
+    a = t.add_annotator(Annotator(kind="rule", step="hierarchy", name="ratios"))
     t.classify(a, "section_header_6", "status", "removed")
     t.descriptions.append(Description(annotator=0, target="image_4", text="a drawing of a flower"))
     parts = _parts(build_document(t, name="p1", width=1000, height=1000))
@@ -344,7 +344,7 @@ def test_regions_continue_by_their_links():
 
 
 def test_the_composer_adds_nothing_to_the_transcription():
-    before = page_of(Typographer("ratios").run(iter([page_doc()])).__next__()).transcriptions["ocr_new"]
+    before = page_of(HierarchyDetector("ratios").run(iter([page_doc()])).__next__()).transcriptions["ocr_new"]
     docs = _composed_doc()
     after = page_of(docs[0]).transcriptions["ocr_new"]
     assert after.model_dump(exclude={"annotators"}) == before.model_dump(exclude={"annotators"})

@@ -8,7 +8,7 @@ import pytest
 from linecaster.catalog import registry
 from linecaster.catalog.registry import Catalog, engine_spec, write_entry
 from linecaster.data import Annotator, Transcription
-from linecaster.engines import ByScriptRecompositionEngine, ScriptDispatch
+from linecaster.engines import ByScriptParagraphsEngine, ScriptDispatch
 from linecaster.engines.base import RuleEngine
 from linecaster.engines.scripts import Classifier, check_code
 from linecaster.errors import CatalogError
@@ -19,8 +19,8 @@ HERE = "test_dispatch"
 class FakeHebrewRecompositionEngine(RuleEngine):
     """A Hebrew strategy that keeps every division mark and joins rows with " | "; notes what it decided."""
 
-    engine_id = "recomposition.fake-hebrew.v1"
-    step = "recomposition"
+    engine_id = "paragraphs.fake-hebrew.v1"
+    step = "paragraphs"
     capabilities = {"unit": "item", "produces": ["paragraphs"]}
     scripts = ("Hebr",)
     calls: list = []
@@ -38,8 +38,8 @@ def spec(cls) -> dict:
     return {"engine": f"{HERE}:{cls.__name__}", "options": {}}
 
 
-UNICODE = {"engine": "linecaster.engines:UnicodeRecompositionEngine", "options": {}}
-RATIOS = {"engine": "linecaster.engines:RatiosTypographyEngine", "options": {}}
+UNICODE = {"engine": "linecaster.engines:UnicodeParagraphsEngine", "options": {}}
+RATIOS = {"engine": "linecaster.engines:RatiosHierarchyEngine", "options": {}}
 
 
 # ------------------------------------------------------------------------------------------------ scripts
@@ -65,11 +65,11 @@ def test_a_dispatch_needs_a_default_and_covering_strategies():
         ScriptDispatch({"Hebr": spec(FakeHebrewRecompositionEngine)})
     with pytest.raises(ValueError, match="covers only"):
         ScriptDispatch({"Latn": spec(FakeHebrewRecompositionEngine), "*": UNICODE})
-    with pytest.raises(ValueError, match="typography engine"):
-        ScriptDispatch({"Hebr": RATIOS, "*": UNICODE}, step="recomposition")
+    with pytest.raises(ValueError, match="hierarchy engine"):
+        ScriptDispatch({"Hebr": RATIOS, "*": UNICODE}, step="paragraphs")
     d = ScriptDispatch({"Hebr": spec(FakeHebrewRecompositionEngine), "*": UNICODE})
     assert type(d.at("שלו-", "ם")).__name__ == "FakeHebrewRecompositionEngine"
-    assert type(d.at("Wort-", "teil")).__name__ == "UnicodeRecompositionEngine"
+    assert type(d.at("Wort-", "teil")).__name__ == "UnicodeParagraphsEngine"
     assert type(d.strategy("Arab")) is type(d.default)
 
 
@@ -91,7 +91,7 @@ def _region(t, a, rid, order, texts, x0=100.0):
 def test_recomposition_by_script_routes_each_decision():
     """A Latin and a Hebrew region on one page: the Latin row ends decided by the Unicode rules, the Hebrew ones by
     the Hebrew strategy; the by-script engine records the step."""
-    from linecaster.engines import UnicodeRecompositionEngine
+    from linecaster.engines import UnicodeParagraphsEngine
 
     page = Transcription()
     a = page.add_annotator(Annotator(step="layout", name="test"))
@@ -100,7 +100,7 @@ def test_recomposition_by_script_routes_each_decision():
     lines = latin + hebrew
     page.add_order(a, ["latin", "hebrew"], lines, [0, 1, 0, 1, 2])
     FakeHebrewRecompositionEngine.calls = []
-    e = ByScriptRecompositionEngine(strategies={"Hebr": spec(FakeHebrewRecompositionEngine), "*": UNICODE})
+    e = ByScriptParagraphsEngine(strategies={"Hebr": spec(FakeHebrewRecompositionEngine), "*": UNICODE})
     (t,) = e([page.model_copy(deep=True)])
     # each row end goes to its script's strategy: the Hebrew one is asked about its mark and its separator; the
     # paragraphs hold their rows (since linecaster.page/5 no text: a strategy writes it)
@@ -108,15 +108,15 @@ def test_recomposition_by_script_routes_each_decision():
     assert [[r.lines for r in p.rows] for p in t.paragraphs] == [[["latin_l0"], ["latin_l1"]],
                                                                  [["hebrew_l0"], ["hebrew_l1"], ["hebrew_l2"]]]
     m = t.annotators[-1]
-    assert len(t.annotators) == 2 and (m.step, m.engine) == ("recomposition", "recomposition.by-script.v1")
+    assert len(t.annotators) == 2 and (m.step, m.engine) == ("paragraphs", "paragraphs.by-script.v1")
     assert m.settings["strategies"]["Hebr"]["engine"] == f"{HERE}:FakeHebrewRecompositionEngine"
-    (alone,) = UnicodeRecompositionEngine()([page.model_copy(deep=True)])
+    (alone,) = UnicodeParagraphsEngine()([page.model_copy(deep=True)])
     assert [[r.lines for r in p.rows] for p in alone.paragraphs] == [[r.lines for r in p.rows] for p in t.paragraphs]
 
 
 # -------------------------------------------------------------------------------------------- the catalog
 
-def preset(root, pid, engine, step="recomposition", **fields):
+def preset(root, pid, engine, step="paragraphs", **fields):
     write_entry(root / "presets" / step / f"{pid}.yaml", {
         "schema": "linecaster.preset", "id": pid, "step": step, "engine": engine,
         "capabilities": {"unit": "item", "produces": ["paragraphs"]}, **fields})
@@ -130,19 +130,19 @@ def fake_engine(monkeypatch):
 
 
 def test_by_script_presets(tmp_path, fake_engine):
-    preset(tmp_path, "unicode-recomposition", "recomposition.unicode.v1")
+    preset(tmp_path, "unicode-paragraphs", "paragraphs.unicode.v1")
     preset(tmp_path, "hebrew-recomposition", FakeHebrewRecompositionEngine.engine_id)
-    preset(tmp_path, "by-script", "recomposition.by-script.v1",
-           by_script={"Hebr": "hebrew-recomposition", "*": "unicode-recomposition"})
+    preset(tmp_path, "by-script", "paragraphs.by-script.v1",
+           by_script={"Hebr": "hebrew-recomposition", "*": "unicode-paragraphs"})
     c = Catalog([tmp_path])
     c.write_index()                                   # a catalog directory commits its index (catalog.index)
     assert c.verify() == []
     content = c.resolve("by-script").content
     assert content["by_script"] == {code: {"ref": ref, "sha256": c.resolve(ref).sha256} for code, ref in
-                                    (("*", "unicode-recomposition"), ("Hebr", "hebrew-recomposition"))}
+                                    (("*", "unicode-paragraphs"), ("Hebr", "hebrew-recomposition"))}
     with registry.active(c):
         target, kwargs, r = engine_spec("by-script")
-        assert target == "linecaster.engines:ByScriptRecompositionEngine" and r.ref == "by-script"
+        assert target == "linecaster.engines:ByScriptParagraphsEngine" and r.ref == "by-script"
         assert kwargs["strategies"]["Hebr"] == {"engine": f"{HERE}:FakeHebrewRecompositionEngine", "options": {},
                                                 "preset": "hebrew-recomposition",
                                                 "preset_sha256": c.resolve("hebrew-recomposition").sha256}
@@ -154,21 +154,21 @@ def test_by_script_presets(tmp_path, fake_engine):
 
 
 def test_by_script_presets_are_checked(tmp_path, fake_engine):
-    preset(tmp_path, "unicode-recomposition", "recomposition.unicode.v1")
+    preset(tmp_path, "unicode-paragraphs", "paragraphs.unicode.v1")
     preset(tmp_path, "hebrew-recomposition", FakeHebrewRecompositionEngine.engine_id)
-    preset(tmp_path, "latin-hebrew", "recomposition.by-script.v1",
-           by_script={"Latn": "hebrew-recomposition", "*": "unicode-recomposition"})
-    preset(tmp_path, "unknown", "recomposition.by-script.v1",
-           by_script={"Hebr": "no-such", "*": "unicode-recomposition"})
-    preset(tmp_path, "ratios", "typography.ratios.v1", step="typography",
+    preset(tmp_path, "latin-hebrew", "paragraphs.by-script.v1",
+           by_script={"Latn": "hebrew-recomposition", "*": "unicode-paragraphs"})
+    preset(tmp_path, "unknown", "paragraphs.by-script.v1",
+           by_script={"Hebr": "no-such", "*": "unicode-paragraphs"})
+    preset(tmp_path, "ratios", "hierarchy.ratios.v1", step="hierarchy",
            capabilities={"unit": "page", "produces": ["hierarchy"]})
-    preset(tmp_path, "other-step", "recomposition.by-script.v1",
+    preset(tmp_path, "other-step", "paragraphs.by-script.v1",
            by_script={"*": "ratios"})
     problems = Catalog([tmp_path]).verify()
     assert any("latin-hebrew: by_script Latn" in p and "covers only ['Hebr']" in p for p in problems)
     assert any("unknown: by_script Hebr" in p and "no-such" in p for p in problems)
-    assert any("other-step: by_script *" in p and "typography preset" in p for p in problems)
-    for bad in ({"Hebr": "hebrew-recomposition"}, {"Hebrew": "x", "*": "y"}, {"*": "unicode-recomposition@1"}):
-        preset(tmp_path, "bad", "recomposition.by-script.v1", by_script=bad)
+    assert any("other-step: by_script *" in p and "hierarchy preset" in p for p in problems)
+    for bad in ({"Hebr": "hebrew-recomposition"}, {"Hebrew": "x", "*": "y"}, {"*": "unicode-paragraphs@1"}):
+        preset(tmp_path, "bad", "paragraphs.by-script.v1", by_script=bad)
         with pytest.raises(CatalogError, match="by_script"):
             Catalog([tmp_path])

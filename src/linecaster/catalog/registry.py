@@ -74,7 +74,8 @@ _WARNED: set[str] = set()
 #: entries a release renamed: old id -> (new id, release). LightOnOCR-3's grounding mode became its bare preset in
 #: 0.10.4; the plain mode (the card's transcription call), the bare preset until then, became ``-plain``
 RENAMED = {"lightonocr-3-0.8b-grounding": ("lightonocr-3-0.8b", "0.10.4"),
-           "lightonocr-3-4b-grounding": ("lightonocr-3-4b", "0.10.4")}
+           "lightonocr-3-4b-grounding": ("lightonocr-3-4b", "0.10.4"),
+           "unicode-recomposition": ("unicode-paragraphs", "0.12.0"), "linked-composition": ("linked-document", "0.12.0")}
 #: preset ids whose editions from before 0.10 (``id@N``) are another entry today: LightOnOCR-3's plain mode
 PRESET_EDITIONS_RENAMED = {"lightonocr-3-0.8b": "lightonocr-3-0.8b-plain", "lightonocr-3-4b": "lightonocr-3-4b-plain"}
 
@@ -872,10 +873,10 @@ BUILTIN_ENGINES = {
     "image.convert.v1": "linecaster.engines:ImageConvertEngine",
     "image.webp-lossless.v1": "linecaster.engines:WebpLosslessImageEngine",
     "layout.single-region.v1": "linecaster.engines:SingleRegionLayoutEngine",
-    "typography.ratios.v1": "linecaster.engines:RatiosTypographyEngine",
-    "recomposition.unicode.v1": "linecaster.engines:UnicodeRecompositionEngine",
-    "recomposition.by-script.v1": "linecaster.engines:ByScriptRecompositionEngine",
-    "composition.linked.v1": "linecaster.engines:LinkedCompositionEngine",
+    "hierarchy.ratios.v1": "linecaster.engines:RatiosHierarchyEngine",
+    "paragraphs.unicode.v1": "linecaster.engines:UnicodeParagraphsEngine",
+    "paragraphs.by-script.v1": "linecaster.engines:ByScriptParagraphsEngine",
+    "document.linked.v1": "linecaster.engines:LinkedDocumentEngine",
     "tagging.geometry.v1": "linecaster.engines:GeometryTaggingEngine",
     "tagging.chat.v1": "linecaster.engines:ChatTaggingEngine",
     **{eid: f"linecaster.engines:{cls.__name__}" for eid, cls in IMPORTERS.items()},
@@ -902,7 +903,7 @@ def engine_ids() -> dict[str, str]:
     Example:
         from linecaster.catalog import engine_ids
 
-        engine_ids()["typography.ratios.v1"]      # 'linecaster.engines:RatiosTypographyEngine'
+        engine_ids()["hierarchy.ratios.v1"]      # 'linecaster.engines:RatiosHierarchyEngine'
     """
     return {**BUILTIN_ENGINES, **{ep.name: ep.value for ep in entry_points(group="linecaster.engines")}, **REGISTERED}
 

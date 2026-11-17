@@ -1,8 +1,8 @@
-"""``Composer``: the document of a page or of an item, rendered from its regions, paragraphs or lines, and tables
-(``composition.*`` engines; ``composition.linked.v1``, ``linecaster.document``).
+"""``DocumentComposer``: the document of a page or of an item, rendered from its regions, paragraphs or lines, and tables
+(``composition.*`` engines; ``document.linked.v1``, ``linecaster.document``).
 
-In the modular pipeline's order: ... recognition -> tables -> ``Typographer`` ->
-``Recomposer`` -> ``Composer`` -> writers. Without a ``Recomposer`` the document is diplomatic: each text region as
+In the modular pipeline's order: ... recognition -> tables -> ``HierarchyDetector`` ->
+``ParagraphBuilder`` -> ``DocumentComposer`` -> writers. Without a ``ParagraphBuilder`` the document is diplomatic: each text region as
 laid out, one row per line.
 """
 from __future__ import annotations
@@ -19,10 +19,10 @@ from linecaster.core.rule import RuleComponent
 UNITS = ("page", "item")
 
 
-class Composer(RuleComponent):
+class DocumentComposer(RuleComponent):
     """Composes the document (``linecaster.document``) of a page or an item by a composition engine.
 
-    Text regions are composed from their paragraphs when a ``Recomposer`` made them, else from their lines as laid
+    Text regions are composed from their paragraphs when a ``ParagraphBuilder`` made them, else from their lines as laid
     out (a diplomatic document). Reads ``regions`` and ``lines`` (and the paragraphs when there are); adds
     ``document``; stat ``documents`` (pages) or ``items``. Composition is a rendering: the transcriptions are left
     as they are (no annotator is added), and the document travels with the page or item record only, it is not
@@ -32,24 +32,24 @@ class Composer(RuleComponent):
     and the transcription composed in ``doc.metadata["document_transcription"]``, for the page writers (a writer
     without them renders the document itself). ``unit="item"``: one document per item record
     (``linecaster.core.item``), page ``n`` its ``n``-th page, paragraphs continued across pages (an
-    item-level ``Recomposer`` before it): ``doc.metadata["document"]`` and ``["item_id"]``, ``doc.text`` its plain
+    item-level ``ParagraphBuilder`` before it): ``doc.metadata["document"]`` and ``["item_id"]``, ``doc.text`` its plain
     text (with furniture), as ``ItemDocumentWriter`` writes them.
 
     Args:
-        preset: the composition engine: a preset (e.g. ``linked-composition``) or an ``InProcess`` engine spec.
+        preset: the composition engine: a preset (e.g. ``linked-document``) or an ``InProcess`` engine spec.
         transcription: the transcription to compose.
-        unit: ``page`` (a document per page) or ``item`` (a document per item record, after a ``Binder``).
+        unit: ``page`` (a document per page) or ``item`` (a document per item record, after a ``ItemAssembler``).
         options: engine options over the preset's, e.g. ``{"sections": True}``; ``None``: the preset's.
         policy: the rendering policy (a catalog ``policy`` entry) that puts each region into its layer.
 
     Example:
-        Composer("linked-composition")
-        Composer("linked-composition", unit="item")
+        DocumentComposer("linked-document")
+        DocumentComposer("linked-document", unit="item")
     """
 
     name = "composer"
-    step = "composition"
-    docs_args = {"preset": "linked-composition"}
+    step = "document"
+    docs_args = {"preset": "linked-document"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None, policy: str = DEFAULT_POLICY_REF):

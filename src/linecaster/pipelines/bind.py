@@ -4,7 +4,7 @@ strategies. It reads the page records of a transcribe run; written in item shard
 reads whole shard folders, so it sees every page of its items. No engine or GPU is needed: the steps are rule-based,
 each a preset.
 
-    uv run pipelines/bind.py OUT1/pages OUT2 --recomposition unicode-recomposition --composition linked-composition
+    uv run pipelines/bind.py OUT1/pages OUT2 --paragraphs unicode-paragraphs --document linked-document
     ... --text literal:txt --text latin-historic+flow+unicode-marks:md    # texts by named strategies
     uv run pipelines/transcribe_modular.py IMAGES OUT1 ... --tasks 4000 --item-shards 64
     uv run pipelines/bind.py OUT1/pages OUT2 ... --tasks 64
@@ -17,22 +17,22 @@ OUT2/documents/<strategy>/<item>.<ext>; with --jsonl also OUT2/texts/<strategy>.
 normalized unless a text names a strategy. ``linecaster.runtime.run`` has the options every pipeline shares (IMAGES
 is the page records folder here).
 """
-from linecaster.components.items import Binder
-from linecaster.components.document import Composer
-from linecaster.components.paragraphs import Recomposer
+from linecaster.components.items import ItemAssembler
+from linecaster.components.document import DocumentComposer
+from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.readers.records import PageRecordReader
 from linecaster.components.writers.items import DEFAULT_TEXTS, ItemDocumentWriter, ItemTextWriter, parse_texts
 from linecaster.errors import PipelineConfigError
 from linecaster.runtime import run
 
 #: the rule-based steps of the item stage, each a slot
-RULE_SLOTS = ("recomposition", "composition")
+RULE_SLOTS = ("paragraphs", "document")
 
 
 def options(ap):
-    ap.add_argument("--recomposition", help="recomposition preset: the item's pages as running text, paragraphs "
-                                            "continued across page breaks (e.g. unicode-recomposition)")
-    ap.add_argument("--composition", help="composition preset: the item's document (e.g. linked-composition)")
+    ap.add_argument("--paragraphs", help="recomposition preset: the item's pages as running text, paragraphs "
+                                            "continued across page breaks (e.g. unicode-paragraphs)")
+    ap.add_argument("--document", help="composition preset: the item's document (e.g. linked-document)")
     ap.add_argument("--set", action="append", default=[], metavar="STEP.OPTION=VALUE",
                     help="an engine option over the preset's, e.g. composition.sections=true; repeatable")
     ap.add_argument("--text", action="append", default=[], metavar="STRATEGY:FORMAT",
@@ -57,15 +57,15 @@ def models(a) -> list[dict]:
 def pipeline(a, script: str) -> list:
     out = a.out.rstrip("/")
     texts = [f"{s}:{f}" for s, f in parse_texts(a.text or list(DEFAULT_TEXTS))]
-    if not a.composition:
-        raise PipelineConfigError("bind: pick --composition (or a --recipe that names it): every text is written "
+    if not a.document:
+        raise PipelineConfigError("bind: pick --document (or a --recipe that names it): every text is written "
                                   "from the item's document")
     over = run.overrides(a.set, steps=[s for s in RULE_SLOTS if getattr(a, s)])
     return [
         PageRecordReader(a.images, fetch_images=False, item_shards=True, sample=run.sample_rule(a)),
-        Binder(),
-        *([Recomposer(a.recomposition, unit="item", options=over.get("recomposition"))] if a.recomposition else []),
-        Composer(a.composition, unit="item", options=over.get("composition"), policy=a.policy),
+        ItemAssembler(),
+        *([ParagraphBuilder(a.paragraphs, unit="item", options=over.get("paragraphs"))] if a.paragraphs else []),
+        DocumentComposer(a.document, unit="item", options=over.get("document"), policy=a.policy),
         ItemDocumentWriter(f"{out}/documents", texts=texts, furniture=a.furniture, dividers=a.dividers,
                            policy=a.policy),
         *([ItemTextWriter(f"{out}/texts", texts=texts, policy=a.policy)] if a.jsonl else []),
@@ -74,4 +74,4 @@ def pipeline(a, script: str) -> list:
 
 #: what a recipe for this pipeline names (``linecaster.catalog.schema.RecipeDoc.pipeline``) and its slots
 PIPELINE = "bind.v1"
-SLOTS = {"recomposition": "recomposition", "composition": "composition"}
+SLOTS = {"paragraphs": "paragraphs", "document": "document"}

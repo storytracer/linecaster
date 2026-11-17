@@ -35,7 +35,7 @@ def paragraphs_of(t: Transcription) -> list[Paragraph]:
     the lines on each row), by a recomposition annotator."""
     from linecaster.text.recomposition import Lexicon, reflow_rows, region_rows, row_lines
 
-    a = t.add_annotator(Annotator(kind="rule", step="recomposition", name="test"))
+    a = t.add_annotator(Annotator(kind="rule", step="paragraphs", name="test"))
     lines = t.lines_of("text_0")
     rows, on_row = region_rows(t, lines), row_lines(t, lines)
     lexicon = Lexicon()

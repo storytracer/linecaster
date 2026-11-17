@@ -1,5 +1,5 @@
 """Page engines for linecaster that call a vendor's page pipeline behind its own HTTP API: Falcon-OCR's pipeline
-service and OXR's all-in-one service. Each service runs in the vendor's image (linecaster's ``ServiceServer`` starts
+service and OXR's all-in-one service. Each service runs in the vendor's image (linecaster's ``VendorServer`` starts
 it from the preset); the engines are its clients, in the pipeline's process, one page per request."""
 from linecaster_services.falcon import FalconRecognitionEngine
 from linecaster_services.oxr import OxrRecognitionEngine

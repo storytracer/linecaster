@@ -113,7 +113,7 @@ def test_recomposition_margins_follow_the_recorded_direction():
 ])
 def test_paragraphs_start_at_an_indent_on_the_side_lines_start(recorded, indented_at, paragraphs):
     from linecaster.data import Source
-    from linecaster.engines import UnicodeRecompositionEngine
+    from linecaster.engines import UnicodeParagraphsEngine
 
     t = Transcription(source=Source(image_width=1000, image_height=1000))
     a = t.add_annotator(Annotator(step="layout", name="test"))
@@ -126,5 +126,5 @@ def test_paragraphs_start_at_an_indent_on_the_side_lines_start(recorded, indente
                                                                       else 900)
         t.add_line(a, f"l{i}", [x0, 100 + i * 50, x1 - x0, 40], region="r0", text=s)
     t.add_order(a, ["r0"], [f"l{i}" for i in range(4)], [0, 1, 2, 3])
-    UnicodeRecompositionEngine()([t])
+    UnicodeParagraphsEngine()([t])
     assert [[ln for row in p.rows for ln in row.lines] for p in t.paragraphs] == paragraphs

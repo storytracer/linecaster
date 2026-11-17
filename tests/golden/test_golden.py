@@ -11,10 +11,10 @@ from linecaster import document, formats
 from linecaster.backends import InProcess
 from linecaster.core.item import item_pages
 from linecaster.core.page import page_of
-from linecaster.components.items import Binder
-from linecaster.components.document import Composer
-from linecaster.components.hierarchy import Typographer
-from linecaster.components.paragraphs import Recomposer
+from linecaster.components.items import ItemAssembler
+from linecaster.components.document import DocumentComposer
+from linecaster.components.hierarchy import HierarchyDetector
+from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.layout import LayoutDetector
 from linecaster.components.lines import LineAssigner, LineDetector
 from linecaster.components.recognition import LineRecognizer
@@ -32,7 +32,12 @@ LINES = ("Die Zeitung er-", "scheint täglich und", "koſtet vierteljähr-", "li
 VOLATILE = {"seconds", "datetime", "linecaster", "decoder", "preset_sha256", "recipe_sha256", "producer"}
 #: stored key -> today's key, and stored value -> today's value (ids of roles, engines and presets)
 RENAMED: dict[str, str] = {}
-RENAMED_VALUES: dict[str, str] = {}
+RENAMED_VALUES: dict[str, str] = {
+    "typography": "hierarchy", "recomposition": "paragraphs", "composition": "document",                 # 0.12: steps
+    "typography.ratios.v1": "hierarchy.ratios.v1", "recomposition.unicode.v1": "paragraphs.unicode.v1",
+    "composition.linked.v1": "document.linked.v1", "unicode-recomposition": "unicode-paragraphs",
+    "linked-composition": "linked-document",
+}
 
 _VERSION = re.compile(r"\d+\.\d+\.\d+(?:\.dev\d+)? \([0-9a-f]{12}(?:, modified)?\)|\d+\.\d+\.\d+(?:\.dev\d+)?")
 _TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?")
@@ -69,7 +74,7 @@ def _models():
 
 
 def _rules(unit: str = "page"):
-    return [Recomposer("unicode-recomposition", unit=unit), Composer("linked-composition", unit=unit)]
+    return [ParagraphBuilder("unicode-paragraphs", unit=unit), DocumentComposer("linked-document", unit=unit)]
 
 
 def _samples():
@@ -91,7 +96,7 @@ def outputs() -> dict:
     out: dict = {"modeled": [], "pages": [], "items": []}
     for d in run_pages(_models(), sample_documents(2, text=False)):
         out["modeled"].append(page_of(d).model_dump(mode="json", exclude_none=True))
-    for d in run_pages([Typographer("ratios"), *_rules()], _samples()):
+    for d in run_pages([HierarchyDetector("ratios"), *_rules()], _samples()):
         page = page_of(d)
         t = page.transcriptions[SAMPLE_TRANSCRIPTION]
         size = {"image_width": page.image.width, "image_height": page.image.height}
@@ -100,7 +105,7 @@ def outputs() -> dict:
             "alto": formats.to_alto(t, **size).decode(), "page": formats.to_page(t, **size).decode(),
             "hocr": formats.to_hocr(t, **size).decode(), "document": _texts(_document(d)),
         })
-    for d in run_pages([Typographer("ratios"), Binder(), *_rules("item")], _samples()):
+    for d in run_pages([HierarchyDetector("ratios"), ItemAssembler(), *_rules("item")], _samples()):
         out["items"].append({"pages": [p.page_id for p in item_pages(d)], "document": _texts(_document(d))})
     return scrub(out)
 

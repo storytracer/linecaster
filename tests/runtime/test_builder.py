@@ -13,17 +13,17 @@ from linecaster.backends import InProcess, Served
 from linecaster.core.composite import Composite
 from linecaster.core.contract import Contract, Part
 from linecaster.core.page import PageComponent, new_page_document, page_of
-from linecaster.components.items import Binder, Splitter
+from linecaster.components.items import ItemAssembler, ItemSplitter
 from linecaster.components.composites import ModularTranscriber
-from linecaster.components.document import Composer
-from linecaster.components.hierarchy import Typographer
-from linecaster.components.paragraphs import Recomposer
+from linecaster.components.document import DocumentComposer
+from linecaster.components.hierarchy import HierarchyDetector
+from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.layout import LayoutDetector
 from linecaster.components.lines import LineAssigner, LineDetector
 from linecaster.components.readers import ImageFolderReader, PageRecordReader
 from linecaster.components.recognition import LineRecognizer
 from linecaster.components.tables import TableRecognizer
-from linecaster.components.servers import ModelServer
+from linecaster.components.servers import EngineServer
 from linecaster.components.writers import ItemDocumentWriter, ItemTextWriter, PageFileWriter, PageJsonlWriter
 from linecaster.catalog import yamlio
 from linecaster.data import Line
@@ -48,7 +48,7 @@ TEMPLATE = "page {width}x{height} line {index}"
 def item_texts(folder: str) -> list:
     """An item stage for pages of lines only (no regions, so no document to write texts from): the item records
     split into pages again and written."""
-    return [Splitter(), PageJsonlWriter(f"{folder}/split")]
+    return [ItemSplitter(), PageJsonlWriter(f"{folder}/split")]
 
 
 def _lines():
@@ -105,13 +105,13 @@ def _records(folder: Path) -> dict[str, dict]:
 
 def test_a_valid_pipeline_has_no_problems():
     p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text(), "single-region"),
-               Typographer("ratios"), Composer("linked-composition"),
+               HierarchyDetector("ratios"), DocumentComposer("linked-document"),
                PageFileWriter("f", formats=("hocr", "md", "json")), PageJsonlWriter("o/pages")])
     assert p.problems == []
     p.check()
     assert [type(b).__name__ for b in p.stages[0].components] == [
         "ImageFolderReader", "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer",
-        "Typographer", "Composer", "PageFileWriter", "PageJsonlWriter"]
+        "HierarchyDetector", "DocumentComposer", "PageFileWriter", "PageJsonlWriter"]
 
 
 def test_a_recognizer_without_lines():
@@ -154,8 +154,8 @@ def test_a_removed_part_is_gone_for_later_components(tmp_path: Path):
 
 
 def test_a_page_component_after_an_item_stream():
-    problems = _problems([ImageFolderReader("x"), _lines(), _text(), Binder(), Composer("linked-composition")])
-    assert "Composer (composer) works on pages, but the stream carries items here" in problems
+    problems = _problems([ImageFolderReader("x"), _lines(), _text(), ItemAssembler(), DocumentComposer("linked-document")])
+    assert "DocumentComposer (composer) works on pages, but the stream carries items here" in problems
     # and an item writer before any binder
     assert _problems([ImageFolderReader("x"), _lines(), _text(), ItemTextWriter("t")]) == [
         "ItemTextWriter (📚 item texts) works on items, but the stream carries pages here",
@@ -163,19 +163,19 @@ def test_a_page_component_after_an_item_stream():
 
 
 def test_server_components_go_last():
-    problems = _problems([ImageFolderReader("x"), ModelServer([{"name": "lines"}]), _lines(), PageJsonlWriter("o")])
+    problems = _problems([ImageFolderReader("x"), EngineServer([{"name": "lines"}]), _lines(), PageJsonlWriter("o")])
     assert problems == [
-        "LineDetector (lines (in-process)) comes after the server component ModelServer (🖥️ model server): server components "
+        "LineDetector (lines (in-process)) comes after the server component EngineServer (🖥️ model server): server components "
         "go last",
-        "PageJsonlWriter (🐿 page records (jsonl)) comes after the server component ModelServer (🖥️ model server): server "
+        "PageJsonlWriter (🐿 page records (jsonl)) comes after the server component EngineServer (🖥️ model server): server "
         "components go last"]
 
 
 def test_a_served_component_finds_its_model_at_its_server():
     served = LineDetector(Served("http://127.0.0.1:8100/v1", model="lines"))
-    ok = [ImageFolderReader("x"), served, PageJsonlWriter("o"), ModelServer([{"name": "lines"}], port=8100)]
+    ok = [ImageFolderReader("x"), served, PageJsonlWriter("o"), EngineServer([{"name": "lines"}], port=8100)]
     assert _problems(ok) == []
-    wrong = [ImageFolderReader("x"), served, PageJsonlWriter("o"), ModelServer([{"name": "layout"}], port=8100)]
+    wrong = [ImageFolderReader("x"), served, PageJsonlWriter("o"), EngineServer([{"name": "layout"}], port=8100)]
     assert _problems(wrong) == ["LineDetector (lines (served http://127.0.0.1:8100/v1 (lines))) asks the model server "
                                 "on port 8100 in the pipeline for 'lines', which it does not host (layout)"]
     # an explicit endpoint (no server component of this stage on its port) is the caller's
@@ -191,7 +191,7 @@ def test_a_pipeline_starts_with_a_reader():
 
 
 def test_every_problem_is_listed():
-    problems = _problems([ImageFolderReader("x"), _text(), ModelServer([]), Composer("linked-composition"),
+    problems = _problems([ImageFolderReader("x"), _text(), EngineServer([]), DocumentComposer("linked-document"),
                           ItemTextWriter("t")],
                          until="Nothing")
     assert len(problems) == 8
@@ -271,7 +271,7 @@ def test_group_checks():
     no_condition.group = "g"
     assert _problems([reader, no_condition, branch(Mark("P"), when=OTHERWISE, group="g")]) == [
         "Mark (mark N) is an alternative of group 'g' without a condition (when=)"]
-    apart = [reader, branch(Mark("P"), when=OTHERWISE, group="g"), Composer("linked-composition"),
+    apart = [reader, branch(Mark("P"), when=OTHERWISE, group="g"), DocumentComposer("linked-document"),
              branch(Mark("Q"), when=OTHERWISE, group="g")]
     assert "the pipeline: the alternatives of group 'g' are not next to each other" in _problems(apart)
     with pytest.raises(PipelineConfigError):
@@ -339,8 +339,8 @@ def test_modular_transcriber_runs_as_its_components():
 def _transcribe(a, texts: str):
     """Pages, then the item stage of --item-texts: the parts the page stage added carry across the binder (and the
     stage cut) to the item-level recomposition and composition, and the texts written from the item's document."""
-    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), Binder(),
-            Recomposer("unicode-recomposition", unit="item"), Composer("linked-composition", unit="item"),
+    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), ItemAssembler(),
+            ParagraphBuilder("unicode-paragraphs", unit="item"), DocumentComposer("linked-document", unit="item"),
             ItemDocumentWriter(texts, texts=("literal:txt", "latin-historic+flow:md")),
             ItemTextWriter(texts, texts=("literal:txt", "latin-historic+flow:md"))]
 
@@ -390,33 +390,33 @@ def test_two_tasks_cut_at_the_binder(items, tmp_path: Path):
 
 
 def test_one_task_or_whole_items_need_no_cut(tmp_path: Path):
-    components = [PageRecordReader("p", item_shards=True), Binder(), *item_texts("t")]
+    components = [PageRecordReader("p", item_shards=True), ItemAssembler(), *item_texts("t")]
     assert [s.name for s in build(components, tasks=4, run_folder=str(tmp_path)).stages] == ["pages and items"]
-    components = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("t")]
+    components = [ImageFolderReader("x"), _lines(), _text(), ItemAssembler(), *item_texts("t")]
     p = build(components, tasks=4)
-    assert p.problems == ["Binder (📚 binder) binds items from pages that 4 tasks read: the cut into stages "
+    assert p.problems == ["ItemAssembler (📚 binder) binds items from pages that 4 tasks read: the cut into stages "
                           "needs a run folder"]
 
 
 def test_servers_go_with_the_model_stage(tmp_path: Path):
     components = [ImageFolderReader("x"), LineDetector(Served("http://127.0.0.1:8100/v1", model="lines")), _text(),
-              PageJsonlWriter(str(tmp_path / "pages")), Binder(), *item_texts("t"),
-              ModelServer([{"name": "lines"}])]
+              PageJsonlWriter(str(tmp_path / "pages")), ItemAssembler(), *item_texts("t"),
+              EngineServer([{"name": "lines"}])]
     p = build(components, tasks=3, run_folder=str(tmp_path))
     assert p.problems == []
     assert [type(b).__name__ for b in p.stages[0].components] == ["ImageFolderReader", "LineDetector", "LineRecognizer",
-                                                             "RejectWriter", "PageJsonlWriter", "ModelServer"]
+                                                             "RejectWriter", "PageJsonlWriter", "EngineServer"]
     assert p.stages[0].components[3].output_folder == f"{tmp_path}/rejects"    # the pages that failed, before the writer
     assert p.stages[0].components[4].item_shards == 3                 # the run's page writer, now in item shards
-    assert [type(b).__name__ for b in p.stages[1].components] == ["PageRecordReader", "Binder", "Splitter",
+    assert [type(b).__name__ for b in p.stages[1].components] == ["PageRecordReader", "ItemAssembler", "ItemSplitter",
                                                              "PageJsonlWriter"]
 
 
 # ------------------------------------------------------------------------------------------------ partial runs, taps
 
 def _modular(a):
-    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), Typographer("ratios"),
-            Composer("linked-composition"), run.pages(a)]
+    return [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), HierarchyDetector("ratios"),
+            DocumentComposer("linked-document"), run.pages(a)]
 
 
 def test_until_after_and_taps(items, tmp_path: Path):
@@ -430,7 +430,7 @@ def test_until_after_and_taps(items, tmp_path: Path):
     run.run(first, _modular(first), __file__, argv=[])
     second = _args(str(tmp_path / "second"), "--pages", str(tmp_path / "first" / "pages"), "--after", "LineAssigner")
     p = run.build_plan(second, _modular(second))
-    assert [type(b).__name__ for b in p.components] == ["PageRecordReader", "LineRecognizer", "Typographer", "Composer",
+    assert [type(b).__name__ for b in p.components] == ["PageRecordReader", "LineRecognizer", "HierarchyDetector", "DocumentComposer",
                                                     "RejectWriter", "PageJsonlWriter"]
     assert {str(x) for x in p.components[0].provides} >= {"ocr_new:lines", "ocr_new:regions", "ocr_new:line_regions"}
     run.run(second, _modular(second), __file__, argv=[])
@@ -453,8 +453,8 @@ def test_partial_run_problems(tmp_path: Path):
         "(in-process))); use the component's datatrove name")
     assert _problems(components, until="LineDetector") == ["--until LineDetector: needs a run folder for the page records"]
     assert _problems(components, taps={"PageJsonlWriter": "t"}) == []
-    assert _problems(components + [Binder()], taps={"Binder": "t"}) == [
-        "--tap-after Binder: page records can only be tapped after a page component"]
+    assert _problems(components + [ItemAssembler()], taps={"ItemAssembler": "t"}) == [
+        "--tap-after ItemAssembler: page records can only be tapped after a page component"]
     # by datatrove name, and by composite (its last component)
     p = build([ImageFolderReader("x"), ModularTranscriber(_lines(), _text(), "single-region"), PageJsonlWriter("o")],
               until="modular transcriber", run_folder=str(tmp_path))
@@ -509,7 +509,7 @@ def test_boundaries_call_the_observers(tmp_path: Path):
 
 def test_run_pages_checks_first():
     with pytest.raises(PipelineConfigError):
-        run_pages([_lines(), Binder(), Composer("linked-composition")], [_doc()])
+        run_pages([_lines(), ItemAssembler(), DocumentComposer("linked-document")], [_doc()])
     out = run_pages([LayoutDetector("single-region"), _lines(), LineAssigner(), _text()], [_doc("p1"), _doc("p2", 50)])
     assert [d.id for d in out] == ["p1", "p2"]
     assert page_of(out[1]).transcriptions["ocr_new"].lines[0].reading.text == "page 50x30 line 0"
@@ -536,7 +536,7 @@ def test_a_broken_pipeline_fails_before_anything_is_written(tmp_path: Path):
     _png(tmp_path / "images" / "p1.png", 40)
     a = _args(str(tmp_path / "images"), str(tmp_path / "out"))
     with pytest.raises(PipelineConfigError) as e:
-        run.run(a, [run.reader(a), _text(), Binder(), Composer("linked-composition"), run.pages(a)], __file__,
+        run.run(a, [run.reader(a), _text(), ItemAssembler(), DocumentComposer("linked-document"), run.pages(a)], __file__,
                 argv=[])
     assert len(e.value.problems) == 5 and not (tmp_path / "out").exists()
 
@@ -572,11 +572,11 @@ def test_linecaster_page_finds_the_script():
 
 def test_the_cut_keeps_the_pipelines_item_shards_and_its_file_system():
     components = [ImageFolderReader("x"), _lines(), _text(), PageJsonlWriter("memory://lc/out/pages", item_shards=5),
-              Binder(), *item_texts("memory://lc/texts")]
+              ItemAssembler(), *item_texts("memory://lc/texts")]
     first, second = build(components, tasks=3, run_folder="memory://lc/out").stages
     assert (first.tasks, second.tasks) == (3, 5)
     assert second.components[0].data_folder is first.components[-1].output_folder
-    components = [ImageFolderReader("x"), _lines(), _text(), Binder(), *item_texts("memory://lc/texts")]
+    components = [ImageFolderReader("x"), _lines(), _text(), ItemAssembler(), *item_texts("memory://lc/texts")]
     first, second = build(components, tasks=3, run_folder="memory://lc/out2").stages
     assert "memory" in first.components[-1].output_folder.fs.protocol and first.components[-1].item_shards == 3
     assert "memory" in second.components[0].data_folder.fs.protocol
@@ -588,8 +588,8 @@ def test_each_stage_gets_an_executor_that_depends_on_the_one_before(on):
     out = f"memory://lc/stages-{on}"
     jobs = ["--namespace", "ns", "--commit", "abc"] if on == "hf-jobs" else []
     a = _args("images", out, "--tasks", "2", "--on", on, *jobs)
-    components = [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), Binder(),
-              *item_texts("memory://lc/texts"), ModelServer([])]
+    components = [run.reader(a), ModularTranscriber(_lines(), _text(), "single-region"), run.pages(a), ItemAssembler(),
+              *item_texts("memory://lc/texts"), EngineServer([])]
     p = run.build_plan(a, components)
     last = run._executors(a, p, out, None, ["linecaster"])
     first = last.depends

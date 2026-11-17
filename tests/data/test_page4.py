@@ -34,6 +34,19 @@ def test_annotator_names_its_conventions():
 
 def test_page3_rows_are_read_as_they_are():
     row = {"schema": "linecaster.page/3", "id": "p1", "text": "", "page": {"page_id": "p1"}}
-    assert upgrade(row) == {**row, "schema": "linecaster.page/5"}
+    assert upgrade(row) == {**row, "schema": "linecaster.page/6"}
     with pytest.raises(ValueError):
         upgrade({"schema": "linecaster.page/9", "id": "p1"})
+
+
+def test_a_page_5_row_names_the_renamed_steps_by_their_new_ids():
+    """page/6 (linecaster 0.12): the annotators of ``typography``, ``recomposition`` and ``composition`` name
+    ``hierarchy``, ``paragraphs`` and ``document``; everything else is as it was."""
+    from linecaster.data.upgrade import upgrade
+
+    sets = {"ocr_new": {"annotators": [{"kind": "model", "step": "layout"}, {"kind": "rule", "step": "typography"},
+                                       {"kind": "rule", "step": "recomposition"}, {"kind": "rule", "step": "composition"}]}}
+    row = upgrade({"schema": "linecaster.page/5", "id": "p", "page": {"page_id": "p", "transcriptions": sets}})
+    assert row["schema"] == "linecaster.page/6"
+    assert [a["step"] for a in row["page"]["transcriptions"]["ocr_new"]["annotators"]] == [
+        "layout", "hierarchy", "paragraphs", "document"]

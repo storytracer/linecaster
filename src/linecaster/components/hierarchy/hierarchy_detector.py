@@ -1,11 +1,11 @@
-"""``Typographer``: the typographic hierarchy of a page (``typography.*`` engines; ``typography.ratios.v1``:
+"""``HierarchyDetector``: the typographic hierarchy of a page (``typography.*`` engines; ``hierarchy.ratios.v1``:
 heading levels from type-size ratios, ``linecaster.text.typography``)."""
 from __future__ import annotations
 
 from linecaster.core.rule import RuleComponent
 
 
-class Typographer(RuleComponent):
+class HierarchyDetector(RuleComponent):
     """Determines the typographic hierarchy of every page by a typography engine.
 
     Heading levels from type size, headline splits, drop capitals, uncertain page numbers removed (see
@@ -16,11 +16,11 @@ class Typographer(RuleComponent):
     ``numbers_dropped``. Its constructor is ``RuleComponent``'s (``preset``, ``transcription``, ``options``).
 
     Example:
-        Typographer("ratios")
+        HierarchyDetector("ratios")
     """
 
     name = "typographer"
-    step = "typography"
+    step = "hierarchy"
     docs_args = {"preset": "ratios"}
     parts_read = ("regions", "lines")
     parts_added = ("hierarchy",)

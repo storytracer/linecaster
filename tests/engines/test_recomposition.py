@@ -1,4 +1,4 @@
-"""The recomposition engine (``recomposition.unicode.v1``): every decision recorded with its reason, every threshold
+"""The recomposition engine (``paragraphs.unicode.v1``): every decision recorded with its reason, every threshold
 an option, continuations across regions and pages (a page number between them keeps a paragraph open), and the
 text-only fallback. It makes paragraphs and changes no text: the division marks are a strategy's
 (``unicode-marks+flow`` below writes the text as the 0.9 recomposition did)."""
@@ -6,7 +6,7 @@ import pytest
 
 from conftest import line, page_with, region
 from linecaster.data import Annotator, Transcription
-from linecaster.engines import UnicodeRecompositionEngine
+from linecaster.engines import UnicodeParagraphsEngine
 
 
 def column(rid, rows, order=0, x=100, y=100, width=800, indents=(), short=(), gaps=(), label="text"):
@@ -25,7 +25,7 @@ def column(rid, rows, order=0, x=100, y=100, width=800, indents=(), short=(), ga
 def recompose(*regions_lines, **options):
     regions = [r for r, _ in regions_lines]
     lines = [ln for _, ls in regions_lines for ln in ls]
-    (t,) = UnicodeRecompositionEngine(**options)([page_with(regions, lines)])
+    (t,) = UnicodeParagraphsEngine(**options)([page_with(regions, lines)])
     return t
 
 
@@ -109,7 +109,7 @@ def test_what_ends_the_running_text():
 # ---------------------------------------------------------------------------------------- across pages
 
 def item(*pages):
-    return UnicodeRecompositionEngine()(list(pages), page_ids=[f"b_{k:04d}" for k in range(1, len(pages) + 1)])
+    return UnicodeParagraphsEngine()(list(pages), page_ids=[f"b_{k:04d}" for k in range(1, len(pages) + 1)])
 
 
 def page(rows, number=None, **kw):
@@ -136,7 +136,7 @@ def test_a_page_number_between_two_pages_does_not_close_the_paragraph():
     assert not a.links
     # each page alone: no continuation across the break
     for t in (page(["It was a dark and stormy night when", "the ship left the harbour and turned to"], number="12"),):
-        (alone,) = UnicodeRecompositionEngine()([t])
+        (alone,) = UnicodeParagraphsEngine()([t])
         assert not alone.links
 
 
@@ -150,9 +150,9 @@ def test_a_continuation_over_three_pages_decides_on_the_whole_text():
     assert b.link(b.paragraphs[0].id, "runs_into") == "b_0003#text_0_p0"
     assert decisions(b.paragraphs[0]) == [("continuation", "division_mark", 0)]
     from linecaster.document.strategy import apply
-    from linecaster.engines import LinkedCompositionEngine
+    from linecaster.engines import LinkedDocumentEngine
 
-    doc = LinkedCompositionEngine().item_document([a, b, c], "item", page_ids=["b_0001", "b_0002", "b_0003"],
+    doc = LinkedDocumentEngine().item_document([a, b, c], "item", page_ids=["b_0001", "b_0002", "b_0003"],
                                                   sizes=[(1000, 1000)] * 3)
     (text,) = [x.text for x in apply(doc, "unicode-marks+flow").blocks]
     assert "ends in Nord-see, where" in text                          # attested: the hyphen kept, no space
@@ -191,10 +191,10 @@ def test_every_recomposition_threshold_is_an_option():
                     [line("text_0", 0, 100, 100, 800, 20, "שורה ראשונה של הפסקה"),
                      line("text_0", 1, 100, 130, 760, 20, "פסקה חדשה מוזחת מימין"),
                      line("text_0", 2, 100, 160, 800, 20, "והיא ממשיכה")])
-    assert len(UnicodeRecompositionEngine()([rtl.model_copy(deep=True)])[0].paragraphs) == 1
-    assert len(UnicodeRecompositionEngine(rtl=True)([rtl.model_copy(deep=True)])[0].paragraphs) == 2
+    assert len(UnicodeParagraphsEngine()([rtl.model_copy(deep=True)])[0].paragraphs) == 1
+    assert len(UnicodeParagraphsEngine(rtl=True)([rtl.model_copy(deep=True)])[0].paragraphs) == 2
     with pytest.raises(ValueError):
-        UnicodeRecompositionEngine(no_such=1)
+        UnicodeParagraphsEngine(no_such=1)
 
 
 # -------------------------------------------------------------------------------------------- text only
@@ -207,7 +207,7 @@ def test_text_only_transcriptions_make_one_paragraph_per_region():
     for i, s in enumerate(["Die Untersuchung der Ab-", "lagerungen zeigt den Nord-", "Ostsee-Raum.", "", "Ein Absatz."]):
         t.add_line(a, f"l{i}", text=s)
     t.add_order(a, lines=[ln.id for ln in t.lines])
-    (t,) = UnicodeRecompositionEngine()([t])
+    (t,) = UnicodeParagraphsEngine()([t])
     (p,) = t.paragraphs
     assert p.region is None and p.id == "p0" and [r.lines for r in p.rows] == [["l0"], ["l1"], ["l2"], ["l4"]]
     assert decisions(p) == []
@@ -220,7 +220,7 @@ def test_text_only_transcriptions_make_one_paragraph_per_region():
     t.add_line(a, "a", region="r0", text="Die Unter-")
     t.add_line(a, "b", region="r1", text="suchung ist alt.")
     t.add_order(a, ["r0", "r1"])
-    (t,) = UnicodeRecompositionEngine()([t])
+    (t,) = UnicodeParagraphsEngine()([t])
     first, second = t.paragraphs
     assert t.link(first.id, "runs_into") == "r1_p0" and second.id == "r1_p0"
     assert written(t, "literal") == ["Die Unter-\nsuchung ist alt."]
@@ -236,8 +236,8 @@ def test_removed_regions_are_left_out_and_a_later_recomposition_makes_the_paragr
     b = column("text_2", ["lining of finer stuff."], order=2, y=400)
     t = page_with([a[0], region("picture_1", "picture", 100, 300, 800, 50, 1), b[0]], a[1] + b[1])
     t.classify(0, "picture_1", "status", "removed")
-    (t,) = UnicodeRecompositionEngine()([t])
+    (t,) = UnicodeParagraphsEngine()([t])
     assert t.link("text_0_p0", "runs_into") == "text_2_p0"              # the picture no longer ends the text
-    (t,) = UnicodeRecompositionEngine()([t])
+    (t,) = UnicodeParagraphsEngine()([t])
     assert sum(r.kind == "paragraph" for r in t.ranges) == 4 and [p.annotator for p in paragraphs(t)] == [2, 2]
     assert [[r.lines for r in p.rows] for p in paragraphs(t)] == [[r.lines for r in p.rows] for p in t.paragraphs[:2]]

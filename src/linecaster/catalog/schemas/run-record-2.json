@@ -669,8 +669,8 @@
   "additionalProperties": false,
   "properties": {
     "schema": {
-      "const": "linecaster.run-record/1",
-      "default": "linecaster.run-record/1",
+      "const": "linecaster.run-record/2",
+      "default": "linecaster.run-record/2",
       "title": "Schema",
       "type": "string"
     },

@@ -122,9 +122,9 @@ def page_doc(page_id="p1", item="book1", t: Transcription | None = None, seq=1):
 
 def recomposed(t: Transcription, **options) -> Transcription:
     """``t`` with its paragraphs (the recomposition engine on the page alone), for composing it as running text."""
-    from linecaster.engines import UnicodeRecompositionEngine
+    from linecaster.engines import UnicodeParagraphsEngine
 
-    UnicodeRecompositionEngine(**options)([t])
+    UnicodeParagraphsEngine(**options)([t])
     return t
 
 
@@ -133,10 +133,10 @@ def item_text(pages: list[Transcription], text: str = "literal:txt", furniture: 
     the item's document, written by the strategy in the format (``<strategy>:<format>``, ``ItemDocumentWriter``)."""
     from linecaster.document import export
     from linecaster.document.strategy import apply
-    from linecaster.engines import LinkedCompositionEngine, UnicodeRecompositionEngine
+    from linecaster.engines import LinkedDocumentEngine, UnicodeParagraphsEngine
 
     ids = [f"p{k}" for k in range(len(pages))]
-    UnicodeRecompositionEngine()(pages, page_ids=ids)
-    doc = LinkedCompositionEngine().item_document(pages, "item", page_ids=ids, sizes=[(1000, 1000)] * len(pages))
+    UnicodeParagraphsEngine()(pages, page_ids=ids)
+    doc = LinkedDocumentEngine().item_document(pages, "item", page_ids=ids, sizes=[(1000, 1000)] * len(pages))
     strategy, _, fmt = text.rpartition(":")
     return export(apply(doc, strategy), fmt, furniture)

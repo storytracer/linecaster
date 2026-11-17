@@ -71,7 +71,7 @@ unsampled page: a failed unsampled page's trace has the pipeline's spans, not th
 ## Where traces go
 
 - **The run folder**, always: `OUT/traces/<rank>.jsonl.gz` per task (`OUT/traces/<stage>/<rank>.jsonl.gz` with
-  several stages), any fsspec folder like the logs; `linecaster serve` started by a task (`ModelServer`) writes
+  several stages), any fsspec folder like the logs; `linecaster serve` started by a task (`EngineServer`) writes
   `<rank>.serve.jsonl.gz` next to it (the task gives it the file in `LINECASTER_TRACES`). The format is
   OpenTelemetry's file exporter format: one `ExportTraceServiceRequest` per line in the OTLP JSON encoding, gzipped.
   Spans are written in batches (every 2 s), each flushed to the file, which is closed (uploaded, for a remote
@@ -81,7 +81,7 @@ unsampled page: a failed unsampled page's trace has the pipeline's spans, not th
   after the engines load, since an engine's library may replace them).
 - **An OTLP endpoint**, when `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set (and
   `OTEL_TRACES_EXPORTER` is not `none`): OTLP over HTTP (protobuf), configured by the standard variables (headers,
-  timeouts). `linecaster serve` exports there too; `ChatModelServer` starts vLLM with `--otlp-traces-endpoint` and
+  timeouts). `linecaster serve` exports there too; `VLMServer` starts vLLM with `--otlp-traces-endpoint` and
   `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf`.
 
 Without a run folder (`run_pages`, tests) and without OTLP nothing is traced.

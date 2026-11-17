@@ -203,7 +203,7 @@ def test_overwritten_allows_what_was_none_to_be_set():
 
 #: a by-script engine needs strategies, which no preset gives yet
 BY_SCRIPT = {
-    "recomposition.by-script.v1": {"*": {"engine": "linecaster.engines:UnicodeRecompositionEngine"}},
+    "paragraphs.by-script.v1": {"*": {"engine": "linecaster.engines:UnicodeParagraphsEngine"}},
 }
 
 
@@ -348,7 +348,7 @@ def public_components(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, 
     from linecaster.components import paragraphs, readers, recognition
     from linecaster.components import tables as table_components
     from linecaster.components import scoring, servers, tagging, validation, writers
-    from linecaster.components.document import Composer
+    from linecaster.components.document import DocumentComposer
     from linecaster.data.sample import listing_sha256
 
     i = _inputs(tmp_path)
@@ -364,8 +364,8 @@ def public_components(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, 
     page = page_of(tables[0])
     page.transcriptions["ocr_new"] = t
     set_page(tables[0], page)
-    item_docs = list(Composer("linked-composition", unit="item").run(
-        iter(list(items.Binder().run(iter(sample_documents(2)))))))
+    item_docs = list(DocumentComposer("linked-document", unit="item").run(
+        iter(list(items.ItemAssembler().run(iter(sample_documents(2)))))))
     out = tmp_path / "out"
     entries = [
         (readers.ImageFolderReader(i["images"], item_from_parent=True), {}),
@@ -389,19 +389,19 @@ def public_components(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, 
         (images.ImageConverter(str(out / "webp2"), "working-image", keep_bytes=True), {}),
         (importers.TranscriptionImporter("auto-import", transcription="ocr_original",
                                           options={"ground_truth": False}), {"docs": _alto_docs()}),
-        (hierarchy.Typographer("ratios"), {}),
-        (paragraphs.Recomposer("unicode-recomposition"), {}),
-        (paragraphs.Recomposer("unicode-recomposition", unit="item"), {}),
-        (document.Composer("linked-composition"), {}),
-        (document.Composer("linked-composition", unit="item"), {}),
+        (hierarchy.HierarchyDetector("ratios"), {}),
+        (paragraphs.ParagraphBuilder("unicode-paragraphs"), {}),
+        (paragraphs.ParagraphBuilder("unicode-paragraphs", unit="item"), {}),
+        (document.DocumentComposer("linked-document"), {}),
+        (document.DocumentComposer("linked-document", unit="item"), {}),
         (tagging.Tagger("geometry-tags"), {}),
-        (items.Binder(), {}),
-        (items.Splitter(), {}),
+        (items.ItemAssembler(), {}),
+        (items.ItemSplitter(), {}),
         (validation.PageValidator(required=("ocr_new",)), {}),
         (validation.RecipeStamper("squiddle", catalog().resolve_recipe("squiddle").sha256), {}),
-        (servers.ModelServer([{"name": "lines", "spec": f"{FAKES}:FakeLineEngine", "kwargs": {}}]), {"run": False}),
-        (servers.ChatModelServer("lightonocr-2-1b"), {"run": False}),
-        (servers.ServiceServer("falcon-ocr"), {"run": False}),
+        (servers.EngineServer([{"name": "lines", "spec": f"{FAKES}:FakeLineEngine", "kwargs": {}}]), {"run": False}),
+        (servers.VLMServer("lightonocr-2-1b"), {"run": False}),
+        (servers.VendorServer("falcon-ocr"), {"run": False}),
         (writers.PageJsonlWriter(str(out / "jsonl")), {}),
         (writers.PageParquetWriter(str(out / "parquet")), {}),
         (writers.PageFileWriter(str(out / "files"), formats=("hocr", "alto", "page", "txt", "md")), {}),
@@ -431,8 +431,8 @@ def public_components(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, 
 BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader", "ResourceReader",
           "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "TableRecognizer", "FormulaRecognizer",
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
-          "TranscriptionImporter", "Typographer", "Recomposer", "Recomposer+", "Composer", "Composer+", "Tagger", "Binder", "Splitter", "PageValidator",
-          "RecipeStamper", "ModelServer", "ChatModelServer", "ServiceServer", "PageJsonlWriter", "PageParquetWriter",
+          "TranscriptionImporter", "HierarchyDetector", "ParagraphBuilder", "ParagraphBuilder+", "DocumentComposer", "DocumentComposer+", "Tagger", "ItemAssembler", "ItemSplitter", "PageValidator",
+          "RecipeStamper", "EngineServer", "VLMServer", "VendorServer", "PageJsonlWriter", "PageParquetWriter",
           "PageFileWriter", "ImageFilesWriter", "PageScorer", "RejectWriter", "ScoreWriter", "ResourceFilesWriter",
           "ResourceRecordWriter",
           "ItemTextWriter", "ItemDocumentWriter",

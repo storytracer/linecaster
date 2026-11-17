@@ -65,7 +65,7 @@ A page that failed a step carries `doc.metadata["errors"]`, passes later model s
 `rejects/`; more failures than the error budget fail the task ([pipelines](pipelines.md#failures)). Library code
 raises `linecaster.errors`, never `SystemExit`.
 
-**Rule components** (`RuleComponent`: `Typographer`, `Recomposer`, `Composer`; and `ImageConverter`)
+**Rule components** (`RuleComponent`: `HierarchyDetector`, `ParagraphBuilder`, `DocumentComposer`; and `ImageConverter`)
 run a built-in engine of a rule-based step in the pipeline's process, picked by a preset.
 
 ## One page per request
@@ -79,9 +79,9 @@ number of tasks or the backend.
 - **`linecaster serve`** hosts engines: stateless (no state between requests), one worker per model (several
   replicas per model were measured at +7–10 % and removed; NOTES.md), each with a bounded queue (`--max-queue`; a
   full queue answers 429 with `Retry-After`). Routes: `POST /v1/linecaster/{step}` (the image and the transcription
-  so far in, the transcription with its part and the call's annotator added out; both `linecaster.page/5`
+  so far in, the transcription with its part and the call's annotator added out; both `linecaster.page/6`
   annotation sets), `GET /v1/models`, `/health` (`status` and `protocol`, the transcription format:
-  `linecaster.page/5`) and vLLM-shaped `/metrics` (the gauges saturate reads). A `Served` client asks a server that
+  `linecaster.page/6`) and vLLM-shaped `/metrics` (the gauges saturate reads). A `Served` client asks a server that
   already answers for its `protocol` when it warms up and refuses one that names another format or none
   (`ServerError`): both sides run the same linecaster version. Built-in engines are not served: they run in the pipeline's process.
 - **VLMs** run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` and
@@ -91,11 +91,11 @@ number of tasks or the backend.
   pipeline behind its own HTTP API (Falcon-OCR, OXR). A VLM is a catalog preset
   (engine `chat.v1`; its data: revision, prompt, sampling, serve block) plus an adapter in
   `linecaster.adapters.ADAPTERS` (its code: the request, the parsing; `chat_model(<preset>)`).
-- **Servers inside a task** (one GPU per HF Job): the server components `ModelServer` (`linecaster serve`) and
-  `ChatModelServer` (vLLM or SGLang) start the server through saturate's `Engine` and go last in the pipeline,
+- **Servers inside a task** (one GPU per HF Job): the server components `EngineServer` (`linecaster serve`) and
+  `VLMServer` (vLLM or SGLang) start the server through saturate's `Engine` and go last in the pipeline,
   after the writer: datatrove chains generators, and only the last one lives until every page is written. Each
-  task starts its own servers. `ModelServer(script=...)` starts a pipeline script's `serve` with
-  `uv run --script`. `ServiceServer` starts the **service** a page preset's `serve` block names: `vllm serve` on the
+  task starts its own servers. `EngineServer(script=...)` starts a pipeline script's `serve` with
+  `uv run --script`. `VendorServer` starts the **service** a page preset's `serve` block names: `vllm serve` on the
   pinned checkpoint (fetched and checked) for an engine package that attaches to vLLM, or a vendor image's entrypoint
   (with the weights downloaded to the folder it reads first), ready once its health URLs answer; it runs without the
   pipeline's environment, in the image's own. A vendor's entrypoint listens on the image's fixed ports: one service

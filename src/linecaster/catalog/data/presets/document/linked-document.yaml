@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=../../../schemas/preset.json
 schema: linecaster.preset
-id: linked-composition
-step: composition
-engine: composition.linked.v1
+id: linked-document
+step: document
+engine: document.linked.v1
 options:
   sections: false
 capabilities:

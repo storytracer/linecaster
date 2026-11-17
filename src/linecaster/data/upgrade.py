@@ -20,6 +20,9 @@ from linecaster.data.transcription import (
 OLD = "linecaster.page/2"
 PAGE_3 = "linecaster.page/3"
 PAGE_4 = "linecaster.page/4"
+PAGE_5 = "linecaster.page/5"
+#: the steps renamed in page/6 (linecaster 0.12)
+STEPS_RENAMED = {"typography": "hierarchy", "recomposition": "paragraphs", "composition": "document"}
 PAGE_KEY = "page"
 
 
@@ -263,9 +266,25 @@ def page_4_to_5(row: dict) -> dict:
     return {**row, PAGE_KEY: page}
 
 
+def page_5_to_6(row: dict) -> dict:
+    """A stored page/5 row in page/6: the annotators of the steps renamed in linecaster 0.12 name them by their new
+    ids (``STEPS_RENAMED``); nothing else differs."""
+    page = dict(row.get(PAGE_KEY) or {})
+    for key in ("transcriptions", "annotations"):
+        sets = {}
+        for name, t in (page.get(key) or {}).items():
+            annotators = [{**a, "step": STEPS_RENAMED.get(a.get("step"), a.get("step"))} if isinstance(a, dict) else a
+                          for a in t.get("annotators") or []]
+            sets[name] = {**t, "annotators": annotators} if "annotators" in t else t
+        if sets:
+            page[key] = sets
+    return {**row, PAGE_KEY: page}
+
+
 #: a stored row's ``schema`` -> the function that brings it to the next version, and that version
 UPGRADES = {None: (_from_before_phase_1, "linecaster.page/1"), "linecaster.page/1": (_from_page_1, OLD),
-            OLD: (page_2_to_3, PAGE_3), PAGE_3: (_same, PAGE_4), PAGE_4: (page_4_to_5, SCHEMA)}
+            OLD: (page_2_to_3, PAGE_3), PAGE_3: (_same, PAGE_4), PAGE_4: (page_4_to_5, PAGE_5),
+            PAGE_5: (page_5_to_6, SCHEMA)}
 
 
 def upgrade(row: dict) -> dict:

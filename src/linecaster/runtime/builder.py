@@ -596,7 +596,7 @@ class _Analysis:
                 continue
             u = urlsplit(backend.endpoint)
             server = ports.get(u.port) if u.hostname in LOCAL_HOSTS else None
-            if server is None or not _is(server.component, "ModelServer"):
+            if server is None or not _is(server.component, "EngineServer"):
                 continue
             hosted = [m.get("name") for m in server.component.models]
             if backend.model not in hosted:

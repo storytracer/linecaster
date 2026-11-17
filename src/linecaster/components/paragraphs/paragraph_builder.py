@@ -1,5 +1,5 @@
-"""``Recomposer``: running text from the rows of a page's (or an item's pages') text regions, the transcription's
-``paragraphs`` (``recomposition.*`` engines; ``recomposition.unicode.v1`` runs ``linecaster.text.recomposition``)."""
+"""``ParagraphBuilder``: running text from the rows of a page's (or an item's pages') text regions, the transcription's
+``paragraphs`` (``recomposition.*`` engines; ``paragraphs.unicode.v1`` runs ``linecaster.text.recomposition``)."""
 from __future__ import annotations
 
 from typing import Any
@@ -14,7 +14,7 @@ UNITS = ("page", "item")
 COUNTED = ("paragraphs", "continuations", "marks_removed", "marks_kept")
 
 
-class Recomposer(RuleComponent):
+class ParagraphBuilder(RuleComponent):
     """Recomposes the running text of a page or an item into paragraphs by a recomposition engine.
 
     The rows of each text region become ``paragraphs`` (ranges by the call's annotator), each with its decisions and
@@ -28,19 +28,19 @@ class Recomposer(RuleComponent):
     grows page by page, and a paragraph open at the foot of a page continues on the next one.
 
     Args:
-        preset: the recomposition engine: a preset (e.g. ``unicode-recomposition``) or an ``InProcess`` engine
+        preset: the recomposition engine: a preset (e.g. ``unicode-paragraphs``) or an ``InProcess`` engine
             spec.
         transcription: the transcription to recompose.
-        unit: ``page`` (a stream of pages) or ``item`` (a stream of item records, after a ``Binder``).
+        unit: ``page`` (a stream of pages) or ``item`` (a stream of item records, after a ``ItemAssembler``).
         options: engine options over the preset's; ``None``: the preset's.
 
     Example:
-        Recomposer("unicode-recomposition", unit="item")
+        ParagraphBuilder("unicode-paragraphs", unit="item")
     """
 
     name = "recomposer"
-    step = "recomposition"
-    docs_args = {"preset": "unicode-recomposition"}
+    step = "paragraphs"
+    docs_args = {"preset": "unicode-paragraphs"}
 
     def __init__(self, preset, transcription: str = "ocr_new", unit: str = "page",
                  options: dict[str, Any] | None = None):

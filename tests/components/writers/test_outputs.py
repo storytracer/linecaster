@@ -9,10 +9,10 @@ import pytest
 from lxml import etree
 
 from linecaster.core.page import page_of
-from linecaster.components.items import Binder
-from linecaster.components.document.document_builder import Composer
-from linecaster.components.paragraphs.paragraph_builder import Recomposer
-from linecaster.components.hierarchy.hierarchy_detector import Typographer
+from linecaster.components.items import ItemAssembler
+from linecaster.components.document.document_builder import DocumentComposer
+from linecaster.components.paragraphs.paragraph_builder import ParagraphBuilder
+from linecaster.components.hierarchy.hierarchy_detector import HierarchyDetector
 from linecaster.components.writers.files import PageFileWriter
 from linecaster.components.writers.items import ItemDocumentWriter, ItemTextWriter
 from linecaster.data.transcription import Annotator, Transcription
@@ -27,7 +27,7 @@ SCHEMAS = Path(__file__).parents[2] / "schemas"
 
 
 def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
-    docs = list(Composer("linked-composition").run(Typographer("ratios").run(iter([page_doc()]))))
+    docs = list(DocumentComposer("linked-document").run(HierarchyDetector("ratios").run(iter([page_doc()]))))
     fmts = ("hocr", "alto", "page", "txt", "md", "json", "transcription")
     out = list(PageFileWriter(str(tmp_path), formats=fmts).run(iter(docs)))
     assert len(out) == 1
@@ -50,10 +50,10 @@ def test_page_files_all_formats_bucketed_and_valid(tmp_path: Path):
 def test_page_files_flat_are_the_document_exports(tmp_path: Path):
     """Flat names with a suffix: each file is the document's export byte for byte, as the
     export writer this one replaces wrote them (flat, suffix, furniture)."""
-    docs = list(Composer("linked-composition").run(Typographer("ratios").run(iter([page_doc()]))))
+    docs = list(DocumentComposer("linked-document").run(HierarchyDetector("ratios").run(iter([page_doc()]))))
     list(PageFileWriter(str(tmp_path), formats=("md", "txt", "json"), suffix=".x", furniture=True,
                         bucket_by_item=False).run(iter(docs)))
-    data = docs[0].metadata[DOCUMENT_KEY]                 # the Composer's document
+    data = docs[0].metadata[DOCUMENT_KEY]                 # the DocumentComposer's document
     for fmt in ("md", "txt", "json"):
         expected = export(load_document(data), fmt, True).encode("utf-8")
         assert (tmp_path / f"p1.x.{EXPORT_FORMATS[fmt]}").read_bytes() == expected, fmt
@@ -70,15 +70,15 @@ def lines_only(text: str = "nur Zeilen") -> Transcription:
 
 
 def test_page_files_without_composer_render_the_document(tmp_path: Path):
-    """A page no ``Composer`` composed (e.g. read from page records) gets the document it would have composed."""
-    docs = list(Typographer("ratios").run(iter([page_doc()])))
+    """A page no ``DocumentComposer`` composed (e.g. read from page records) gets the document it would have composed."""
+    docs = list(HierarchyDetector("ratios").run(iter([page_doc()])))
     assert DOCUMENT_KEY not in docs[0].metadata
     list(PageFileWriter(str(tmp_path / "w"), formats=("md", "json"), bucket_by_item=False).run(iter(docs)))
     page = page_of(docs[0])
     document = build_document(page.transcriptions["ocr_new"], name="p1", width=1000, height=1000)
     assert (tmp_path / "w" / "p1.json").read_text() == export(document, "json")
     assert (tmp_path / "w" / "p1.md").read_text().startswith("# THE TITLE")
-    composed = list(Composer("linked-composition").run(iter(docs)))
+    composed = list(DocumentComposer("linked-document").run(iter(docs)))
     list(PageFileWriter(str(tmp_path / "c"), formats=("md", "json"), bucket_by_item=False).run(iter(composed)))
     for name in ("p1.md", "p1.json"):
         assert (tmp_path / "c" / name).read_bytes() == (tmp_path / "w" / name).read_bytes()
@@ -103,8 +103,8 @@ def test_page_files_without_text_fallback_write_only_documents(tmp_path: Path):
     writer's behavior), and a page with one gets them all."""
     t = lines_only()
     fmts = ("md", "txt", "html", "json")
-    composed = list(Composer("linked-composition").run(
-        Typographer("ratios").run(iter([page_doc(page_id="p2", item=None)]))))
+    composed = list(DocumentComposer("linked-document").run(
+        HierarchyDetector("ratios").run(iter([page_doc(page_id="p2", item=None)]))))
     out = list(PageFileWriter(str(tmp_path), formats=fmts, bucket_by_item=False, text_fallback=False).run(
         iter([page_doc(t=t, item=None), *composed])))
     assert len(out) == 2
@@ -166,7 +166,7 @@ def test_item_writers(tmp_path: Path):
         pages.append(page_doc(f"b_{s}", "b", t, seq=s))
     texts = ("literal:txt", "latin-historic+flow:md", "latin-historic+unicode-marks+flow:md")
     stream = iter(pages)
-    for component in (Binder(), Recomposer("unicode-recomposition", unit="item"), Composer("linked-composition", unit="item"),
+    for component in (ItemAssembler(), ParagraphBuilder("unicode-paragraphs", unit="item"), DocumentComposer("linked-document", unit="item"),
                   ItemDocumentWriter(str(tmp_path / "files"), texts=texts),
                   ItemTextWriter(str(tmp_path / "jsonl"), texts=texts, compression=None,
                                  output_filename="${strategy}.${format}/${rank}.jsonl", token_counter=len)):

@@ -289,7 +289,7 @@ def server_attributes(component) -> dict:
         attrs["linecaster.model"] = getattr(component.spec, "model", "")
         if getattr(component.spec, "preset", None):
             attrs["linecaster.preset"] = component.spec.preset
-    elif hasattr(component, "serve"):                     # ServiceServer: the service a page preset names
+    elif hasattr(component, "serve"):                     # VendorServer: the service a page preset names
         attrs["linecaster.server"] = component.server
         attrs["linecaster.preset"] = component.ref
     if isinstance(getattr(component, "port", None), int):
@@ -421,7 +421,7 @@ class Tracing(Observer):
             return
         end = _ns()
         server = getattr(component, "kind", None) == "server" or type(component).__name__ in (
-            "ModelServer", "ChatModelServer", "ServiceServer")
+            "EngineServer", "VLMServer", "VendorServer")
         name = "linecaster.server.start" if server else "linecaster.warm_up"
         attrs = server_attributes(component) if server else dict(self._attributes(component))
         span = self._child(name, self.task_context, end - int(seconds * 1e9), attrs)

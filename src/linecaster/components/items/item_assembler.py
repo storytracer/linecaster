@@ -1,4 +1,4 @@
-"""``Binder``: page records -> item records (``linecaster.core.item``), each item's pages in order."""
+"""``ItemAssembler``: page records -> item records (``linecaster.core.item``), each item's pages in order."""
 from __future__ import annotations
 
 from datatrove.pipeline.base import PipelineStep
@@ -7,13 +7,13 @@ from linecaster.core.contract import Contract, Contracted
 from linecaster.core.item import gather, new_item_document
 
 
-class Binder(Contracted, PipelineStep):
+class ItemAssembler(Contracted, PipelineStep):
     """Binds each item's page records, in order, into one item record.
 
     The item record is one datatrove document (``doc.id`` the item id, ``doc.metadata["item"]``,
     ``linecaster.core.item``) holding its pages in order (``Page.sequence``, then page id); a page without an
-    item is an item of its own. The item-unit components after it (``Recomposer`` and
-    ``Composer`` with ``unit="item"``) and the item writers read it; the ``Splitter`` turns it back into pages. It
+    item is an item of its own. The item-unit components after it (``ParagraphBuilder`` and
+    ``DocumentComposer`` with ``unit="item"``) and the item writers read it; the ``ItemSplitter`` turns it back into pages. It
     changes the stream's unit from pages to items and touches no part: the item record holds its pages as they
     came, every transcription with every part (the builder's checks carry them past the binder), but not the page
     images' bytes.

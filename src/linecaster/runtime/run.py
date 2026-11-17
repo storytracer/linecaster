@@ -621,10 +621,10 @@ RAY_TASKS_PER_GPU = 4
 
 
 def starts_vlm_server(pipeline: list) -> bool:
-    """Whether each task of the pipeline starts a VLM's server (``ChatModelServer``: vLLM or SGLang, minutes to
+    """Whether each task of the pipeline starts a VLM's server (``VLMServer``: vLLM or SGLang, minutes to
     start): such a pipeline runs models, as one with engines, and on Ray gets one task per GPU, not
     ``RAY_TASKS_PER_GPU``, so a GPU starts its server once."""
-    return any(type(b).__name__ == "ChatModelServer" for b in pipeline)
+    return any(type(b).__name__ == "VLMServer" for b in pipeline)
 
 
 def ray_gpus(a: argparse.Namespace) -> int:
@@ -722,7 +722,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     with ``--endpoint``). Presets of built-in engines (``layout.single-region.v1``) are in-process either way. With
     ``--endpoint`` the served engines need not be installed here: they run in the server's environment."""
     from linecaster.backends import InProcess, Served
-    from linecaster.components.servers.serve import ModelServer
+    from linecaster.components.servers.serve import EngineServer
     from linecaster.catalog.registry import in_process_only
 
     installed = not getattr(a, "describe_only", False)
@@ -744,7 +744,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     if a.endpoint:
         return backends, []
     # on HF Jobs the script is not there: the Job's environment has the engines (``dependencies``)
-    return backends, [ModelServer(models, port=ENGINE_PORT, script=None if a.on == "hf-jobs" else script)]
+    return backends, [EngineServer(models, port=ENGINE_PORT, script=None if a.on == "hf-jobs" else script)]
 
 
 def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
@@ -905,13 +905,13 @@ def plan(a: argparse.Namespace, pipeline: list, deps, image: str | None, stages:
     """What ``--dry-run`` prints besides the builder's description: where it runs, the servers, the pickled size."""
     import dill
 
-    from linecaster.components.servers.serve import ChatModelServer, ModelServer
-    from linecaster.components.servers.service import ServiceServer
+    from linecaster.components.servers.serve import VLMServer, EngineServer
+    from linecaster.components.servers.service import VendorServer
     from linecaster.serve import serve_command
 
-    servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ModelServer)
+    servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, EngineServer)
                else s.launch_command(getattr(s, "python", None)) for s in pipeline
-               if isinstance(s, (ModelServer, ChatModelServer, ServiceServer))]
+               if isinstance(s, (EngineServer, VLMServer, VendorServer))]
     pickled = [s.pipeline for s in stages] if stages else pipeline
     return {"on": a.on, "tasks": a.tasks, "tasks_per_job": a.tasks_per_job, "backend": a.backend, "out": a.out,
             "image": image,
@@ -944,7 +944,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, scri
     many = len(p.stages) > 1
     for stage in p.stages:
         logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
-        servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer", "ServiceServer") for b in stage.components)
+        servers = any(type(b).__name__ in ("EngineServer", "VLMServer", "VendorServer") for b in stage.components)
         if a.on == "local":
             from linecaster.runtime.local import LocalExecutor
 
@@ -1333,7 +1333,7 @@ def main(script: str, description: str | None, options: Callable, models: Callab
         from linecaster.runtime import run
 
         PIPELINE = "bind.v1"
-        SLOTS = {"recomposition": "recomposition", "composition": "composition"}
+        SLOTS = {"paragraphs": "paragraphs", "document": "document"}
 
         if __name__ == "__main__":
             run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)

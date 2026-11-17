@@ -26,7 +26,7 @@ from linecaster_services.page import jpeg, rgb, text_transcription
 class FalconRecognitionEngine:
     """linecaster engine for the recognition step: a whole page through Falcon-OCR's pipeline service (layout, a
     request per crop, the vendor's Markdown assembly), behind its HTTP API. The service runs in the vendor's image
-    (``ServiceServer`` starts it); the engine is its client, in the pipeline's process."""
+    (``VendorServer`` starts it); the engine is its client, in the pipeline's process."""
 
     engine_id: ClassVar[str] = "falcon.recognition.v1"
     step = "recognition"
@@ -58,7 +58,7 @@ class FalconRecognitionEngine:
         status = http.get(f"{self.options.endpoint.rstrip('/')}/health")
         if status != 200:
             raise ConnectionError(f"Falcon-OCR's pipeline service at {self.options.endpoint} does not answer "
-                                  f"/health (status {status}): start it (ServiceServer) or give its endpoint")
+                                  f"/health (status {status}): start it (VendorServer) or give its endpoint")
 
     def request(self, image) -> dict:
         """The request body for one page (an RGB array)."""

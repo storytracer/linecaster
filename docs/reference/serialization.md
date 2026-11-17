@@ -341,7 +341,7 @@ page); an unknown element never fails the import. One annotator made all of it: 
 
 A page's or an item's document is a rendering ([data model](data-model.md#the-document-linecasterdocument)):
 `build_document(t, ..., policy)` makes one page's, `DocumentBuilder` an item's, and `export` writes it. The
-`Composer` puts it into `doc.metadata["document"]` for the writers; it is not stored. Each serialization writes the
+`DocumentComposer` puts it into `doc.metadata["document"]` for the writers; it is not stored. Each serialization writes the
 body, the furniture (page headers and footers) only with `furniture`:
 
 | Format | Writes |

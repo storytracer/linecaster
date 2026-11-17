@@ -9,7 +9,7 @@ from PIL import Image
 
 from linecaster.adapters import chat_model
 from linecaster.adapters.deepseek_ocr import strip_grounding
-from linecaster.components.servers.serve import ChatModelServer
+from linecaster.components.servers.serve import VLMServer
 
 LOGITS_PROCESSOR = "vllm.model_executor.models.deepseek_ocr:NGramPerReqLogitsProcessor"   # the card's
 
@@ -61,7 +61,7 @@ def test_serve_args_match_the_card(model):
         assert args[args.index(flag) + 1] == value
     assert "--trust-remote-code" in args and "--no-enable-prefix-caching" in args
     assert args[-2:] == ["--logits_processors", LOGITS_PROCESSOR]       # last, after the deployment's extras
-    cmd = ChatModelServer(spec, port=8000, gpu_memory_utilization=0.8).command()
+    cmd = VLMServer(spec, port=8000, gpu_memory_utilization=0.8).command()
     assert cmd[:3] == ["vllm", "serve", model] and cmd[-1] == LOGITS_PROCESSOR
 
 

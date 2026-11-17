@@ -13,7 +13,7 @@ from linecaster.adapters import chat_model, text_transcription
 from linecaster.backends import Chat, InProcess
 from linecaster.core.page import new_page_document, page_of
 from linecaster.components.recognition.page_recognizer import PageRecognizer, RegionRecognizer
-from linecaster.components.servers.serve import FLASHINFER_SAMPLER, ChatModelServer
+from linecaster.components.servers.serve import FLASHINFER_SAMPLER, VLMServer
 from linecaster.data.transcription import Transcription
 from linecaster.errors import PipelineConfigError, ServerError
 from linecaster.testing import fake_chat_server
@@ -68,7 +68,7 @@ def test_lighton_serve_args_match_the_preset():
 
 
 def test_serve_component_command():
-    cmd = ChatModelServer(chat_model("lightonocr-2-1b"), port=8123, gpu_memory_utilization=0.3).command()
+    cmd = VLMServer(chat_model("lightonocr-2-1b"), port=8123, gpu_memory_utilization=0.3).command()
     assert cmd[:7] == ["vllm", "serve", "lightonai/LightOnOCR-2-1B", "--host", "127.0.0.1", "--port", "8123"]
     assert cmd[-2:] == ["--gpu-memory-utilization", "0.3"]
 
@@ -216,11 +216,11 @@ def test_serve_component_outside_venv(monkeypatch):
     monkeypatch.setenv("CUDA_HOME", "/usr/local/cuda")       # a CUDA toolkit: no FlashInfer variable
     monkeypatch.setenv("PATH", os.pathsep.join([own, "/usr/local/bin", "/usr/bin"]))
     monkeypatch.setenv("VIRTUAL_ENV", sys.prefix)
-    component = ChatModelServer(chat_model("lightonocr-2-1b"), port=8123, outside_venv=True)
+    component = VLMServer(chat_model("lightonocr-2-1b"), port=8123, outside_venv=True)
     cmd = component.launch_command()
     assert cmd[:4] == ["env", "-u", "VIRTUAL_ENV", "PATH=/usr/local/bin:/usr/bin"]
     assert cmd[4:] == component.command()
-    assert ChatModelServer(chat_model("lightonocr-2-1b")).launch_command() == ChatModelServer(chat_model("lightonocr-2-1b")).command()
+    assert VLMServer(chat_model("lightonocr-2-1b")).launch_command() == VLMServer(chat_model("lightonocr-2-1b")).command()
 
 
 def test_minicpm_speculative_args_pin_the_draft():
@@ -285,7 +285,7 @@ def no_toolkit(monkeypatch, tmp_path):
 
 
 def test_vllm_starts_without_flashinfers_sampler_where_there_is_no_cuda_toolkit(no_toolkit, monkeypatch):
-    component = ChatModelServer(chat_model("lightonocr-2-1b"))
+    component = VLMServer(chat_model("lightonocr-2-1b"))
     assert component.flashinfer_env() == {FLASHINFER_SAMPLER: "0"}
     cmd = component.launch_command()
     assert cmd[0] == "env" and f"{FLASHINFER_SAMPLER}=0" in cmd and cmd[cmd.index("vllm"):] == component.command()
@@ -303,7 +303,7 @@ def test_vllm_starts_without_flashinfers_sampler_where_there_is_no_cuda_toolkit(
     monkeypatch.setenv(FLASHINFER_SAMPLER, "1")                    # set already: left as it is
     assert component.flashinfer_env() == {} and f"{FLASHINFER_SAMPLER}=0" not in component.launch_command()
     monkeypatch.delenv(FLASHINFER_SAMPLER)
-    assert ChatModelServer(chat_model("unlimited-ocr-2")).flashinfer_env() == {}     # SGLang: not vLLM's variable
+    assert VLMServer(chat_model("unlimited-ocr-2")).flashinfer_env() == {}     # SGLang: not vLLM's variable
 
 
 def test_the_flashinfer_rule_is_logged_once(no_toolkit, monkeypatch):
@@ -330,7 +330,7 @@ def test_the_flashinfer_rule_is_logged_once(no_toolkit, monkeypatch):
     sink = logger.add(lambda m: seen.append(m.record["message"]), level="INFO")
     try:
         for _ in range(2):
-            component = ChatModelServer(chat_model("lightonocr-2-1b"))
+            component = VLMServer(chat_model("lightonocr-2-1b"))
             component.warm_up()
             serve._stop(component)
     finally:

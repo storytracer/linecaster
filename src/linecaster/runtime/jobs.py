@@ -394,15 +394,15 @@ class JobsExecutor(JobsPipelineExecutor):
 
 def point_to_gpu(pipeline: list, local: int) -> list:
     """The pipeline for task ``local`` of a multi-GPU machine: every component that starts a server
-    (``ModelServer``, ``ChatModelServer``: attribute ``port``) and every served backend on loopback
+    (``EngineServer``, ``VLMServer``: attribute ``port``) and every served backend on loopback
     moves ``local`` ports up, so each GPU has its own servers and clients (a layout server on 8100 and
     vLLM on 8000 become 8103 and 8003 on GPU 3)."""
     from linecaster.backends import Chat, Served
-    from linecaster.components.servers.serve import ChatModelServer, ModelServer
+    from linecaster.components.servers.serve import VLMServer, EngineServer
 
     pipeline = deepcopy(pipeline)
     for step in pipeline:
-        if isinstance(step, (ModelServer, ChatModelServer)):
+        if isinstance(step, (EngineServer, VLMServer)):
             step.port += local
         backend = getattr(step, "backend", None)
         if isinstance(backend, (Served, Chat)):
