@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import functools
+import importlib
 import inspect
 import time
 from pathlib import PurePath
@@ -77,6 +78,27 @@ def plain(value: Any) -> Any:
     if inspect.isfunction(value) or inspect.isclass(value) or inspect.isbuiltin(value):
         return _qualified(value)
     return str(value)
+
+
+def revive(value: Any) -> Any:
+    """What ``plain`` made of a value, back: a component's or a backend's dict as the object, ``{"env": NAME}`` as
+    the secret reference, lists and other dicts item by item. Everything else stays as it is: a folder is its path,
+    which every component takes."""
+    if isinstance(value, dict):
+        if "class" in value and "params" in value:
+            return Component.from_dict(value)
+        if "backend" in value:
+            from linecaster.backends import backend_from_dict
+
+            return backend_from_dict(value)
+        if set(value) == {"env"}:
+            from linecaster.execution.secrets import EnvVar
+
+            return EnvVar(value["env"])
+        return {k: revive(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [revive(v) for v in value]
+    return value
 
 
 def _capturing(init):
@@ -155,6 +177,32 @@ class Component:
     def to_dict(self) -> dict[str, Any]:
         """``{"component": class name, "class": "module:Class", "params": {...}}``, JSON-compatible."""
         return {"component": type(self).__name__, "class": _qualified(type(self)), "params": plain(self.init_params())}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Component":
+        """The component a ``to_dict()`` describes: its class (``"class": "module:Class"``) built with its
+        parameters, nested components and backends rebuilt from their own dicts, secrets as ``EnvVar`` by name. What
+        ``to_dict()`` wrote as text only (a callable, a condition) cannot come back and is a
+        ``PipelineConfigError``."""
+        from linecaster.errors import PipelineConfigError
+
+        module, _, name = data["class"].partition(":")
+        target = importlib.import_module(module)
+        for part in name.split("."):
+            target = getattr(target, part)
+        sig = inspect.signature(target.__init__)
+        args, kwargs = [], {}
+        for key, value in (data.get("params") or {}).items():
+            p = sig.parameters.get(key)
+            if p is not None and p.kind is inspect.Parameter.VAR_POSITIONAL:
+                args = [revive(v) for v in value]
+            else:
+                kwargs[key] = revive(value)
+        try:
+            return target(*args, **kwargs)
+        except Exception as e:
+            raise PipelineConfigError(f"{data.get('component') or name} cannot be rebuilt from its record: "
+                                      f"{type(e).__name__}: {e}") from e
 
     @classmethod
     def operational_params(cls) -> frozenset[str]:

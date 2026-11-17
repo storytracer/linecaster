@@ -428,7 +428,7 @@ def public_components(tmp_path: Path, chat_url: str) -> dict[str, tuple[object, 
 
 
 #: the labels of ``public_components`` (a class built twice: ``+``)
-BLOCKS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader", "ResourceReader",
+LABELS = ("ImageFolderReader", "ImageParquetReader", "PdfReader", "PageRecordReader", "ManifestReader", "ResourceReader",
           "LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "TableRecognizer", "FormulaRecognizer",
           "PageRecognizer", "PageRecognizer+", "RegionRecognizer", "ImageFetcher", "ImageConverter", "ImageConverter+",
           "TranscriptionImporter", "HierarchyDetector", "ParagraphBuilder", "ParagraphBuilder+", "DocumentComposer", "DocumentComposer+", "Tagger", "ItemAssembler", "ItemSplitter", "PageValidator",
@@ -449,7 +449,7 @@ def test_every_public_component_class_is_covered(tmp_path):
         public |= {name for name in m.__all__ if inspect.isclass(cls := getattr(m, name)) and issubclass(cls, Component)
                    and not cls.__module__.startswith("linecaster.core")}
     built = public_components(tmp_path, "http://127.0.0.1:1/v1")
-    assert tuple(built) == BLOCKS
+    assert tuple(built) == LABELS
     assert public - {type(b).__name__ for b, _ in built.values()} == set()
 
 
@@ -466,8 +466,21 @@ KNOWN = {"PageRecognizer": "it replaces the whole transcription with a text-only
 
 
 @pytest.mark.parametrize("label", [pytest.param(b, marks=pytest.mark.xfail(strict=True, reason=KNOWN[b]))
-                                   if b in KNOWN else b for b in BLOCKS])
+                                   if b in KNOWN else b for b in LABELS])
 def test_every_public_component_conforms(label, tmp_path, chat_url):
     component, kwargs = public_components(tmp_path, chat_url)[label]
     check_component(component, **kwargs)
 
+
+
+@pytest.mark.parametrize("label", LABELS)
+def test_every_public_component_comes_back_from_its_dict(label, tmp_path, chat_url):
+    """``Component.from_dict(c.to_dict())`` describes itself as ``c`` does: a pipeline can be rebuilt from its
+    record."""
+    import json
+
+    from linecaster import Component
+
+    component, _ = public_components(tmp_path, chat_url)[label]
+    data = json.loads(json.dumps(component.to_dict()))
+    assert Component.from_dict(data).to_dict() == data
