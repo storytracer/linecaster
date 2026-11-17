@@ -16,11 +16,33 @@ Rules that hold across the repository. Each rule is followed by its reason. Term
 | pipeline script | a verb, `<verb>[_<kind>].py` | `harvest.py`, `transcribe_modular.py`, `transcribe_vlm.py`, `transcribe_page.py`, `bind.py` |
 | pipeline id | the script's file name, `.v<n>` | `transcribe_modular.v1` |
 | slot and its flag | the step's name | `--layout`, `--lines`, `--recognition` |
-| catalog step | a noun for the activity | `layout`, `recognition`, `paragraphs` |
+| step | a noun for what the step produces or does | `layout`, `lines`, `recognition`, `paragraphs`, `document` |
+| component package | the step's name, or the plural of what the components are | `linecaster.components.layout`, `linecaster.components.readers` |
+| component module | the class's name in snake case | `line_recognizer.py` |
 | transcription names | `ocr_new`, `ocr_original`, `ground_truth`, or `<source>` | |
 
 Reason: one pattern makes names guessable, and role nouns say what a component is in a pipeline. Pipeline scripts are
 verbs because they are what one runs.
+
+## Words
+
+- Use the [glossary](glossary.md)'s terms. A word has one meaning; a second meaning needs a qualifier ("content
+  role", "HTTP block", "datatrove `Document`"). `tests/test_vocabulary.py` keeps retired terms out and checks that
+  the glossary defines each term once. Reason: a reader who has learned a word once must be able to rely on it.
+
+## Prose
+
+These hold for the docs, docstrings and help texts.
+
+- Define a term where it first appears on a page, or link it to the glossary.
+- One idea per sentence. No parentheses inside parentheses.
+- Show an example before the rules that explain it.
+- Say what something is and does. Say what it is not only where a reader would otherwise mix two things up.
+- Concept pages (`docs/concepts/`) and tutorials (`docs/start/`) explain; reference pages (`docs/reference/`) are
+  complete. Neither holds history or measurements: those are in `CHANGELOG.md` and `NOTES.md`.
+
+Reason: the reference grew by adding qualifications to sentences, and became hard to read even for people who
+know the subject.
 
 ## Spelling
 

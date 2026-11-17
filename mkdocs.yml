@@ -59,21 +59,34 @@ validation:
 
 nav:
   - Home: index.md
+  - Get started:
+      - Run a recipe: start/first-run.md
+      - Run a vision-language model: start/vlm.md
+      - Score a run: start/score.md
+  - Concepts:
+      - Overview: concepts/overview.md
+      - Components and pipelines: concepts/pipelines.md
+      - Models, engines and presets: concepts/models.md
+      - Page records: concepts/page-records.md
+      - Text and normalization: concepts/text.md
+      - Evaluation: concepts/evaluation.md
   - Reference:
+      - Components: components/README.md
+      - Catalog: catalog/README.md
       - Architecture: reference/architecture.md
       - Pipelines: reference/pipelines.md
       - Data model: reference/data-model.md
-      - Evaluation: reference/evaluation.md
       - Serialization: reference/serialization.md
-      - Catalog: reference/catalog.md
-      - Tracing: reference/tracing.md
-      - HTTP: reference/http.md
-      - Broker: reference/broker.md
-      - Compatibility: reference/compatibility.md
+      - Catalog files: reference/catalog.md
+      - Evaluation: reference/evaluation.md
       - Glossary: reference/glossary.md
+  - Operations:
+      - Fetching over HTTP: reference/http.md
+      - Broker: reference/broker.md
+      - Tracing: reference/tracing.md
+  - Contributing:
       - Conventions: reference/conventions.md
-  - Components: components/README.md
-  - Catalog: catalog/README.md
+      - Compatibility and releases: reference/compatibility.md
   - Changelog: changelog.md
 
 # versioned docs (mike, Zensical's fork): one folder per release on the gh-pages branch, "latest" the newest

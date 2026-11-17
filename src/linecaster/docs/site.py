@@ -16,6 +16,9 @@ RAW = "https://raw.githubusercontent.com/storytracer/linecaster/main"
 #: the hand-written reference pages in the order the site and llms-full.txt give them; others follow by name
 REFERENCE = ("glossary", "conventions", "architecture", "pipelines", "data-model", "serialization", "catalog",
              "tracing", "compatibility")
+#: the hand-written tutorials and concept pages, by folder, in the site's order
+GUIDES = (("start", ("first-run", "vlm", "score")),
+          ("concepts", ("overview", "pipelines", "models", "page-records", "text", "evaluation")))
 ALERTS = {"NOTE": "note", "TIP": "tip", "IMPORTANT": "info", "WARNING": "warning", "CAUTION": "danger"}
 
 LINK = re.compile(r"(\]\()([^)\s]+)(\))")
@@ -161,8 +164,13 @@ def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) ->
              "", "Every model configuration is a catalog preset at a pinned revision; tested combinations are recipes. "
              "The pages below are Markdown, except the generated Components and Catalog, which are the site's pages "
              "(llms-full.txt holds their indexes).", "", "## Start", "",
-             f"- [README]({raw(readme)}): why, quick start, how it works, running anywhere, outputs", "",
-             "## Reference", ""]
+             f"- [README]({raw(readme)}): why, quick start, how it works, running anywhere, outputs"]
+    guides = [out / folder / f"{name}.md" for folder, names in GUIDES for name in names]
+    guides = [p for p in guides if p.is_file()]
+    for p in guides:
+        title, summary = _title_and_summary(text_of(p))
+        lines.append(f"- [{title}]({raw(p)}): {summary}")
+    lines += ["", "## Reference", ""]
     for p in ref:
         title, summary = _title_and_summary(text_of(p))
         lines.append(f"- [{title}]({raw(p)}): {summary}")
@@ -174,7 +182,7 @@ def llms(readme_text: str, out: Path, repo: Path, generated: dict[Path, str]) ->
               f"- [Changelog]({raw(repo / 'CHANGELOG.md')}): upgrade notes and changes",
               f"- [Repository]({GITHUB.rsplit('/blob/', 1)[0]}): the source", ""]
     full = []
-    for p in [readme, *ref, out / "components" / "README.md", out / "catalog" / "README.md"]:
+    for p in [readme, *guides, *ref, out / "components" / "README.md", out / "catalog" / "README.md"]:
         body = readme_text if p == readme else text_of(p)
         full += [f"<!-- {rel(p)} -->", "",
                  _strip_header(body).strip(), ""]
