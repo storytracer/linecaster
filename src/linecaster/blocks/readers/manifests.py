@@ -20,14 +20,14 @@ from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard
 from datatrove.pipeline.readers.base import BaseDiskReader
 from loguru import logger
 
-from ...errors import PipelineConfigError
-from ...net.http import fetch_record, is_url, prefetched
-from .earlier import Earlier, EarlierImages, mark_reused_from
-from .existing import ExistingImages, Reused, mark_reused
-from .sampling import Sampled
-from .tables import ITEMS_PER_TASK, position_slices, row_slices, slice_batches, table_rows, tasks_for, total_rows
-from ..base.contract import Contract, Contracted, Part
-from ..base.page import NOT_THE_PAGES, new_page_document
+from linecaster.errors import PipelineConfigError
+from linecaster.net.http import fetch_record, is_url, prefetched
+from linecaster.blocks.readers.earlier import Earlier, EarlierImages, mark_reused_from
+from linecaster.blocks.readers.existing import ExistingImages, Reused, mark_reused
+from linecaster.blocks.readers.sampling import Sampled
+from linecaster.blocks.readers.tables import ITEMS_PER_TASK, position_slices, row_slices, slice_batches, table_rows, tasks_for, total_rows
+from linecaster.blocks.base.contract import Contract, Contracted, Part
+from linecaster.blocks.base.page import NOT_THE_PAGES, new_page_document
 
 
 #: characters an item id keeps (it names a folder); others become "_"
@@ -216,7 +216,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
             raise PipelineConfigError("item_key names a column of an item table: give manifest_key too")
         self.manifest_key, self.item_key, self.read_metadata = manifest_key, item_key, read_metadata
         self.manifest_format, self.item_id_pattern, self.existing_ocr = manifest_format, item_id_pattern, existing_ocr
-        from ...net.policy import Fetchers
+        from linecaster.net.policy import Fetchers
 
         self.manifest_folder, self.http, self.task_per_item = manifest_folder, dict(http or {}), task_per_item
         self.http_policy = http_policy
@@ -371,7 +371,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
     def _sample_manifest(self, item_id: str, ref: str, known: dict | None, save: bool) -> dict:
         """The manifest of ``item_id`` for the sample: its saved copy (``known``), else read from ``ref`` (and saved
         when ``save``); its index entry with the indices of its pages (``indices``)."""
-        from ...formats.manifests import read_manifest
+        from linecaster.formats.manifests import read_manifest
 
         data, uri, copied = self._copy(known), (known or {}).get("url"), True
         if data is None:
@@ -406,7 +406,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
     def _compute_sample(self, save: bool):
         import json
 
-        from ...data.sample import Sample, listing_sha256, select
+        from linecaster.data.sample import Sample, listing_sha256, select
 
         listed = self._listed_items()
         first: dict[str, tuple[int, str]] = {}
@@ -456,7 +456,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
     def _members(self, data: bytes) -> list | None:
         """The members of a IIIF Collection (``linecaster.formats.manifests.read_collection``), or None for a
         manifest."""
-        from ...formats.manifests import detect_format, read_collection
+        from linecaster.formats.manifests import detect_format, read_collection
 
         if self.manifest_format == "mets":
             return None
@@ -470,7 +470,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
     def _manifest_pages(self, saved, item_id: str | None, ref: str, extra: dict, in_collection: bool = False):
         """The pages of the manifest ``ref`` (as ``_pages`` yields them); a IIIF Collection's manifests, each an item
         named by its own link (one level: a collection in a collection raises ``NotImplementedError``)."""
-        from ...formats.manifests import read_manifest
+        from linecaster.formats.manifests import read_manifest
 
         start, t = time.time_ns(), time.perf_counter()
         info, copied = None, False

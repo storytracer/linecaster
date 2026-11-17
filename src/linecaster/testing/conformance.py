@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
-from .samples import sample_documents, sample_layout, sample_page, sample_png
+from linecaster.testing.samples import sample_documents, sample_layout, sample_page, sample_png
 
 #: a code id: two or three dotted names and a version (``kraken.recognition.v1``, ``recomposition.unicode.v1``)
 ENGINE_ID = re.compile(r"[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*){1,2}\.v[0-9]+")
@@ -32,7 +32,7 @@ def _by_id(items: list[dict]) -> dict[str, dict]:
 
 def _full(t: dict | None) -> dict:
     """A transcription dump with every field (a stored record leaves defaults out)."""
-    from ..data import Transcription
+    from linecaster.data import Transcription
 
     return Transcription.model_validate(t or {}).model_dump(mode="json", by_alias=True)
 
@@ -320,8 +320,8 @@ def _rendered(out) -> str:
 def _step_input(step: str, unit: str | None):
     """The transcription an engine or block of ``step`` and ``unit`` gets by default: what the steps before it
     made of a sample page (``sample_layout``)."""
-    from ..data import Annotator, Source, Transcription
-    from .samples import box
+    from linecaster.data import Annotator, Source, Transcription
+    from linecaster.testing.samples import box
 
     t = sample_layout(text=step not in ("recognition",))
     if step == "layout" or (step == "recognition" and unit == "page"):    # a page engine reads the page itself
@@ -394,9 +394,9 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     import numpy as np
     from pydantic import BaseModel
 
-    from ..catalog.schema import RULE_STEPS, STEPS, Capabilities
-    from ..data import Transcription
-    from ..data.measurements import unknown_measurements
+    from linecaster.catalog.schema import RULE_STEPS, STEPS, Capabilities
+    from linecaster.data import Transcription
+    from linecaster.data.measurements import unknown_measurements
 
     problems: list[str] = []
     name = getattr(engine_cls, "__name__", repr(engine_cls))
@@ -439,9 +439,9 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
                 break
             result, dump = out, (out[0], json.dumps(out[1], sort_keys=True, default=str))
         elif step == "import":              # a source document in, a new transcription out
-            from ..data import SourceDocument
-            from ..formats import to_alto
-            from .samples import sample_transcription
+            from linecaster.data import SourceDocument
+            from linecaster.formats import to_alto
+            from linecaster.testing.samples import sample_transcription
 
             doc = source if source is not None else _sample_source(getattr(engine_cls, "format", "alto"))
             out = engine(doc)
@@ -526,10 +526,10 @@ def _sample_source(fmt: str):
     import json as _json
     from xml.sax.saxutils import escape
 
-    from ..data import SourceDocument
-    from ..formats import to_alto, to_hocr, to_page
-    from ..formats.iiif import to_annotation_page
-    from .samples import sample_transcription
+    from linecaster.data import SourceDocument
+    from linecaster.formats import to_alto, to_hocr, to_page
+    from linecaster.formats.iiif import to_annotation_page
+    from linecaster.testing.samples import sample_transcription
 
     t = sample_transcription()
     data = {"page": lambda: to_page(t), "hocr": lambda: to_hocr(t), "text": lambda: t.text,
@@ -547,7 +547,7 @@ def _sample_source(fmt: str):
 
 def _omnidocbench_entry(t) -> dict:
     """The sample transcription as an entry of OmniDocBench's ground-truth JSON (``truth_page``)."""
-    from ..formats.omnidocbench import truth_page
+    from linecaster.formats.omnidocbench import truth_page
 
     return truth_page("sample", t)
 
@@ -584,8 +584,8 @@ def page_changes(before, after) -> list[tuple[str, frozenset]]:
     """
     from datatrove.data import MediaType
 
-    from ..blocks.base.contract import Part
-    from ..data.page import PAGE_KEY
+    from linecaster.blocks.base.contract import Part
+    from linecaster.data.page import PAGE_KEY
 
     out: list[tuple[str, frozenset]] = []
     for part, kind in (("image", MediaType.IMAGE), ("transcription_file", MediaType.DOCUMENT)):
@@ -611,7 +611,7 @@ def _overwritten_on_page(before, after, contract) -> list[str]:
     """What a block changed of the transcriptions a page carried (``overwrites``, per transcription) that its
     contract does not replace: a change to the annotations of a part it replaces is the replacement (``*``: every
     part); a transcription it made anew (``made_anew``, as a page engine's) only where it replaces a part of it."""
-    from ..data.page import PAGE_KEY
+    from linecaster.data.page import PAGE_KEY
 
     tb = (before.metadata.get(PAGE_KEY) or {}).get("transcriptions") or {}
     ta = (after.metadata.get(PAGE_KEY) or {}).get("transcriptions") or {}
@@ -644,7 +644,7 @@ def _sample_docs(unit: str, block=None) -> list:
     docs = sample_documents(2)
     step = getattr(block, "step", None)
     if unit == "page" and step in ("layout", "lines") and hasattr(block, "backend"):
-        from ..blocks.base.page import page_of, set_page
+        from linecaster.blocks.base.page import page_of, set_page
 
         for d in docs:
             page = page_of(d)
@@ -652,7 +652,7 @@ def _sample_docs(unit: str, block=None) -> list:
             set_page(d, page)
     if unit != "item":
         return docs
-    from ..blocks.binding import Binder
+    from linecaster.blocks.binding import Binder
 
     return list(Binder().run(iter(docs)))
 
@@ -687,9 +687,9 @@ def check_block(block, docs=None, *, run: bool = True) -> list:
     import dill
     from datatrove.data import Document
 
-    from ..blocks.base.contract import Contract, Part
-    from ..blocks.base.page import ERRORS_KEY, PageBlock
-    from ..runtime.builder import run_pages
+    from linecaster.blocks.base.contract import Contract, Part
+    from linecaster.blocks.base.page import ERRORS_KEY, PageBlock
+    from linecaster.runtime.builder import run_pages
 
     problems: list[str] = []
     label = f"{type(block).__name__}"

@@ -2,8 +2,8 @@
 (lines only)."""
 from __future__ import annotations
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.transcription import Transcription, render_table
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.transcription import Transcription, render_table
 
 
 def page_text(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY) -> str:

@@ -12,10 +12,10 @@ import shutil
 import unicodedata
 from pathlib import Path
 
-from ..docs.common import GITHUB, HEADER, Links, table
-from . import code
-from .registry import IN_PROCESS_ONLY, Catalog
-from .schema import STEPS
+from linecaster.docs.common import GITHUB, HEADER, Links, table
+from linecaster.catalog import code
+from linecaster.catalog.registry import IN_PROCESS_ONLY, Catalog
+from linecaster.catalog.schema import STEPS
 
 STEP_TITLES = {"layout": "🗺️ Layout", "lines": "📏 Lines", "recognition": "👁️ Recognition", "tables": "📊 Tables",
                "formulas": "➗ Formulas", "image": "🖼️ Image", "normalization": "🔤 Normalization",
@@ -289,7 +289,7 @@ def vocabulary_page(c: Catalog, scheme: str) -> str:
         lines += ["## Reasons", "", "Why something present in a source is no text of the page (a classification's "
                   "`reason`).", "", *_terms(doc.reasons)]
     if scheme == "role":
-        from ..data.policy import ROLES
+        from linecaster.data.policy import ROLES
 
         lines += ["## Mappings", "", *_table(("Role", "PAGE-XML", "Region label", "Default layer"), [
             (f"`{r}`", f"`{page}`", f"`{label}`", layer) for r, (page, label, layer) in ROLES.items()])]

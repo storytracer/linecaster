@@ -18,14 +18,14 @@
 
 Importing it loads neither datatrove's executors nor torch nor any engine; pytest only where a helper needs it.
 """
-from .chat import FakeChatServer, completion, fake_chat_server
-from .conformance import check_block, check_engine, overwritten, page_changes, transcription_changes
-from .fakes import (FAKE_ENGINES, FakeFormulaEngine, FakeLayoutEngine, FakeLineEngine, FakePageEngine,
+from linecaster.testing.chat import FakeChatServer, completion, fake_chat_server
+from linecaster.testing.conformance import check_block, check_engine, overwritten, page_changes, transcription_changes
+from linecaster.testing.fakes import (FAKE_ENGINES, FakeFormulaEngine, FakeLayoutEngine, FakeLineEngine, FakePageEngine,
                     FakeRecognitionEngine, FakeTableEngine, register_fakes)
-from .samples import (SAMPLE_LINES, box, sample_boxes, sample_document, sample_documents, sample_layout, sample_page,
+from linecaster.testing.samples import (SAMPLE_LINES, box, sample_boxes, sample_document, sample_documents, sample_layout, sample_page,
                       sample_png, sample_transcription)
-from .scripts import SCRIPT_SAMPLES, ScriptSample, script_image, script_page
-from .service import FakeService, fake_service
+from linecaster.testing.scripts import SCRIPT_SAMPLES, ScriptSample, script_image, script_page
+from linecaster.testing.service import FakeService, fake_service
 
 __all__ = [
     "FAKE_ENGINES", "SAMPLE_LINES", "SCRIPT_SAMPLES", "FakeChatServer", "FakeFormulaEngine", "FakeLayoutEngine", "FakeLineEngine",

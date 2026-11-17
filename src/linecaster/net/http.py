@@ -104,12 +104,12 @@ from urllib.parse import quote, urlsplit
 
 from loguru import logger
 
-from ..errors import ServerError
-from ..formats.manifests import METS_IMAGE_GROUPS, METS_OCR_GROUPS
-from .limits import RateLimiter, check_rate_limits
+from linecaster.errors import ServerError
+from linecaster.formats.manifests import METS_IMAGE_GROUPS, METS_OCR_GROUPS
+from linecaster.net.limits import RateLimiter, check_rate_limits
 
 if TYPE_CHECKING:
-    from .proxies import ProxyPool
+    from linecaster.net.proxies import ProxyPool
 
 T = TypeVar("T")
 S = TypeVar("S")
@@ -1016,8 +1016,8 @@ class HTTPFetcher:
         self._no_proxy_since: dict[str, float] = {}        # host -> since when no proxy is usable there (``clock``)
         self._no_proxy_waiters: dict[str, int] = {}        # host -> requests waiting for a usable proxy there
         if proxy_file:
-            from .. import broker as brokers
-            from .proxies import shared_pool
+            from linecaster import broker as brokers
+            from linecaster.net.proxies import shared_pool
 
             try:
                 self._proxies = shared_pool(brokers.shared(broker or default_broker, run=broker_run),
@@ -1390,7 +1390,7 @@ class HTTPFetcher:
 def proxy_counts() -> tuple[int, int, int] | None:
     """(proxies held, blocked, free) of this process's proxy pools (``linecaster.net.proxies.ProxyPool.counts``);
     None without a proxy list."""
-    from .proxies import pools
+    from linecaster.net.proxies import pools
 
     counts = [p.counts() for p in pools()]
     return tuple(sum(c[i] for c in counts) for i in range(3)) if counts else None
@@ -1420,6 +1420,6 @@ def close_shared() -> None:
         _SHARED.clear()
     for fetcher in fetchers:
         fetcher.close()
-    from .proxies import close_pools
+    from linecaster.net.proxies import close_pools
 
     close_pools()

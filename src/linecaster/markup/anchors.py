@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..data.transcription import Anchor
+from linecaster.data.transcription import Anchor
 
 
 @dataclass

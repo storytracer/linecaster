@@ -52,8 +52,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from ..errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
-from .cpus import available_cpus
+from linecaster.errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
+from linecaster.runtime.cpus import available_cpus
 
 ON = ("local", "ray", "hf-jobs")
 RUN_RECORD = "run.yaml"
@@ -303,7 +303,7 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
     if a.max_items is not None and a.max_items < 1:
         ap.error("--max-items needs at least 1")
     if a.http_policy:
-        from ..net.policy import HTTPPolicy
+        from linecaster.net.policy import HTTPPolicy
 
         try:
             HTTPPolicy(a.http_policy)
@@ -343,7 +343,7 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
     if a.backend is None:
         a.backend = "in-process" if a.on == "local" and not a.endpoint else "served"
     if getattr(a, "proxies", None):
-        from ..net.http import read_proxies
+        from linecaster.net.http import read_proxies
 
         try:
             a.proxy_count = len(read_proxies(a.proxies))
@@ -376,7 +376,7 @@ def sample_problem(a: argparse.Namespace) -> str | None:
 
 def sample_rule(a: argparse.Namespace):
     """The ``linecaster.data.sample.SampleRule`` of the sample options, or None without them."""
-    from ..data.sample import SampleRule
+    from linecaster.data.sample import SampleRule
 
     limits = [getattr(a, k, None) for k in ("sample", "sample_items", "sample_per_item")]
     if all(v is None for v in limits):
@@ -399,14 +399,14 @@ def rate_note(a: argparse.Namespace) -> str | None:
     (``--http-policy``); None without either."""
     hosts = None
     if getattr(a, "http_policy", None):
-        from ..net.policy import HTTPPolicy
+        from linecaster.net.policy import HTTPPolicy
 
         hosts = "HTTP policy: " + HTTPPolicy(a.http_policy, http(a)).describe()
     if not getattr(a, "rate_limits", None):
         return hosts
     limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
     if count := getattr(a, "proxy_count", None):     # one worker per proxy at a time: the limits hold per proxy
-        from ..net.proxies import DEFAULT_PER_WORKER, describe_per_worker
+        from linecaster.net.proxies import DEFAULT_PER_WORKER, describe_per_worker
 
         per_worker = _proxy_plan(a)[1].get(a.proxies, {}).get("per_worker", DEFAULT_PER_WORKER)
         workers = min(a.workers or a.tasks or 1, a.tasks or 1) if a.workers or a.tasks else None
@@ -464,13 +464,13 @@ def _proxy_plan(a: argparse.Namespace) -> tuple[bool, dict[str, dict]]:
     heartbeats name as the run)."""
     base = http(a)
     if getattr(a, "http_policy", None):
-        from ..net.policy import HTTPPolicy
+        from linecaster.net.policy import HTTPPolicy
 
         policy = HTTPPolicy(a.http_policy, base)
         entries = [(None, policy.settings(None)), *((h, policy.settings(h)) for h in policy.hosts)]
     else:
         entries = [(None, base)]
-    from ..net.proxies import DEFAULT_PER_WORKER
+    from linecaster.net.proxies import DEFAULT_PER_WORKER
 
     direct, lists = False, {}
     for host, s in entries:
@@ -491,9 +491,9 @@ def available_proxies(path: str, hosts: set, broker: str | None, run: str | None
     for one of ``hosts``, any host when None is among them), ``held`` (leased by a live worker of another run than
     ``run``; the run's own earlier leases do not count against it), ``available`` (the rest). Without a broker yet
     (a first launch), or one that cannot be read (a warning), all are available."""
-    from ..broker import survey_kind
-    from ..net.http import read_proxies
-    from ..net.proxies import KIND, TURN, proxy_id
+    from linecaster.broker import survey_kind
+    from linecaster.net.http import read_proxies
+    from linecaster.net.proxies import KIND, TURN, proxy_id
 
     ids = {proxy_id(p) for p in read_proxies(path)}
     survey = {"resources": {}, "runs": {}}
@@ -542,7 +542,7 @@ def _proxy_workers(a: argparse.Namespace, lists: dict[str, dict]) -> tuple[int, 
     storage (``on_object_storage``), at most ``OBJECT_STORAGE_WORKERS``. The reason names the limits that decided."""
     import math
 
-    from ..net.proxies import SHARE, describe_per_worker
+    from linecaster.net.proxies import SHARE, describe_per_worker
 
     best, why, each, shared = None, "", "", False
     for path, g in lists.items():
@@ -641,7 +641,7 @@ def ray_gpus(a: argparse.Namespace) -> int:
 def _policy_rate_limited(a: argparse.Namespace) -> bool:
     if not getattr(a, "http_policy", None):
         return False
-    from ..net.policy import HTTPPolicy
+    from linecaster.net.policy import HTTPPolicy
 
     return HTTPPolicy(a.http_policy).rate_limited()
 
@@ -659,13 +659,13 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
     their images' addresses and page records are read without their images (a block reads them itself).
     ``read_metadata``: a Parquet table's other columns go into the pages' metadata; ``None``: when the images are
     not read."""
-    from ..blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
-    from ..blocks.readers.records import PageRecordReader
+    from linecaster.blocks.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
+    from linecaster.blocks.readers.records import PageRecordReader
 
     sample = sample_rule(a)
 
     if getattr(a, "items", None):
-        from ..blocks.readers.resources import ResourceReader
+        from linecaster.blocks.readers.resources import ResourceReader
 
         folder, glob = a.items, a.glob_pattern or "**/*.parquet"
         if a.items.endswith(".parquet"):
@@ -676,7 +676,7 @@ def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_i
                               http_policy=a.http_policy, reuse_folder=reuse_folder, max_items=a.max_items, glob_pattern=glob,
                               limit=a.limit, skip=a.skip, reuse_from=getattr(a, "reuse_from", None) or None)
     if getattr(a, "manifests", None):
-        from ..blocks.readers.manifests import ManifestReader
+        from linecaster.blocks.readers.manifests import ManifestReader
 
         src, folder, paths_file, glob = a.manifests, a.manifests, a.paths_file, a.glob_pattern
         parent, _, name = src.rpartition("/")
@@ -721,9 +721,9 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
     """Backends for the engine ``models`` by name, and the server block that goes last (none in-process or
     with ``--endpoint``). Presets of built-in engines (``layout.single-region.v1``) are in-process either way. With
     ``--endpoint`` the served engines need not be installed here: they run in the server's environment."""
-    from ..backends import InProcess, Served
-    from ..blocks.servers.serve import ModelServer
-    from ..catalog.registry import in_process_only
+    from linecaster.backends import InProcess, Served
+    from linecaster.blocks.servers.serve import ModelServer
+    from linecaster.catalog.registry import in_process_only
 
     installed = not getattr(a, "describe_only", False)
     # built-in engines (the single-region layout) run in the pipeline's process with either backend
@@ -750,7 +750,7 @@ def engines(a: argparse.Namespace, models: list[dict], script: str, window: int 
 def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
     """``--set STEP.OPTION=VALUE`` items as ``{step: {option: value}}``; values are read as YAML (``4`` is a
     number, ``true`` a boolean, anything else a string)."""
-    from ..catalog import yamlio
+    from linecaster.catalog import yamlio
 
     out: dict[str, dict] = {}
     for item in items:
@@ -772,7 +772,7 @@ def preset_models(models: list[dict], installed: bool = True, served: bool = Fal
     out = []
     for m in models:
         if m.get("preset") and not m.get("spec"):
-            from ..catalog.registry import engine_spec
+            from linecaster.catalog.registry import engine_spec
 
             spec, kwargs, r = engine_spec(m["preset"], installed=installed, served=served)
             m = {**m, "spec": spec, "kwargs": {**kwargs, **m.get("overrides", {})}, "preset": r.ref,
@@ -782,13 +782,13 @@ def preset_models(models: list[dict], installed: bool = True, served: bool = Fal
 
 
 def pages(a: argparse.Namespace):
-    from ..blocks.writers.records import PageJsonlWriter
+    from linecaster.blocks.writers.records import PageJsonlWriter
 
     return PageJsonlWriter(f"{a.out.rstrip('/')}/pages", output_filename="${rank}.jsonl.gz",
                            item_shards=getattr(a, "item_shards", None))
 
 
-from ..serve import model_args  # noqa: E402 - one place builds linecaster serve's model arguments
+from linecaster.serve import model_args  # noqa: E402 - one place builds linecaster serve's model arguments
 
 
 def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str | None = None,
@@ -796,7 +796,7 @@ def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str
     """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
     names others. The pipeline's slots (``--layout``, ``--recognition``, ...) pick them; presets of built-in engines
     (in the pipeline's process only) are left out."""
-    from ..cli import main as cli
+    from linecaster.cli import main as cli
 
     ap = argparse.ArgumentParser(add_help=False)
     if pipeline_id:
@@ -806,7 +806,7 @@ def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str
     if pipeline_id:
         apply_recipe(ap, a, pipeline_id, slots or {}, argv)
     if not any(x in rest for x in ("--model", "--config", "-h", "--help")):
-        from ..catalog.registry import in_process_only
+        from linecaster.catalog.registry import in_process_only
 
         hosted = [m for m in models(a) if not (m.get("preset") and in_process_only(m["preset"]))]
         rest = model_args(hosted) + rest
@@ -824,7 +824,7 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
            deps=None, image: str | None = None) -> dict:
     """The run record of this launch (``linecaster.runtime.provenance.run_record``) for the builder's plan ``p``:
     its stages with their blocks, and ``pipeline_sha256``."""
-    from .provenance import run_record
+    from linecaster.runtime.provenance import run_record
 
     extra = {}
     if a.on == "hf-jobs":
@@ -845,7 +845,7 @@ def previous_record(out: str) -> dict | None:
     """The newest run record in ``out`` (``run.yaml`` or a later ``run-<time>.yaml``), or None."""
     from datatrove.io import get_datafolder
 
-    from ..catalog import yamlio
+    from linecaster.catalog import yamlio
 
     folder = get_datafolder(out)
     if not folder.exists(RUN_RECORD):
@@ -890,7 +890,7 @@ def write_record(out: str, rec: dict) -> str:
     there already (a resumed run), as ``OUT/run-<created>.yaml``. Returns the file name."""
     from datatrove.io import get_datafolder
 
-    from ..catalog import yamlio
+    from linecaster.catalog import yamlio
 
     folder = get_datafolder(out)
     name = RUN_RECORD
@@ -905,9 +905,9 @@ def plan(a: argparse.Namespace, pipeline: list, deps, image: str | None, stages:
     """What ``--dry-run`` prints besides the builder's description: where it runs, the servers, the pickled size."""
     import dill
 
-    from ..blocks.servers.serve import ChatModelServer, ModelServer
-    from ..blocks.servers.service import ServiceServer
-    from ..serve import serve_command
+    from linecaster.blocks.servers.serve import ChatModelServer, ModelServer
+    from linecaster.blocks.servers.service import ServiceServer
+    from linecaster.serve import serve_command
 
     servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, ModelServer)
                else s.launch_command(getattr(s, "python", None)) for s in pipeline
@@ -922,9 +922,9 @@ def plan(a: argparse.Namespace, pipeline: list, deps, image: str | None, stages:
 
 def build_plan(a: argparse.Namespace, pipeline: list):
     """The builder's plan for the pipeline a script built, with the command line's partial run, taps and recipe."""
-    from . import builder
+    from linecaster.runtime import builder
 
-    from .console import Progress
+    from linecaster.runtime.console import Progress
 
     recipe = getattr(a, "recipe_record", None)
     return builder.build(pipeline, tasks=1 if getattr(a, "page", None) else (a.tasks or 1),
@@ -946,7 +946,7 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, scri
         logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
         servers = any(type(b).__name__ in ("ModelServer", "ChatModelServer", "ServiceServer") for b in stage.blocks)
         if a.on == "local":
-            from .local import LocalExecutor
+            from linecaster.runtime.local import LocalExecutor
 
             workers = a.workers or stage.tasks
             title = Path(getattr(a, "script_name", None) or script).stem if script else "run"
@@ -957,17 +957,17 @@ def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, scri
                                      retry_failed=getattr(a, "retry_failed", False))
         elif a.on == "ray":
             if servers or (not many and (has_engines(a) or getattr(a, "gpu_tasks", False))):
-                from .ray import RayGPUExecutor as Ray
+                from linecaster.runtime.ray import RayGPUExecutor as Ray
             else:                                    # a stage without models (an item stage, a harvest) needs no GPU
-                from .ray import RayExecutor as Ray
+                from linecaster.runtime.ray import RayExecutor as Ray
 
             previous = Ray(stage.pipeline, tasks=stage.tasks, workers=min(a.workers or stage.tasks, stage.tasks),
                            cpus_per_task=a.cpus_per_task or 12, mem_per_cpu_gb=a.mem_per_cpu_gb,
                            mem_per_task_gb=getattr(a, "mem_per_task_gb", None),
                            check_fit=getattr(a, "fit_check", True), logging_dir=logs, depends=previous)
         else:
-            from .jobs import GPUJobsExecutor, JobsExecutor
-            from .logs import JSON_ENV
+            from linecaster.runtime.jobs import GPUJobsExecutor, JobsExecutor
+            from linecaster.runtime.logs import JSON_ENV
 
             run_id = out.rsplit("/", 1)[-1]
             env = {"LINECASTER_RUN": run_id, JSON_ENV: "1", **dict(kv.split("=", 1) for kv in a.env)}
@@ -991,11 +991,11 @@ def check_commit(a: argparse.Namespace, script: str | None) -> None:
     if a.on != "hf-jobs":
         return
     if a.commit:
-        from .jobs import resolve_commit
+        from linecaster.runtime.jobs import resolve_commit
 
         a.commit = resolve_commit(a.commit)
         return
-    from .jobs import needs_commit
+    from linecaster.runtime.jobs import needs_commit
 
     if needs_commit(script):
         raise PipelineConfigError(f"--on hf-jobs needs --commit (pushed): {script} is in the linecaster checkout, "
@@ -1010,7 +1010,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     process does not wait for): a pipeline's step over all its tasks' output (``pipelines/score.py``)."""
     out = a.out.rstrip("/")
     if not getattr(a, "run_id", None):           # this launch's id: in its record and on every annotator it adds
-        from .provenance import new_run_id
+        from linecaster.runtime.provenance import new_run_id
 
         a.run_id = new_run_id()
     sample = sampled(a, pipeline)
@@ -1019,7 +1019,7 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
     blocks = p.blocks
     deps = None
     if a.on == "hf-jobs":
-        from .jobs import dependencies
+        from linecaster.runtime.jobs import dependencies
 
         deps = dependencies(a.commit, script, engines)
     if a.dry_run:
@@ -1040,11 +1040,11 @@ def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = 
         raise PipelineConfigError(problems)
     write_record(out, rec)
     if sample is not None:
-        from .sample import write_sample
+        from linecaster.runtime.sample import write_sample
 
         write_sample(out, sample)
     if getattr(a, "page", None):
-        from .builder import run_plan
+        from linecaster.runtime.builder import run_plan
 
         docs = run_plan(p)
         print(json.dumps({"out": out, "pages": [d.id for d in docs]}))
@@ -1068,7 +1068,7 @@ def sampled(a: argparse.Namespace, pipeline: list):
     on the reader, it travels with the pickled pipeline, so every task takes its share of the same sample; its
     record goes into the run record (``a.sample_record``). None without a sample. ``--dry-run`` saves nothing
     (no manifest copies)."""
-    from .sample import sample_reader
+    from linecaster.runtime.sample import sample_reader
 
     reader = sample_reader(pipeline)
     if reader is None:
@@ -1097,7 +1097,7 @@ def sample(argv: list[str]) -> None:
     a = check(ap, ap.parse_args(argv))
     if sample_rule(a) is None:
         ap.error("give --sample N, --sample-per-item K or --sample-items M")
-    from .sample import write_sample
+    from linecaster.runtime.sample import write_sample
 
     found = reader(a).sampled()
     path = write_sample(a.out.rstrip("/"), found)
@@ -1179,7 +1179,7 @@ def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id
     the recipe, its hash and the overrides, for the run record)."""
     if not getattr(a, "recipe", None):
         return
-    from ..catalog.registry import catalog, entry_id
+    from linecaster.catalog.registry import catalog, entry_id
 
     argv = sys.argv[1:] if argv is None else argv
     c = catalog() if c is None else c
@@ -1236,7 +1236,7 @@ def describe(shape, argv: list[str], c=None, script: str | None = None):
     a.describe_only = True
     a.has_engines = bool(shape.models(a))
     if script is None:
-        from ..catalog import code
+        from linecaster.catalog import code
 
         found = code.script_of(shape)
         script = str(found) if found is not None else None
@@ -1250,10 +1250,10 @@ def describe_recipe(ref: str, c=None) -> dict:
     ``linecaster.pipelines``) described with ``--recipe REF`` on placeholder folders (``describe``), in-process, one
     task: ``{"pipeline": the functional blocks (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
     catalog the recipe is in (default the installed one)."""
-    from ..blocks.base import model
-    from ..catalog.registry import active, catalog
-    from ..pipelines import shape
-    from . import provenance
+    from linecaster.blocks.base import model
+    from linecaster.catalog.registry import active, catalog
+    from linecaster.pipelines import shape
+    from linecaster.runtime import provenance
 
     c = c if c is not None else catalog()
     pipeline_id = c.resolve_recipe(ref).content["pipeline"]
@@ -1283,8 +1283,8 @@ def recipe(script: str, recipe_id: str) -> None:
         if __name__ == "__main__":
             run.recipe(__file__, "squiddle")
     """
-    from ..catalog.registry import catalog, entry_id
-    from ..pipelines import shape as pipeline_shape
+    from linecaster.catalog.registry import catalog, entry_id
+    from linecaster.pipelines import shape as pipeline_shape
 
     c = catalog()
     if recipe_id not in c.recipes:                # a command line's end, as main's: nothing launched

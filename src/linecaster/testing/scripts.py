@@ -24,7 +24,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
-from ..data import Annotator, Source, Transcription
+from linecaster.data import Annotator, Source, Transcription
 
 #: the page every sample is laid out on
 PAGE_WIDTH, PAGE_HEIGHT = 1000, 1400

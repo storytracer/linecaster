@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from .types import BBox
+from linecaster.data.geometry.types import BBox
 
 HORIZONTAL_LR = "horizontal-lr"
 

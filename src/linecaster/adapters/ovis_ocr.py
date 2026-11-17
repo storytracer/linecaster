@@ -18,7 +18,7 @@ import io
 import math
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url
+from linecaster.adapters import ChatAdapter, data_url
 
 
 def encode_jpeg(image: bytes, max_pixels: int, quality: int) -> tuple[str, tuple[int, int]]:
@@ -26,7 +26,7 @@ def encode_jpeg(image: bytes, max_pixels: int, quality: int) -> tuple[str, tuple
     ``quality``; base64 and the size."""
     from PIL import Image
 
-    from ..images.pixels import rgb_image
+    from linecaster.images.pixels import rgb_image
 
     img = rgb_image(image)
     w, h = img.size

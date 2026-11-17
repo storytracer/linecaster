@@ -6,9 +6,9 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
 
-from ...catalog.registry import DEFAULT_POLICY_REF, rendering_policy
-from ...errors import PipelineConfigError
-from ..base.contract import Contract, Contracted, parts
+from linecaster.catalog.registry import DEFAULT_POLICY_REF, rendering_policy
+from linecaster.errors import PipelineConfigError
+from linecaster.blocks.base.contract import Contract, Contracted, parts
 
 #: format -> file extension
 PAGE_FILE_EXTENSIONS = {
@@ -86,8 +86,8 @@ class PageFileWriter(Contracted, PipelineStep):
                  policy: str = DEFAULT_POLICY_REF, strategy: str = "literal"):
         super().__init__()
         rendering_policy(policy)                      # an unknown policy fails at construction
-        from ...catalog.registry import catalog
-        from ...errors import CatalogError
+        from linecaster.catalog.registry import catalog
+        from linecaster.errors import CatalogError
 
         try:
             catalog().strategy(strategy, use="output")
@@ -125,7 +125,7 @@ class PageFileWriter(Contracted, PipelineStep):
     def composed(self, doc, page, t):
         """The page's document: the ``Composer``'s for this transcription, else ``t`` rendered (``build_document``,
         default options) when it has regions or paragraphs; None for a page of lines only."""
-        from ...document import COMPOSED_KEY, DOCUMENT_KEY, build_document, load_document
+        from linecaster.document import COMPOSED_KEY, DOCUMENT_KEY, build_document, load_document
 
         meta = doc.metadata
         if meta.get(COMPOSED_KEY) == self.transcription and meta.get(DOCUMENT_KEY) is not None:
@@ -136,7 +136,7 @@ class PageFileWriter(Contracted, PipelineStep):
         return build_document(t, name=page.page_id, width=w, height=h, policy=rendering_policy(self.policy))
 
     def render(self, page, t, fmt: str, document=None, doc=None) -> str | bytes | None:
-        from ...formats import to_alto, to_hocr, to_page
+        from linecaster.formats import to_alto, to_hocr, to_page
 
         if fmt in ("hocr", "alto", "page"):
             uri = page.image.uri.rsplit("/", 1)[-1] if page.image and page.image.uri else None
@@ -147,25 +147,25 @@ class PageFileWriter(Contracted, PipelineStep):
         if fmt == "transcription":
             return t.model_dump_json(indent=1, by_alias=True, exclude_defaults=True)
         if fmt == "plot":
-            from ...images.plots import plot_layout
-            from ..base.page import decode_rgb, image_bytes
+            from linecaster.images.plots import plot_layout
+            from linecaster.blocks.base.page import decode_rgb, image_bytes
 
             return plot_layout(decode_rgb(image_bytes(doc)), t)
         if document is not None:
-            from ...document import export
-            from ...document.strategy import apply
+            from linecaster.document import export
+            from linecaster.document.strategy import apply
 
             written = apply(document, self.strategy) if self.strategy != "literal" else document
             return export(written, fmt, self.furniture, self.dividers, rendering_policy(self.policy).markdown)
         if fmt == "json":
             return None
         if fmt in ("md", "txt") and self.text_fallback:
-            from ...catalog.registry import catalog
+            from linecaster.catalog.registry import catalog
 
             s = catalog().strategy(self.strategy, use="output")
             if not all(n.text_rule for n in s.normalizations):
                 return None                    # its structure rules need a document: a page of lines has none
-            from ...text.page import page_text
+            from linecaster.text.page import page_text
 
             return s.text(page_text(t, rendering_policy(self.policy)))
         return None
@@ -173,7 +173,7 @@ class PageFileWriter(Contracted, PipelineStep):
     def run(self, data, rank: int = 0, world_size: int = 1):
         from datatrove.io import get_datafolder
 
-        from ..base.page import failed, page_of
+        from linecaster.blocks.base.page import failed, page_of
 
         out = get_datafolder(self.output_folder)
         for doc in data:

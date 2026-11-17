@@ -5,12 +5,12 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.geometry.frames import HORIZONTAL_LR, to_frame
-from ..data.transcription import DECISIONS, Decision, Line, Link, Paragraph, ParagraphRow, Transcription
-from ..data.policy import TEXT_LABELS
-from ..text import recomposition as R
-from ..text.typography import hidden
-from .base import RuleEngine, ScriptDispatch, Strategy
+from linecaster.data.geometry.frames import HORIZONTAL_LR, to_frame
+from linecaster.data.transcription import DECISIONS, Decision, Line, Link, Paragraph, ParagraphRow, Transcription
+from linecaster.data.policy import TEXT_LABELS
+from linecaster.text import recomposition as R
+from linecaster.text.typography import hidden
+from linecaster.engines.base import RuleEngine, ScriptDispatch, Strategy
 
 #: the region labels whose regions are recomposed into one paragraph: headings
 SINGLE_LABELS = ("title", "section_header")

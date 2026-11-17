@@ -212,7 +212,7 @@ class RenderingPolicy(BaseModel):
         """The descriptions of ``t`` (text an annotator wrote about a zone, ``Transcription.descriptions``) by their
         region (a line's: its region's; the page's: ``None``), each as (layer, text): the layer this policy puts it
         in, matched as ``describing`` with its region's role, production and status."""
-        from .refs import parse
+        from linecaster.data.refs import parse
 
         regions = {r.id for r in t.regions}
         out: dict[str | None, list[tuple[str, str]]] = {}

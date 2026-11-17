@@ -59,10 +59,10 @@ from uniseg.linebreak import LB, line_break, line_break_boundaries
 from uniseg.sentencebreak import SB, sentence_break
 from uniseg.wordbreak import words
 
-from ..data.geometry import BBox
-from ..data.transcription import Decision, Line, Transcription
-from ..data.transcription import Paragraph as ParagraphRange
-from .typography import line_bbox, union
+from linecaster.data.geometry import BBox
+from linecaster.data.transcription import Decision, Line, Transcription
+from linecaster.data.transcription import Paragraph as ParagraphRange
+from linecaster.text.typography import line_bbox, union
 
 #: Marks by convention, unknown to Unicode as hyphens: the not sign, which some transcription
 #: conventions (and kraken models trained on them) write for a line-end hyphen.

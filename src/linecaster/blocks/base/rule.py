@@ -14,17 +14,17 @@ import time
 from datetime import datetime, timezone
 from typing import Any, ClassVar
 
-from ...backends import InProcess
-from ...data.transcription import Annotator
-from ...errors import CatalogError, PipelineConfigError
-from .page import PageBlock
+from linecaster.backends import InProcess
+from linecaster.data.transcription import Annotator
+from linecaster.errors import CatalogError, PipelineConfigError
+from linecaster.blocks.base.page import PageBlock
 
 
 def rule_backend(preset, step: str, options: dict[str, Any] | None = None) -> InProcess:
     """The in-process backend of a rule block of ``step``: from a preset ref, or the ``InProcess`` given (copied),
     with ``options`` over its options; the engine's step and options checked (``check_engine``)."""
     if isinstance(preset, str):
-        from ...catalog.registry import catalog
+        from linecaster.catalog.registry import catalog
 
         try:
             found = catalog().resolve(preset).content.get("step")
@@ -50,7 +50,7 @@ def rule_backend(preset, step: str, options: dict[str, Any] | None = None) -> In
 def check_engine(backend: InProcess, step: str) -> None:
     """The engine's step and options checked now, not when the task starts (built-in engines import cheaply; an
     engine that is not installed here is checked when it loads)."""
-    from ...backends import resolve
+    from linecaster.backends import resolve
 
     try:
         cls = resolve(backend.spec)

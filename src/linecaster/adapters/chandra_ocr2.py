@@ -22,9 +22,9 @@ from __future__ import annotations
 import hashlib
 from typing import Any, ClassVar
 
-from ..data import Transcription
-from ..errors import CatalogError
-from . import ChatAdapter, data_url, png_bytes, text_lines
+from linecaster.data import Transcription
+from linecaster.errors import CatalogError
+from linecaster.adapters import ChatAdapter, data_url, png_bytes, text_lines
 
 #: chandra's block labels that HTML's semantics do not tell, as the DPUB-ARIA roles the HTML importer reads
 ROLES = {"Page-Header": "doc-pageheader", "Page-Footer": "doc-pagefooter", "Footnote": "doc-footnote"}
@@ -35,7 +35,7 @@ def read_layout(raw: str, t: Transcription, annotator: int) -> bool:
     block (``t`` untouched)."""
     from lxml import html as H
 
-    from ..formats.html import HtmlConverter
+    from linecaster.formats.html import HtmlConverter
 
     try:
         root = H.fromstring(f"<html><body>{raw}</body></html>")
@@ -113,7 +113,7 @@ class ChandraOCRAdapter(ChatAdapter):
 
     def encode_png(self, image: bytes) -> tuple[str, tuple[int, int]]:
         """RGB, ``scale_to_fit``, base64 PNG; and the size sent."""
-        from ..images.pixels import rgb_image
+        from linecaster.images.pixels import rgb_image
 
         img = self.scale(rgb_image(image))
         return png_bytes(img), img.size

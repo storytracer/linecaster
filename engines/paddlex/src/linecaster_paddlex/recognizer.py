@@ -17,8 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecaster.data import Annotator, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
-from .compat import create_predictor, paddle_image
-from .weights import check, resolve
+from linecaster_paddlex.compat import create_predictor, paddle_image
+from linecaster_paddlex.weights import check, resolve
 
 RECOGNIZERS = ("PP-OCRv6_medium_rec", "PP-OCRv6_small_rec", "PP-OCRv6_tiny_rec")
 

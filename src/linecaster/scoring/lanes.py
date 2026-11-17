@@ -45,7 +45,7 @@ _CACHE: dict = {}
 def lane(name: str) -> str:
     """The comparison strategy ``name`` stands for: a strategy's id, normalizations joined by ``+``, or a lane name
     from before 0.10 (``LEGACY``, with a warning); an unknown one is a ``KeyError``."""
-    from ..catalog.registry import EditionWarning
+    from linecaster.catalog.registry import EditionWarning
 
     if name in LEGACY:
         warnings.warn(f"lane {name}: lanes are catalog strategies since linecaster 0.10; it is {LEGACY[name]!r}"
@@ -61,7 +61,7 @@ def lane(name: str) -> str:
 def resolve(name: str):
     """The resolved comparison strategy of lane ``name`` (``linecaster.catalog.registry.ResolvedStrategy``), cached
     per catalog."""
-    from ..catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     c = catalog()
     key = (id(c), name)
@@ -80,8 +80,8 @@ def uncovered(declared, name: str, output: str = "literal") -> list[str]:
     neither the lane ``name`` nor the output strategy's character rules apply, themselves or by one that subsumes
     them (``ResolvedStrategy.covers``). Each one is a difference the comparison counts that is the ground truth's
     convention, not the output's error (a ground truth that writes ſ as s, scored by a lane that keeps ſ)."""
-    from ..catalog.registry import catalog
-    from ..catalog.schema import TEXT_RULES
+    from linecaster.catalog.registry import catalog
+    from linecaster.catalog.schema import TEXT_RULES
 
     lane_s = resolve(lane(name))
     out = catalog().strategy(output, use="output")

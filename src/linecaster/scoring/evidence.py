@@ -9,12 +9,12 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from . import scorer
-from .benchmark import Benchmark
+from linecaster.scoring import scorer
+from linecaster.scoring.benchmark import Benchmark
 
 
 def _run_record(run: str | Path) -> tuple[dict[str, Any], str | None]:
-    from ..catalog import yamlio
+    from linecaster.catalog import yamlio
 
     import fsspec
 
@@ -34,11 +34,11 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
     """The evidence record of ``result`` (``score_run``'s) for the run folder ``run`` (its ``pages/`` or the
     folder itself): the run record's recipe unless ``preset`` names the preset measured; a
     ``linecaster.catalog.schema.Evidence3``."""
-    from ..catalog.registry import catalog, canonical_sha256, entry_id
-    from ..catalog.schema import Evidence3
-    from .elements import ELEMENTS_VERSION
-    from .lanes import resolve
-    from .tokens import WORDS_VERSION
+    from linecaster.catalog.registry import catalog, canonical_sha256, entry_id
+    from linecaster.catalog.schema import Evidence3
+    from linecaster.scoring.elements import ELEMENTS_VERSION
+    from linecaster.scoring.lanes import resolve
+    from linecaster.scoring.tokens import WORDS_VERSION
 
     record, record_sha = _run_record(run)
     recipe = (record.get("recipe") or {}) if preset is None else {}
@@ -88,7 +88,7 @@ def evidence(result: dict[str, Any], benchmark: Benchmark, run: str | Path, pres
 
 def write_evidence(ev, path: str | Path) -> Path:
     """The record (an ``Evidence3``) as YAML, its first line naming its schema (as every linecaster YAML file)."""
-    from ..catalog import yamlio
+    from linecaster.catalog import yamlio
 
     data = ev.model_dump(mode="json", by_alias=True, exclude_none=True)
     text = ("# yaml-language-server: $schema=https://github.com/storytracer/linecaster/raw/main/src/linecaster/"

@@ -22,7 +22,7 @@ import importlib
 import pkgutil
 from types import ModuleType
 
-from ..errors import PipelineConfigError
+from linecaster.errors import PipelineConfigError
 
 
 def shapes() -> dict[str, ModuleType]:

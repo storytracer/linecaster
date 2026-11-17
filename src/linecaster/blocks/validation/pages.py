@@ -8,9 +8,9 @@ from __future__ import annotations
 from datatrove.pipeline.base import PipelineStep
 from pydantic import ValidationError
 
-from ...data.page import PAGE_KEY, Page
-from ..base.contract import Contract, Contracted, Part
-from ..base.page import error_entry, record_error
+from linecaster.data.page import PAGE_KEY, Page
+from linecaster.blocks.base.contract import Contract, Contracted, Part
+from linecaster.blocks.base.page import error_entry, record_error
 
 
 def has_part(page: Page, part: str) -> bool:

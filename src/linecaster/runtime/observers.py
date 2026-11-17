@@ -182,7 +182,7 @@ class PageTiming(Observer):
     def _stamp(self, doc) -> None:
         import time
 
-        from ..data.page import PAGE_KEY
+        from linecaster.data.page import PAGE_KEY
 
         began = self._began.pop(id(doc), None)
         page = doc.metadata.get(PAGE_KEY)
@@ -205,7 +205,7 @@ class Tap(Observer):
         self._writer, self._rank = None, 0
 
     def on_task_start(self, rank: int, world_size: int) -> None:
-        from ..blocks.writers.records import PageJsonlWriter
+        from linecaster.blocks.writers.records import PageJsonlWriter
 
         self._writer, self._rank = PageJsonlWriter(self.folder), rank
 

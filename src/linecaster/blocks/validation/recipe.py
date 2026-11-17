@@ -5,8 +5,8 @@ next to each preset. Before an item writer it stamps the pages of each item reco
 """
 from __future__ import annotations
 
-from ..base.item import ITEM_KEY, item_pages, set_item_pages
-from ..base.page import PageBlock, page_of, set_page
+from linecaster.blocks.base.item import ITEM_KEY, item_pages, set_item_pages
+from linecaster.blocks.base.page import PageBlock, page_of, set_page
 
 
 class RecipeStamper(PageBlock):

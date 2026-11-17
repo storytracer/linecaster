@@ -18,12 +18,12 @@ import time
 from datetime import datetime, timezone
 from functools import lru_cache
 
-from ...backends import InProcess, Served
-from ...data.page import Page
-from ...data.transcription import Transcription
-from ...errors import CatalogError, PipelineConfigError
-from .contract import Contract, parts
-from .page import (ErrorBudget, PageBlock, decode_rgb, error_entry, failed, image_bytes, page_of, record_error,
+from linecaster.backends import InProcess, Served
+from linecaster.data.page import Page
+from linecaster.data.transcription import Transcription
+from linecaster.errors import CatalogError, PipelineConfigError
+from linecaster.blocks.base.contract import Contract, parts
+from linecaster.blocks.base.page import (ErrorBudget, PageBlock, decode_rgb, error_entry, failed, image_bytes, page_of, record_error,
                    set_page, use_decoding)
 
 _END = object()
@@ -47,7 +47,7 @@ STEP_PRODUCES = {"layout": ("regions", "reading_order"), "lines": ("lines",), "r
 
 @lru_cache(maxsize=None)
 def _preset_produces(ref: str) -> tuple[str, ...] | None:
-    from ...catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     try:
         p = catalog().preset(ref)
@@ -60,14 +60,14 @@ def _preset_produces(ref: str) -> tuple[str, ...] | None:
 def _engine_produces(spec: str) -> tuple[str, ...] | None:
     """The ``capabilities`` an engine class declares, read from its source where the repository has it (nothing
     imported), else from the class."""
-    from ...catalog import code
+    from linecaster.catalog import code
 
     if code.REPO is not None and (code.REPO / "engines").is_dir():
         for e in code.engines().values():
             if e.target == spec:
                 return tuple(e.capabilities.get("produces") or ()) or None
     try:
-        from ...backends import resolve
+        from linecaster.backends import resolve
 
         caps = getattr(resolve(spec), "capabilities", None) or {}
     except Exception:          # not installed here: the step's default
@@ -89,7 +89,7 @@ def produces(backend, step: str, spec=None) -> tuple[str, ...]:
 
 def preset_backend(ref: str, step: str) -> InProcess:
     """The in-process backend of catalog preset ``ref`` (``id``) for a block of ``step``."""
-    from ...catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     try:
         found = catalog().resolve(ref).content.get("step")
@@ -228,7 +228,7 @@ class ModelBlock(PageBlock):
             if getattr(engine, "image_input", "rgb") == "bytes":
                 image = data
             else:                                                       # decoded here, or a block before it did
-                from ...images.pixels import decode_pixels, last_decode
+                from linecaster.images.pixels import decode_pixels, last_decode
 
                 px = decode_pixels(data, self.image_decode)
                 image = px.rgb
@@ -355,7 +355,7 @@ class ModelBlock(PageBlock):
         headers = b.request_headers()            # secrets read here, in the task
 
         def request(row: dict) -> dict:       # in saturate's prepare threads
-            from ...images.pixels import forget_last, last_decode
+            from linecaster.images.pixels import forget_last, last_decode
 
             doc, unit = row["doc"], self._unit(row)
             self.notify(doc, "prepare", **unit)

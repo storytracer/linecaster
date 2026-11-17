@@ -8,8 +8,8 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data import Annotator, Cell, Formula, RawOutput, Table, Transcription
-from .samples import box
+from linecaster.data import Annotator, Cell, Formula, RawOutput, Table, Transcription
+from linecaster.testing.samples import box
 
 
 class _Fake:
@@ -244,7 +244,7 @@ def register_fakes() -> dict[str, str]:
     Idempotent; the registration lasts for the process (the ids cannot clash with real ones). Returns the ids with
     their classes (``module:Class``).
     """
-    from ..catalog import registry
+    from linecaster.catalog import registry
 
     registry.REGISTERED.update(FAKE_ENGINES)
     return dict(FAKE_ENGINES)

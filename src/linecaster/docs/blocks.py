@@ -16,12 +16,12 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..blocks.base.block import Block
-from ..blocks.base.contract import Contract, Part, contract_of
-from ..catalog import code
-from ..catalog.schema import RULE_STEPS, STEPS
-from .common import HEADER, Links, table
-from .docstrings import Docstring, markdown, parse
+from linecaster.blocks.base.block import Block
+from linecaster.blocks.base.contract import Contract, Part, contract_of
+from linecaster.catalog import code
+from linecaster.catalog.schema import RULE_STEPS, STEPS
+from linecaster.docs.common import HEADER, Links, table
+from linecaster.docs.docstrings import Docstring, markdown, parse
 
 FAMILIES = ("readers", "layout", "lines", "recognition", "conversion", "composition", "tagging", "binding", "validation",
             "servers", "scoring", "writers", "composites")
@@ -77,9 +77,9 @@ def collect(family: str) -> list[BlockDoc]:
 def _describe_backend(ref):
     """A preset ref as the docs build it: a model engine's preset as its ``InProcess`` backend without the engine
     installed (as describe mode does), anything else as given."""
-    from ..backends import InProcess
-    from ..catalog.registry import BUILTIN_ENGINES, engine_spec
-    from ..errors import CatalogError
+    from linecaster.backends import InProcess
+    from linecaster.catalog.registry import BUILTIN_ENGINES, engine_spec
+    from linecaster.errors import CatalogError
 
     if not isinstance(ref, str):
         return ref

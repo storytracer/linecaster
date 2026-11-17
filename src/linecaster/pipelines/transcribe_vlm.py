@@ -59,13 +59,13 @@ page whose prompt leaves no more room in the context than the first request had 
 the same model) only the repair requests are sent: for the pages that stopped at ``max_tokens`` and have no repair
 yet; every other page is written as it was read.
 """
-from ..adapters import preset_ref
-from ..backends import Chat
-from ..blocks.layout.detector import LayoutDetector
-from ..blocks.recognition.chat import PageRecognizer, RegionRecognizer
-from ..blocks.servers.serve import ChatModelServer
-from ..errors import PipelineConfigError
-from ..runtime import run
+from linecaster.adapters import preset_ref
+from linecaster.backends import Chat
+from linecaster.blocks.layout.detector import LayoutDetector
+from linecaster.blocks.recognition.chat import PageRecognizer, RegionRecognizer
+from linecaster.blocks.servers.serve import ChatModelServer
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime import run
 
 VLM_PORT = 8000
 

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Any, ClassVar, Protocol
 
-from .model import JsonMatch, TextMatch, TreeMatch
+from linecaster.markup.model import JsonMatch, TextMatch, TreeMatch
 
 
 class Matcher[D, N](Protocol):

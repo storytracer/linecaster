@@ -179,7 +179,7 @@ def pipelines(repo: Path | None = REPO) -> dict[str, Pipeline]:
     """The pipeline shapes of ``linecaster.pipelines`` by pipeline id (imported: they import no engine), each with
     its pipeline script in the checkout ``repo`` (``source``; ``None`` without one), its docstring, slots and the
     options ``options()`` adds (read from its source with ``ast``)."""
-    from ..pipelines import shapes
+    from linecaster.pipelines import shapes
 
     found = {}
     for pid, shape in shapes().items():
@@ -219,7 +219,7 @@ def recipe_scripts(repo: Path | None = REPO) -> dict[str, Path]:
 def recipe_packages(recipe_id: str, c=None, repo: Path = REPO) -> set[str]:
     """The engine packages the presets of the recipe ``recipe_id`` need: recipe -> presets ->
     engines -> the packages that provide them (``engines``); linecaster's own engines need none."""
-    from .registry import catalog
+    from linecaster.catalog.registry import catalog
 
     c = catalog() if c is None else c
     found = engines(repo)

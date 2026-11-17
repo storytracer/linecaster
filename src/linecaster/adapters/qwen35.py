@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, ClassVar
 
-from .ovis_ocr import OvisOCRAdapter
+from linecaster.adapters.ovis_ocr import OvisOCRAdapter
 
 
 def unwrap_fence(text: str) -> str:

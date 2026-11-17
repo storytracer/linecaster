@@ -19,8 +19,8 @@ from linecaster.data.geometry.order import suppress_contained, xy_cut_order
 from linecaster.data.geometry.xy_cut_plus_plus import xy_cut_plus_plus_order
 from linecaster.data.writing import DIRECTIONS
 
-from .compat import create_predictor, paddle_image
-from .weights import check, resolve
+from linecaster_paddlex.compat import create_predictor, paddle_image
+from linecaster_paddlex.weights import check, resolve
 
 
 @dataclass

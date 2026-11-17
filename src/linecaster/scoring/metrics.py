@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.transcription import Transcription
-from .counts import edit_counts
-from .lanes import DEFAULT_LANE, REPLACEMENT, normalize
-from .render import TEXTS, illegible_spans, line_text, text
-from .tokens import DEFAULT_WORDS, tokens
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.transcription import Transcription
+from linecaster.scoring.counts import edit_counts
+from linecaster.scoring.lanes import DEFAULT_LANE, REPLACEMENT, normalize
+from linecaster.scoring.render import TEXTS, illegible_spans, line_text, text
+from linecaster.scoring.tokens import DEFAULT_WORDS, tokens
 
 
 def words(s: str, lane: str = DEFAULT_LANE, tokenizer: str = DEFAULT_WORDS) -> Counter:
@@ -29,7 +29,7 @@ def role_words(t: Transcription, policy: RenderingPolicy = DEFAULT_POLICY, lane:
     """Content role -> the words (by ``lane`` and ``tokenizer``) of the lines in regions of that role (lines in no
     region: ``paragraph``), each line written as the scored texts are: its illegible spans as U+FFFD, then the output
     ``strategy`` (a reference, or the strategy resolved)."""
-    from ..catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     written = catalog().strategy(strategy, use="output") if isinstance(strategy, str) else strategy
     prec = policy.precedence.get("role")
@@ -90,8 +90,8 @@ def score_page(truth: Transcription, output: Transcription | None, texts=tuple(T
     word counts, by the first lane) and, with ``boxes``, ``confusion``. Both texts are written by the output
     ``strategy`` (``literal``: as read) before a lane normalizes them. A missing output (a failed page) counts as
     empty."""
-    from .lanes import lane as lane_of, uncovered
-    from ..catalog.registry import catalog
+    from linecaster.scoring.lanes import lane as lane_of, uncovered
+    from linecaster.catalog.registry import catalog
 
     output = output if output is not None else Transcription()
     written = catalog().strategy(strategy, use="output")
@@ -144,14 +144,14 @@ def score_elements(truth: Transcription, output: Transcription | None, texts=tup
     an order leaves out is not ordered), the groups' kinds, ``tables_output`` and ``tables_output_matched``.
     Both sides are written by the output ``strategy``, then each lane; elements are matched once, by
     ``matching_lane`` (default the first lane; a benchmark's ``elements.lane``, ``alnum`` by default)."""
-    from ..catalog.registry import catalog
-    from ..text.formulas import clean
-    from .counts import edit_counts_by, units
-    from .elements import elements
-    from .lanes import lane as lane_of
-    from .matching import Settings, encode, match, similarity
-    from .order import index_edits, kendall
-    from .teds import teds
+    from linecaster.catalog.registry import catalog
+    from linecaster.text.formulas import clean
+    from linecaster.scoring.counts import edit_counts_by, units
+    from linecaster.scoring.elements import elements
+    from linecaster.scoring.lanes import lane as lane_of
+    from linecaster.scoring.matching import Settings, encode, match, similarity
+    from linecaster.scoring.order import index_edits, kendall
+    from linecaster.scoring.teds import teds
 
     settings = settings or Settings()
     written = catalog().strategy(strategy, use="output")

@@ -13,14 +13,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..catalog import code
-from .common import GITHUB, HEADER, SITE, Links
+from linecaster.catalog import code
+from linecaster.docs.common import GITHUB, HEADER, SITE, Links
 
 __all__ = ["GITHUB", "HEADER", "SITE", "Links", "generate", "write"]
 
 
 def _folders(out: Path) -> list[Path]:
-    from ..catalog.docs import KINDS
+    from linecaster.catalog.docs import KINDS
 
     return [*(out / "catalog" / k for k in KINDS), out / "blocks"]
 
@@ -37,9 +37,9 @@ def generate(out: str | Path = "docs", readme: str | Path | None = "README.md", 
         repo: the repository checkout: engines', pipelines' and blocks' sources, ``CHANGELOG.md``, GitHub links.
         catalog: the catalog (default: linecaster's).
     """
-    from ..catalog import docs as catalog_docs
-    from ..catalog.registry import Catalog
-    from . import blocks, site
+    from linecaster.catalog import docs as catalog_docs
+    from linecaster.catalog.registry import Catalog
+    from linecaster.docs import blocks, site
 
     out = Path(out)
     c = catalog if catalog is not None else Catalog()

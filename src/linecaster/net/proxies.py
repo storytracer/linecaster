@@ -56,9 +56,9 @@ from dataclasses import dataclass, field
 
 from loguru import logger
 
-from ..broker import EVERY_SCOPE, Broker, Resource, resource_id
-from ..errors import PipelineConfigError
-from .http import BLOCK_FIRST_WAIT, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, block_wait, doubling
+from linecaster.broker import EVERY_SCOPE, Broker, Resource, resource_id
+from linecaster.errors import PipelineConfigError
+from linecaster.net.http import BLOCK_FIRST_WAIT, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, block_wait, doubling
 
 #: the broker's kind for proxies
 KIND = "proxies"
@@ -121,7 +121,7 @@ def describe_per_worker(value: int | str) -> str:
 
 
 def _redact(proxy: str) -> str:
-    from .http import redact
+    from linecaster.net.http import redact
 
     return redact(proxy)
 
@@ -701,7 +701,7 @@ def pools() -> list[ProxyPool]:
 def close_pools() -> None:
     """Forgets this process's shared pools and hands over its brokers' slots (``linecaster.broker.hand_over_shared``):
     the leases stay with the worker for the slot's next process."""
-    from ..broker import hand_over_shared
+    from linecaster.broker import hand_over_shared
 
     with _POOLS_LOCK:
         _POOLS.clear()

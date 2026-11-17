@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from typing import Any, ClassVar
 
-from .dots import DotsAdapter
+from linecaster.adapters.dots import DotsAdapter
 
 # the grounding markup: ref spans, det spans, stray delimiters, any other <|...|> markup
 REF_SPAN_RE = re.compile(r"<\|ref\|>.*?<\|/ref\|>", re.DOTALL)

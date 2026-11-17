@@ -12,12 +12,12 @@ from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
 
-from ...catalog.registry import DEFAULT_POLICY_REF, catalog, rendering_policy
-from ...errors import CatalogError, PipelineConfigError
-from ...document import DOCUMENT_KEY, EXPORT_FORMATS, export, load_document
-from ...document.strategy import apply
-from ..base.contract import Contract, Contracted, Part
-from ..base.item import ITEM_KEY, item_pages
+from linecaster.catalog.registry import DEFAULT_POLICY_REF, catalog, rendering_policy
+from linecaster.errors import CatalogError, PipelineConfigError
+from linecaster.document import DOCUMENT_KEY, EXPORT_FORMATS, export, load_document
+from linecaster.document.strategy import apply
+from linecaster.blocks.base.contract import Contract, Contracted, Part
+from linecaster.blocks.base.item import ITEM_KEY, item_pages
 
 #: what a run writes unless it names texts: the document as the builder made it
 DEFAULT_TEXTS = ("literal:json",)

@@ -5,9 +5,9 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.transcription import Transcription
-from ..text import typography as T
-from .base import RuleEngine
+from linecaster.data.transcription import Transcription
+from linecaster.text import typography as T
+from linecaster.engines.base import RuleEngine
 
 
 class RatiosTypographyEngine(RuleEngine):

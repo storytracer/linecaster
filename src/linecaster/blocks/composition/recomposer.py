@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...errors import PipelineConfigError
-from ..base.contract import Contract, parts
-from ..base.item import item_pages, set_item_pages
-from ..base.rule import RuleBlock, now, stamp
+from linecaster.errors import PipelineConfigError
+from linecaster.blocks.base.contract import Contract, parts
+from linecaster.blocks.base.item import item_pages, set_item_pages
+from linecaster.blocks.base.rule import RuleBlock, now, stamp
 
 UNITS = ("page", "item")
 #: the recomposition's measurements the block counts

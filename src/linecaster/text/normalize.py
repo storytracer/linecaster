@@ -89,7 +89,7 @@ def apply_rule(text: str, rule: dict[str, Any]) -> str:
     if kind == "whitespace":
         return _WS.sub(" ", text).strip()
     if kind == "latex":
-        from .latex import latex_text
+        from linecaster.text.latex import latex_text
 
         return latex_text(text)
     raise StructureRule(f"the rule {kind!r} acts on a document's structure, not on a string")

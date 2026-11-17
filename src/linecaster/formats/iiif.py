@@ -26,11 +26,11 @@ import json
 import re
 from typing import Any
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.refs import parse, word as word_ref
-from ..data.geometry import BBox, bbox_of
-from ..data.transcription import EDITS, AnnotationSet, Annotator, Description, Edit, Source, Transcription, Word
-from ..data.writing import language_tag
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.refs import parse, word as word_ref
+from linecaster.data.geometry import BBox, bbox_of
+from linecaster.data.transcription import EDITS, AnnotationSet, Annotator, Description, Edit, Source, Transcription, Word
+from linecaster.data.writing import language_tag
 
 CONTEXT = ["http://iiif.io/api/extension/text-granularity/context.json",
            "http://iiif.io/api/presentation/3/context.json"]

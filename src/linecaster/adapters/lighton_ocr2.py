@@ -13,7 +13,7 @@ from __future__ import annotations
 import base64
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url, png_longest
+from linecaster.adapters import ChatAdapter, data_url, png_longest
 
 
 class LightOnOCR2Adapter(ChatAdapter):

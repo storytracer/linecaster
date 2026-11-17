@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from datatrove.pipeline.base import PipelineStep
 
-from ..base.contract import Contract, Contracted
-from ..base.item import gather, new_item_document
+from linecaster.blocks.base.contract import Contract, Contracted
+from linecaster.blocks.base.item import gather, new_item_document
 
 
 class Binder(Contracted, PipelineStep):

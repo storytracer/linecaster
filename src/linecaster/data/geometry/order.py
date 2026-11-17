@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from .frames import boxes_in_frame, framed
-from .types import BBox
+from linecaster.data.geometry.frames import boxes_in_frame, framed
+from linecaster.data.geometry.types import BBox
 
 
 def suppress_contained(regions: Sequence, max_containment: float = 0.8) -> list:

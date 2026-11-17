@@ -27,16 +27,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
-from ..data.transcription import Transcription
+from linecaster.data.transcription import Transcription
 
-from ..formats.html import HtmlConverter, HtmlReading
-from ..markup.anchors import SourceMap
-from ..markup.model import ConventionsDoc
-from ..markup.resolve import ResolvedConventions, resolve as resolve_conventions
-from .importers import Importer
+from linecaster.formats.html import HtmlConverter, HtmlReading
+from linecaster.markup.anchors import SourceMap
+from linecaster.markup.model import ConventionsDoc
+from linecaster.markup.resolve import ResolvedConventions, resolve as resolve_conventions
+from linecaster.engines.importers import Importer
 
 if TYPE_CHECKING:
-    from ..catalog.schema import Capabilities, ModelDoc
+    from linecaster.catalog.schema import Capabilities, ModelDoc
 
 __all__ = ["Capabilities", "conventions", "drop_damaged_png_chunks", "Engine", "hf_file", "hf_snapshot",
            "ConventionsDoc", "HtmlConverter", "HtmlReading", "Importer", "model_entry", "ResolvedConventions",
@@ -50,7 +50,7 @@ def drop_damaged_png_chunks(data: bytes) -> bytes:
     Args:
         data: the image file's bytes.
     """
-    from ..images.convert import drop_damaged_png_chunks as drop
+    from linecaster.images.convert import drop_damaged_png_chunks as drop
 
     return drop(data)
 
@@ -83,7 +83,7 @@ class Engine(Protocol):
 
 def __getattr__(name: str):
     if name == "Capabilities":          # from the catalog's schema, imported when asked for (import-light)
-        from ..catalog.schema import Capabilities
+        from linecaster.catalog.schema import Capabilities
 
         return Capabilities
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -99,7 +99,7 @@ def weights_of(model_id: str, revision: str | None = None) -> dict:
         model_id: the catalog model, e.g. ``kraken-ppocrv6-medium``; unknown is a ``CatalogError``.
         revision: the pin; ``None``: the model's newest pin.
     """
-    from ..catalog.fetch import weights_of as fetch
+    from linecaster.catalog.fetch import weights_of as fetch
 
     return fetch(model_id, revision)
 
@@ -114,7 +114,7 @@ def hf_file(weights: dict, name: str, download: bool = True) -> Path:
         name: the file's path in the repository, one of the pin's files.
         download: ``False``: only the cache (``HF_HUB_OFFLINE``-like); a missing file raises.
     """
-    from ..catalog.fetch import hf_file as fetch
+    from linecaster.catalog.fetch import hf_file as fetch
 
     return fetch(weights, name, download)
 
@@ -126,7 +126,7 @@ def hf_snapshot(weights: dict, download: bool = True) -> Path:
         weights: the pin (``weights_of``, or what a preset passes).
         download: ``False``: only the cache; a missing file raises.
     """
-    from ..catalog.fetch import hf_snapshot as fetch
+    from linecaster.catalog.fetch import hf_snapshot as fetch
 
     return fetch(weights, download)
 
@@ -137,7 +137,7 @@ def conventions(ref: str) -> "ResolvedConventions":
     Args:
         ref: the entry, e.g. ``example@1``.
     """
-    from ..catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     return catalog().conventions(ref)
 
@@ -148,7 +148,7 @@ def model_entry(model_id: str) -> "ModelDoc | None":
     Args:
         model_id: the catalog model's id, e.g. ``pp-ocrv6-medium-det-onnx``.
     """
-    from ..catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     entry = catalog().models.get(model_id)
     return entry[1] if entry is not None else None

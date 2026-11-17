@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from ..data.transcription import Annotator, Source, Transcription
+from linecaster.data.transcription import Annotator, Source, Transcription
 
 _ROOT = re.compile(rb"<(?:[\w.-]+:)?(alto|pcgts)\b", re.IGNORECASE)
 _HOCR = re.compile(rb"""class\s*=\s*["'][^"']*\bocr_page\b""", re.IGNORECASE)

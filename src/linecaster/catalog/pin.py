@@ -17,9 +17,9 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-from . import yamlio
-from .registry import sha256_file, write_entry
-from .schema import ModelDoc, Pin
+from linecaster.catalog import yamlio
+from linecaster.catalog.registry import sha256_file, write_entry
+from linecaster.catalog.schema import ModelDoc, Pin
 
 #: card license ids (Hugging Face uses lowercase SPDX-like ids) -> SPDX
 SPDX = {"apache-2.0": "Apache-2.0", "mit": "MIT", "bsd-3-clause": "BSD-3-Clause", "cc-by-4.0": "CC-BY-4.0",

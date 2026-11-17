@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 from typing import Protocol
 
-from ..data.transcription import Transcription
+from linecaster.data.transcription import Transcription
 
 
 class EngineModel(Protocol):
@@ -55,7 +55,7 @@ class InProcess:
     @classmethod
     def from_preset(cls, ref: str) -> "InProcess":
         """The engine and options of catalog preset ``ref`` (``id``)."""
-        from ..catalog.registry import engine_spec
+        from linecaster.catalog.registry import engine_spec
 
         spec, kwargs, resolved = engine_spec(ref)
         backend = cls(spec, **kwargs)
@@ -82,7 +82,7 @@ class InProcess:
         for k in ("preset", "preset_sha256", "overrides"):
             if getattr(self, k, None):
                 out[k] = getattr(self, k)
-        from ..blocks.base.block import plain
+        from linecaster.blocks.base.block import plain
 
         return plain(out)
 

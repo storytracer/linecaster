@@ -27,8 +27,8 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError, model_validator
 
-from ..data.transcription import Annotator, RawOutput, Source, Transcription
-from ..errors import CatalogError, PipelineConfigError, ServerError
+from linecaster.data.transcription import Annotator, RawOutput, Source, Transcription
+from linecaster.errors import CatalogError, PipelineConfigError, ServerError
 
 #: the engine of chat presets
 ENGINE = "chat.v1"
@@ -347,7 +347,7 @@ class ChatAdapter:
     def crop_region(self, image, region, scale: float = 1.0, pad: int = 0):
         """The crop of ``region`` from the page ``image`` (already scaled by ``scale``): the region's box at
         that scale with ``pad`` px around it. An adapter overrides it to follow its model's own crop rule."""
-        from ..data.geometry import bbox_of
+        from linecaster.data.geometry import bbox_of
 
         b = bbox_of(region.polygon)
         box = (max(0, int((b.x0 - pad) * scale)), max(0, int((b.y0 - pad) * scale)),
@@ -510,7 +510,7 @@ def png_longest(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
     """RGB, longest side forced to exactly ``longest`` px (up or down, LANCZOS), base64 PNG; and the size."""
     from PIL import Image
 
-    from ..images.pixels import rgb_image
+    from linecaster.images.pixels import rgb_image
 
     img = rgb_image(image)
     w, h = img.size
@@ -560,7 +560,7 @@ def adapters() -> dict[str, type[ChatAdapter]]:
 
 def chat_presets(catalog=None) -> dict[str, str]:
     """Chat preset ids -> the model's Hugging Face id."""
-    from ..catalog.registry import catalog as installed
+    from linecaster.catalog.registry import catalog as installed
 
     c = catalog or installed()
     return {pid: c.model(p.model.id).source.ref for pid, (_, p) in sorted(c.presets.items())
@@ -571,7 +571,7 @@ def preset_ref(ref: str, catalog=None, prefer: str = "page") -> str:
     """``ref`` as a preset ref: a preset id as it is; a Hugging Face id becomes one of that model's
     presets, the first in id order with unit ``prefer`` (``page``, or ``region`` for region reading), else
     the first in id order."""
-    from ..catalog.registry import catalog as installed, entry_id
+    from linecaster.catalog.registry import catalog as installed, entry_id
 
     c = catalog or installed()
     if entry_id(ref, "preset") in c.presets:
@@ -588,7 +588,7 @@ def chat_model(ref: str, served_name: str | None = None, catalog=None, prefer: s
     or by Hugging Face id, ``chat_model("lightonai/LightOnOCR-2-1B")`` (its page preset; ``prefer="region"``:
     its region preset). What it reads (``unit``) is the preset's capability. ``overrides``: ``ChatAdapter.Options``
     over the preset's settings, e.g. ``{"repair_max_tokens": 8192}``."""
-    from ..catalog.registry import catalog as installed
+    from linecaster.catalog.registry import catalog as installed
 
     c = catalog or installed()
     r = c.resolve(preset_ref(ref, c, prefer))

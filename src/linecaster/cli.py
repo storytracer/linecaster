@@ -5,18 +5,18 @@ import argparse
 import json
 import sys
 
-from .errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
+from linecaster.errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
 
 
 def _serve(a) -> None:
-    from .serve import Hosted, serve
+    from linecaster.serve import Hosted, serve
 
     hosted = []
     if a.config:
         with open(a.config) as f:
             for m in json.load(f)["models"]:
                 if m.get("preset"):        # a catalog preset, with options over the preset's
-                    from .catalog.registry import engine_spec
+                    from linecaster.catalog.registry import engine_spec
 
                     spec, kw, r = engine_spec(m["preset"], served=True)
                     hosted.append(Hosted(m["name"], spec, {**kw, **m.get("overrides", {})},
@@ -25,7 +25,7 @@ def _serve(a) -> None:
                     hosted.append(Hosted(m["name"], m["spec"], m.get("kwargs", {}), m.get("max_queue", a.max_queue)))
     kwargs = dict(kv.split("=", 1) for kv in a.kwargs)
     for kv in a.preset:
-        from .catalog.registry import engine_spec
+        from linecaster.catalog.registry import engine_spec
 
         name, ref = kv.split("=", 1)
         spec, kw, r = engine_spec(ref, served=True)
@@ -40,7 +40,7 @@ def _serve(a) -> None:
 
 
 def _traces(a) -> None:
-    from .tracing.report import read_spans, render, summarize
+    from linecaster.tracing.report import read_spans, render, summarize
 
     spans = read_spans(a.out)
     if not spans:
@@ -50,7 +50,7 @@ def _traces(a) -> None:
 
 
 def _ago(seconds: float) -> str:
-    from .runtime.console import duration
+    from linecaster.runtime.console import duration
 
     return duration(seconds).replace(" ", "")
 
@@ -63,8 +63,8 @@ def _table(rows: list[tuple]) -> list[str]:
 def render_broker(report: dict) -> str:
     """Returns ``linecaster broker status``'s text for a ``linecaster.broker.survey_all`` report: the format, the
     workers, the slots per machine and per kind its resources held, free, blocked per scope and broken."""
-    from .broker import FORMAT
-    from .net.proxies import TURN
+    from linecaster.broker import FORMAT
+    from linecaster.net.proxies import TURN
 
     now = report["now"]
     fmt = report["format"] or "none (no broker.json)"
@@ -107,7 +107,7 @@ def _broker(a) -> None:
 
 
 def _broker_action(a) -> None:
-    from . import broker
+    from linecaster import broker
 
     if a.action == "status":
         report = broker.survey_all(a.path)
@@ -143,11 +143,11 @@ def _score(a) -> None:
     (Parquet) and one evidence record."""
     from pathlib import Path
 
-    from .catalog import yamlio
-    from .catalog.registry import rendering_policy
-    from .scoring.benchmark import read_benchmark
-    from .scoring.evidence import evidence, write_evidence
-    from .scoring.run import score_run, write_scores
+    from linecaster.catalog import yamlio
+    from linecaster.catalog.registry import rendering_policy
+    from linecaster.scoring.benchmark import read_benchmark
+    from linecaster.scoring.evidence import evidence, write_evidence
+    from linecaster.scoring.run import score_run, write_scores
 
     bench = read_benchmark(yamlio.read(a.benchmark))
     pages = Path(a.run) / "pages" if (Path(a.run) / "pages").is_dir() else Path(a.run)
@@ -168,8 +168,8 @@ def _score(a) -> None:
 
 def _evidence(a) -> None:
     """``linecaster evidence check|compare``: evidence records validated, or put side by side."""
-    from .catalog import yamlio
-    from .catalog.schema import Evidence3, read_evidence
+    from linecaster.catalog import yamlio
+    from linecaster.catalog.schema import Evidence3, read_evidence
 
     records = []
     for path in a.files:
@@ -205,8 +205,8 @@ def _images(a) -> None:
 
     import fsspec
 
-    from .images import accel
-    from .images.transcode import compare_decoders
+    from linecaster.images import accel
+    from linecaster.images.transcode import compare_decoders
 
     if not accel.gpu_available():
         raise PipelineConfigError("images compare: no CUDA device or no nvImageCodec here "
@@ -256,7 +256,7 @@ def _report_removed(a, result: dict, categories: tuple[str, ...]) -> None:
 
 
 def _models(a) -> None:
-    from .catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     c = catalog()
     rows = [("preset", "step", "engine", "model", "license", "support")]
@@ -275,7 +275,7 @@ def _models(a) -> None:
 
 
 def _docs(a) -> None:
-    from . import docs
+    from linecaster import docs
 
     files = docs.generate(a.out, a.readme)
     for path in docs.write(files, a.out):
@@ -283,7 +283,7 @@ def _docs(a) -> None:
 
 
 def _catalog(a) -> None:
-    from .catalog import registry
+    from linecaster.catalog import registry
 
     if a.action == "verify":
         try:
@@ -293,7 +293,7 @@ def _catalog(a) -> None:
         print("\n".join(problems) or "catalog OK")
         sys.exit(1 if problems else 0)
     if a.action == "show":
-        from .catalog import yamlio
+        from linecaster.catalog import yamlio
 
         c = registry.Catalog()
         kind = "recipe" if registry.entry_id(a.ref) in c.recipes else "preset"
@@ -303,12 +303,12 @@ def _catalog(a) -> None:
         for path in registry.Catalog().write_index():
             print(path)
     elif a.action == "schemas":
-        from .catalog import schema
+        from linecaster.catalog import schema
 
         for path in schema.write_schemas(*([a.out] if a.out else [])):
             print(path)
     elif a.action == "pin":
-        from .catalog import pin
+        from linecaster.catalog import pin
 
         if a.hf:
             path = pin.pin_hf(registry.CORE, a.ref, a.hf, a.revision)
@@ -324,14 +324,14 @@ PAGE_PIPELINE = "transcribe_modular.v1"
 def page_command(image: str, out: str, rest: list[str], pipeline: str | None = None) -> list[str]:
     """The pipeline script's command line for ``linecaster page``: the script of ``pipeline`` (a pipeline id), else
     of the recipe ``--recipe`` in ``rest`` names, else of ``PAGE_PIPELINE``, with ``--page IMAGE OUT``."""
-    from .catalog import code
+    from linecaster.catalog import code
 
     if pipeline is None:
         ap = argparse.ArgumentParser(add_help=False)
         ap.add_argument("--recipe")
         known, _ = ap.parse_known_args(rest)
         if known.recipe:
-            from .catalog.registry import catalog
+            from linecaster.catalog.registry import catalog
 
             pipeline = catalog().resolve_recipe(known.recipe).content["pipeline"]
     pipeline = pipeline or PAGE_PIPELINE
@@ -369,7 +369,7 @@ def _truth_check(a) -> None:
     """``linecaster truth check``: what a ground truth's page records hold, per page and in total."""
     from pathlib import Path
 
-    from .scoring.truth import check, render
+    from linecaster.scoring.truth import check, render
 
     ids = set(Path(a.ids).read_text(encoding="utf-8").split()) if a.ids else None
     report = check(a.truth, a.transcription, ids)
@@ -380,11 +380,11 @@ def _truth_check(a) -> None:
 
 def _truth_publish(a) -> None:
     """``linecaster truth publish``: a ground truth's page records as a Hub dataset (Parquet and a dataset card)."""
-    from .scoring.publish import publish
+    from linecaster.scoring.publish import publish
 
     read_image = None
     if a.images is None and not a.no_images:
-        from .blocks.conversion.images import read_uri
+        from linecaster.blocks.conversion.images import read_uri
 
         read_image = read_uri
     got = publish(a.truth, a.out, a.transcription, images=a.images, read_image=read_image,
@@ -395,8 +395,8 @@ def _truth_publish(a) -> None:
 
 def _benchmark_init(a) -> None:
     """``linecaster benchmark init``: a benchmark definition from a ground truth's page records."""
-    from .data.sample import SampleRule
-    from .scoring.truth import benchmark, write_benchmark
+    from linecaster.data.sample import SampleRule
+    from linecaster.scoring.truth import benchmark, write_benchmark
 
     splits = _fractions(a.split)
     limits = (a.sample, a.sample_items, a.sample_per_item, a.per_stratum)
@@ -592,7 +592,7 @@ def main(argv: list[str] | None = None) -> None:
         if a.command == "page":
             _page(a, rest)
         elif a.command == "sample":
-            from .runtime import run
+            from linecaster.runtime import run
 
             run.sample(rest)
         elif a.command == "serve":
@@ -626,8 +626,8 @@ def main(argv: list[str] | None = None) -> None:
 def _export(a) -> None:
     from pathlib import Path
 
-    from .formats.omnidocbench import export
-    from .scoring.run import read_truth, truth_ids
+    from linecaster.formats.omnidocbench import export
+    from linecaster.scoring.run import read_truth, truth_ids
 
     ids = set(Path(a.ids).read_text().split()) if a.ids else truth_ids(a.truth)
     counts = export(a.out, read_truth(a.truth, ids), read_truth(a.pages, ids), a.transcription, a.truth_transcription,

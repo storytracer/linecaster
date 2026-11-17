@@ -14,10 +14,10 @@ from dataclasses import dataclass
 from linecaster.data import Anchor, Annotator, Source, Transcription
 from linecaster.engines.api import HtmlConverter, ResolvedConventions, SourceMap
 
-from .html import HtmlBuilder
-from .proofread import FOOT_START, HEAD_END, PageSource, mark_calls, top_level_calls
-from .site import Site
-from .texvc import VERSION as TEXVC
+from linecaster_mediawiki.html import HtmlBuilder
+from linecaster_mediawiki.proofread import FOOT_START, HEAD_END, PageSource, mark_calls, top_level_calls
+from linecaster_mediawiki.site import Site
+from linecaster_mediawiki.texvc import VERSION as TEXVC
 
 ENGINE = "import.mediawiki.v1"
 #: ProofreadPage's levels as the review the people's annotator records

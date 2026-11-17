@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .app import Hosted, build_app, serve
+from linecaster.serve.app import Hosted, build_app, serve
 
 __all__ = ["Hosted", "build_app", "serve", "engine", "serve_command"]
 
@@ -17,7 +17,7 @@ def serve_command(models: list[dict], port: int = 8100, python: str | None = Non
     ``-m linecaster.cli serve``. ``env``: variables for the server (``env K=V ...`` before the command), e.g. the
     task's trace file (``linecaster.tracing.TRACES_ENV``)."""
     if script:
-        from ..runtime.run import here               # a Ray worker's copy of the job's code
+        from linecaster.runtime.run import here               # a Ray worker's copy of the job's code
 
         cmd = ["uv", "run", "--quiet", "--script", here(str(script)), "serve"]
     else:

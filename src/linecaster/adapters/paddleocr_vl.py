@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url, png_bytes
+from linecaster.adapters import ChatAdapter, data_url, png_bytes
 
 
 def smart_resize(h: int, w: int, factor: int, min_pixels: int, max_pixels: int) -> tuple[int, int]:
@@ -41,7 +41,7 @@ class PaddleOCRVLAdapter(ChatAdapter):
         """RGB, ``smart_resize`` (LANCZOS) if the size changes, base64 PNG."""
         from PIL import Image
 
-        from ..images.pixels import rgb_image
+        from linecaster.images.pixels import rgb_image
 
         img = rgb_image(image)
         w, h = img.size

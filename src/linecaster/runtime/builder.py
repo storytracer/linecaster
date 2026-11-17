@@ -40,10 +40,10 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
-from ..blocks.base.composite import Composite
-from ..blocks.base.contract import Contract, Part, contract_of
-from ..errors import PipelineConfigError
-from .observers import Boundary, Observer, Observers, Tap
+from linecaster.blocks.base.composite import Composite
+from linecaster.blocks.base.contract import Contract, Part, contract_of
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime.observers import Boundary, Observer, Observers, Tap
 
 #: where a page records which alternative of a group took it (removed after the group)
 BRANCH_KEY = "linecaster_branch"
@@ -117,7 +117,7 @@ class Branch:
         return getattr(self.block, name)
 
     def _takes(self, doc) -> bool:
-        from ..blocks.base.page import page_of
+        from linecaster.blocks.base.page import page_of
 
         taken = doc.metadata.get(BRANCH_KEY) or {}
         if self.group is not None and self.group in taken:
@@ -137,7 +137,7 @@ class Branch:
         return doc
 
     def __call__(self, data, rank: int = 0, world_size: int = 1):
-        from ..blocks.base.block import warm
+        from linecaster.blocks.base.block import warm
 
         warm(self.block)
         if getattr(self.block, "shape", None) == "unit" and hasattr(self.block, "process_page"):
@@ -344,7 +344,7 @@ def _folder(writer) -> str | None:
 
 
 def _pages_writer(folder: str, item_shards: int | None = None):
-    from ..blocks.writers.records import PageJsonlWriter
+    from linecaster.blocks.writers.records import PageJsonlWriter
 
     return PageJsonlWriter(folder, output_filename="${rank}.jsonl.gz", item_shards=item_shards)
 
@@ -395,7 +395,7 @@ def _until(entries: list[_Entry], name: str, run_folder: str | None, problems: l
 
 def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
     """The recipe on every step: a ``RecipeStamper`` before the first writer."""
-    from ..blocks.validation.recipe import RecipeStamper
+    from linecaster.blocks.validation.recipe import RecipeStamper
 
     i = next((k for k, e in enumerate(entries) if e.contract.role in ("writer", "server")), len(entries))
     entries.insert(i, _Entry(RecipeStamper(*recipe)))
@@ -404,7 +404,7 @@ def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
 def _converters(entries: list[_Entry]) -> None:
     """A ``TranscriptionImporter`` (the library's OCR into ``ocr_original``) right after a block that brings a
     transcription file (``ManifestReader(existing_ocr=True)``) when no block after it reads the file."""
-    from ..blocks.conversion.transcriptions import TranscriptionImporter
+    from linecaster.blocks.conversion.transcriptions import TranscriptionImporter
 
     file = Part("transcription_file")
     for i, e in enumerate(entries):
@@ -416,7 +416,7 @@ def _converters(entries: list[_Entry]) -> None:
 def _rejects(entries: list[_Entry], run_folder: str) -> None:
     """A ``RejectWriter`` into ``<run_folder>/rejects`` before the first writer, binder or server (the stream still
     carries pages there), unless the pipeline has one."""
-    from ..blocks.writers.rejects import RejectWriter
+    from linecaster.blocks.writers.rejects import RejectWriter
 
     if any(_is(e.block, "RejectWriter") for e in entries):
         return
@@ -455,7 +455,7 @@ def _cut(entries: list[_Entry], tasks: int, run_folder: str | None, problems: li
             pre[same] = _Entry(_pages_writer(folder, n))
         else:
             pre.append(_Entry(_pages_writer(folder, n)))
-    from ..blocks.readers.records import PageRecordReader
+    from linecaster.blocks.readers.records import PageRecordReader
 
     reader = PageRecordReader(folder, fetch_images=False, item_shards=True, provides=())
     models_after = any(e.contract.role == "model" for e in post)
@@ -684,8 +684,8 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
 
 def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | None, problems: list[str]):
     """The stage's tracing observer: when there is a run folder for its file, or an OTLP endpoint."""
-    from ..errors import PipelineConfigError
-    from ..tracing import DEFAULT_SAMPLE, Tracing, otlp_configured
+    from linecaster.errors import PipelineConfigError
+    from linecaster.tracing import DEFAULT_SAMPLE, Tracing, otlp_configured
 
     if run_folder is None and not otlp_configured():
         return None
@@ -767,7 +767,7 @@ def _build(blocks: list, *, tasks: int = 1, until=None, after=None, taps=None, r
 def _timing(entries: list[_Entry]):
     """A page stage's ``PageTiming``: from its first block to the first that writes pages, binds or serves (where the
     stream still carries pages, as for ``_rejects``); none for a stage of items or one that writes no page."""
-    from .observers import PageTiming
+    from linecaster.runtime.observers import PageTiming
 
     if not entries or entries[0].contract.unit not in ("page", "any") or entries[0].contract.output_unit == "item":
         return None

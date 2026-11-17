@@ -11,8 +11,8 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .decisions import Decision, make
-from .model import ConventionsDoc, Rule
+from linecaster.markup.decisions import Decision, make
+from linecaster.markup.model import ConventionsDoc, Rule
 
 
 class ConventionsError(ValueError):

@@ -8,7 +8,7 @@ import io
 import re
 from collections.abc import Callable, Mapping
 
-from ...errors import PageError
+from linecaster.errors import PageError
 
 #: ``#page=<n>`` of a PDF page (``PdfReader``), 1-based
 PDF_PAGE = re.compile(r"page=(\d+)")
@@ -55,7 +55,7 @@ def read_image(uri: str, read: Callable[[str], bytes], page_id: str = "", metada
 
 def pdf_page(data: bytes, number: int, dpi: float, uri: str = "", page_id: str = "") -> bytes:
     """Page ``number`` (1-based) of the PDF ``data``, rendered at ``dpi`` as lossless WebP (``PdfReader.render``)."""
-    from .pdf import pdfium, render
+    from linecaster.blocks.readers.pdf import pdfium, render
 
     pdf = pdfium().PdfDocument(data)
     try:

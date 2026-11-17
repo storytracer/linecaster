@@ -4,17 +4,17 @@ layout, pure Python and in-process only, registered in ``linecaster.catalog.regi
 ``linecaster.engines.base``, the scripts in ``linecaster.engines.scripts``; the rules themselves stay in
 ``linecaster.text``, ``linecaster.images`` and ``linecaster.formats`` (the engines are thin). Import-light, like
 the data model: no datatrove, saturate, blocks or runtime."""
-from .base import RuleEngine, ScriptDispatch, Strategy
-from .composition import LinkedCompositionEngine
-from .image import ImageConvertEngine, WebpLosslessImageEngine
-from .importers import (
+from linecaster.engines.base import RuleEngine, ScriptDispatch, Strategy
+from linecaster.engines.composition import LinkedCompositionEngine
+from linecaster.engines.image import ImageConvertEngine, WebpLosslessImageEngine
+from linecaster.engines.importers import (
     AltoImporter, AutoImporter, DoclingImporter, HocrImporter, HtmlImporter, IiifImporter, Importer,
     OmniDocBenchImporter, PageXmlImporter, TeiImporter, TextImporter,
 )
-from .layout import SingleRegionLayoutEngine
-from .recomposition import ByScriptRecompositionEngine, UnicodeRecompositionEngine
-from .tagging import ChatTaggingEngine, GeometryTaggingEngine
-from .typography import RatiosTypographyEngine
+from linecaster.engines.layout import SingleRegionLayoutEngine
+from linecaster.engines.recomposition import ByScriptRecompositionEngine, UnicodeRecompositionEngine
+from linecaster.engines.tagging import ChatTaggingEngine, GeometryTaggingEngine
+from linecaster.engines.typography import RatiosTypographyEngine
 
 __all__ = [
     "AltoImporter", "AutoImporter", "DoclingImporter", "HocrImporter", "HtmlImporter", "IiifImporter", "Importer",

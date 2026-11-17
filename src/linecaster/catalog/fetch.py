@@ -8,8 +8,8 @@ from pathlib import Path
 
 from loguru import logger
 
-from ..errors import CatalogError
-from .registry import catalog, sha256_file
+from linecaster.errors import CatalogError
+from linecaster.catalog.registry import catalog, sha256_file
 
 
 def weights_of(model_id: str, revision: str | None = None) -> dict:

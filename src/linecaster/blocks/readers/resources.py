@@ -53,12 +53,12 @@ from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard
 from datatrove.pipeline.readers.base import BaseDiskReader
 from loguru import logger
 
-from ...errors import PipelineConfigError, ServerError
-from ...net.http import prefetched
-from ..base.contract import Contracted
-from ..base.page import NOT_THE_PAGES, ErrorBudget, error_entry, record_error
-from .existing import ExistingImages, Reused
-from .tables import item_ranges, item_runs, rows_between, slice_batches, table_rows
+from linecaster.errors import PipelineConfigError, ServerError
+from linecaster.net.http import prefetched
+from linecaster.blocks.base.contract import Contracted
+from linecaster.blocks.base.page import NOT_THE_PAGES, ErrorBudget, error_entry, record_error
+from linecaster.blocks.readers.existing import ExistingImages, Reused
+from linecaster.blocks.readers.tables import item_ranges, item_runs, rows_between, slice_batches, table_rows
 
 #: where a resource's record is kept in its document
 RESOURCE_KEY = "resource"
@@ -96,7 +96,7 @@ def check(data: bytes, content_type: str, expected: str | None) -> str | None:
 
 def inspect(data: bytes, content_type: str, expected: str | None) -> tuple[str | None, list[str]]:
     """(``check``'s problem or None, an image's image warnings: ``linecaster.images.image_warnings``)."""
-    from ...net.http import is_html
+    from linecaster.net.http import is_html
 
     ctype = (content_type or "").split(";")[0].strip().lower()
     if expected and is_html(data, content_type):     # data a server labels text/html is read as what it is
@@ -114,7 +114,7 @@ def inspect(data: bytes, content_type: str, expected: str | None) -> tuple[str |
         elif fmt == "json":
             json.loads(data)
         elif fmt == "image":
-            from ...images import image_warnings
+            from linecaster.images import image_warnings
 
             found = image_warnings(data)
     except Exception as e:  # noqa: BLE001 - what the parser says is the problem
@@ -193,7 +193,7 @@ class ResourceReader(Contracted, BaseDiskReader):
             raise PipelineConfigError("max_items must be at least 1")
         self.item_key, self.templates = item_key, dict(templates or {})
         self.url_key, self.kind_key, self.name_key = url_key, kind_key, name_key
-        from ...net.policy import Fetchers
+        from linecaster.net.policy import Fetchers
 
         self.http, self.http_policy = dict(http or {}), http_policy
         self.reuse_folder, self.max_items = reuse_folder, max_items
@@ -348,7 +348,7 @@ class ResourceReader(Contracted, BaseDiskReader):
         """The resources of one whole file (datatrove's reader interface; ``run`` reads a task's item)."""
         import pyarrow.parquet as pq
 
-        from .tables import whole_file
+        from linecaster.blocks.readers.tables import whole_file
 
         with self.data_folder.open(filepath, "rb") as f, pq.ParquetFile(f) as pqf:
             slices = whole_file(pqf, filepath)
@@ -386,7 +386,7 @@ class ResourceReader(Contracted, BaseDiskReader):
         """The resource's document, and the error that failed it (None)."""
         from datatrove.data import Document, Media, MediaType
 
-        from ...net.http import StopRequests, UnexpectedHTML, failed_fetch, fetch_record
+        from linecaster.net.http import StopRequests, UnexpectedHTML, failed_fetch, fetch_record
 
         item, kind, name, url = entry
         expected = expected_format(kind, url)

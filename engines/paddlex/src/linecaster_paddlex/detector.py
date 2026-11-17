@@ -9,9 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecaster.data import Annotator, Transcription
 from linecaster.data.geometry import BBox, bbox_of, xywh
 
-from .compat import create_predictor, paddle_image
-from .crops import crop_bbox, crop_polygon
-from .weights import check, resolve
+from linecaster_paddlex.compat import create_predictor, paddle_image
+from linecaster_paddlex.crops import crop_bbox, crop_polygon
+from linecaster_paddlex.weights import check, resolve
 
 DETECTORS = ("PP-OCRv6_medium_det", "PP-OCRv6_small_det", "PP-OCRv6_tiny_det")
 

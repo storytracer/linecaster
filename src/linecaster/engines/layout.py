@@ -5,8 +5,8 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.transcription import Transcription
-from .base import RuleEngine
+from linecaster.data.transcription import Transcription
+from linecaster.engines.base import RuleEngine
 
 
 class SingleRegionLayoutEngine(RuleEngine):

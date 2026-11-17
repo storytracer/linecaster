@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..runtime.secrets import EnvVar
-from .served import check_secrets, request_headers
+from linecaster.runtime.secrets import EnvVar
+from linecaster.backends.served import check_secrets, request_headers
 
 #: the port ``ChatModelServer`` starts its server on by default; ``Chat`` without an endpoint asks there
 CHAT_PORT = 8000
@@ -51,7 +51,7 @@ class Chat:
     def __init__(self, preset, endpoint: str | None = None, served_name: str | None = None, max_window: int = 32,
                  initial_window: int = 4, read_timeout: float = 600.0, api_key: EnvVar | None = None,
                  headers: dict | None = None, prefer: str = "page", overrides: dict | None = None):
-        from ..adapters import ChatAdapter, chat_model
+        from linecaster.adapters import ChatAdapter, chat_model
 
         check_secrets("Chat", api_key, headers)
         if isinstance(preset, ChatAdapter):
@@ -95,7 +95,7 @@ class Chat:
     def to_dict(self) -> dict[str, Any]:
         """The backend as the run record names it: the adapter (preset and its hash, model, revision, adapter
         class, served name), the endpoint, the window and timeout, and the secrets by name (``{"env": NAME}``)."""
-        from ..blocks.base.block import plain
+        from linecaster.blocks.base.block import plain
 
         out = {"backend": "chat", **self.adapter.to_dict(), "endpoint": self.endpoint, "max_window": self.max_window,
                "initial_window": self.initial_window, "read_timeout": self.read_timeout}

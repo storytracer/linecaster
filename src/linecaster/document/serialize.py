@@ -28,8 +28,8 @@ import re
 
 import html as htmllib
 
-from ..data.policy import MarkdownRules
-from .model import Block, Document, Span
+from linecaster.data.policy import MarkdownRules
+from linecaster.document.model import Block, Document, Span
 
 #: export formats (``export``) -> file extension
 EXPORT_FORMATS = {"md": "md", "txt": "txt", "html": "html", "json": "json"}
@@ -37,12 +37,12 @@ EXPORT_FORMATS = {"md": "md", "txt": "txt", "html": "html", "json": "json"}
 
 def load_document(source) -> Document:
     """A ``Document``: as it is, from its dict or JSON, or a transcription's (``build_document``)."""
-    from ..data.transcription import Transcription
+    from linecaster.data.transcription import Transcription
 
     if isinstance(source, Document):
         return source
     if isinstance(source, Transcription):
-        from .builder import build_document
+        from linecaster.document.builder import build_document
 
         return build_document(source)
     if isinstance(source, (str, bytes)):

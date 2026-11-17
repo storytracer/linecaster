@@ -29,9 +29,9 @@ logged once per kind of failure and counted (``gpu_decode_errors``). Ctrl-C stop
 runs again on the next launch, and the process ends by the signal. Under ``uv run`` a shell loop still goes on
 (uv turns the signal into exit code 130, astral-sh/uv#11886): ``trap 'exit 130' INT`` before the loop stops it.
 """
-from ..blocks.conversion.images import ImageConverter
-from ..errors import PipelineConfigError
-from ..runtime import run
+from linecaster.blocks.conversion.images import ImageConverter
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime import run
 
 
 def options(ap):
@@ -52,8 +52,8 @@ def models(a) -> list[dict]:
 
 
 def pipeline(a, script: str):
-    from ..images.accel import cuda_devices, gpu_available
-    from ..runtime.cpus import available_cpus
+    from linecaster.images.accel import cuda_devices, gpu_available
+    from linecaster.runtime.cpus import available_cpus
 
     if not a.preset:
         raise PipelineConfigError("convert: pick --preset (an image preset, e.g. webp-lossy-q80; `linecaster models`)")

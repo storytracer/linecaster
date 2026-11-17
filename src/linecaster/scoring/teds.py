@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from ..data.transcription import Table
+from linecaster.data.transcription import Table
 
 
 @dataclass
@@ -91,7 +91,7 @@ def teds(truth: Table, output: Table, text: Callable[[str], str] = lambda s: s, 
     ``structure_only`` TEDS-S, the cells' contents ignored."""
     from rapidfuzz.distance import Levenshtein
 
-    from .counts import units
+    from linecaster.scoring.counts import units
 
     a, b = tree(truth, text), tree(output, text)
 

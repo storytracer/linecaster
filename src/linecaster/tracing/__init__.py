@@ -39,8 +39,8 @@ from opentelemetry.sdk.trace.sampling import Decision, Sampler, SamplingResult
 from opentelemetry.trace import SpanContext, StatusCode, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from ..runtime.observers import Observer
-from .export import JsonlFileExporter, PageBuffer
+from linecaster.runtime.observers import Observer
+from linecaster.tracing.export import JsonlFileExporter, PageBuffer
 
 #: where a document carries its trace context: ``doc.metadata["trace"] = {"traceparent": ...}``
 TRACE_KEY = "trace"
@@ -151,7 +151,7 @@ def resource(process: str = "pipeline", run: str | None = None, task: int | None
     adds to them."""
     import socket
 
-    from .. import __version__
+    from linecaster import __version__
 
     attrs = {"service.name": "linecaster", "service.version": __version__, "host.name": socket.gethostname(),
              "linecaster.process": process}
@@ -244,7 +244,7 @@ def _family(block) -> str:
 def block_attributes(block) -> dict:
     """The identifying attributes of a block's spans: class, name, family, unit; a model block's step, preset,
     engine, model, backend and server."""
-    from ..blocks.base.contract import contract_of
+    from linecaster.blocks.base.contract import contract_of
 
     attrs = {"linecaster.block": type(block).__name__, "linecaster.block.family": _family(block)}
     name = getattr(block, "name", None)
@@ -332,7 +332,7 @@ class Tracing(Observer):
     def __init__(self, run_folder: str | None, sample: float = DEFAULT_SAMPLE, run: str | None = None,
                  stage: str | None = None):
         if not 0 <= sample <= 1:
-            from ..errors import PipelineConfigError
+            from linecaster.errors import PipelineConfigError
 
             raise PipelineConfigError(f"--trace-sample is a share from 0 to 1, not {sample}")
         self.run_folder, self.sample, self.stage = run_folder, sample, stage
@@ -368,14 +368,14 @@ class Tracing(Observer):
             "linecaster.task": rank, "linecaster.tasks": world_size, "linecaster.sample": self.sample,
             **({"linecaster.stage": self.stage} if self.stage else {})})
         self.task_context = trace_api.set_span_in_context(self.task_span)
-        from ..runtime.logs import install_trace_ids
+        from linecaster.runtime.logs import install_trace_ids
 
         install_trace_ids(self)
 
     def on_task_end(self, error=None) -> None:
         if self.provider is None:
             return
-        from ..runtime.logs import remove_trace_ids
+        from linecaster.runtime.logs import remove_trace_ids
 
         try:
             with self._lock:
@@ -603,7 +603,7 @@ class Tracing(Observer):
 
 
 def _changes_unit(block) -> bool:
-    from ..blocks.base.contract import contract_of
+    from linecaster.blocks.base.contract import contract_of
 
     try:
         c = contract_of(block)

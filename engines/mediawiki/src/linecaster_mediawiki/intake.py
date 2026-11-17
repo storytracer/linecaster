@@ -18,7 +18,7 @@ import json
 import shutil
 from pathlib import Path
 
-from .site import CANONICAL
+from linecaster_mediawiki.site import CANONICAL
 
 TEMPLATE, MODULE = 10, 828
 
@@ -94,7 +94,7 @@ def intake(folder: Path, dumps: list[Path], siteinfo: Path | None = None, namesp
     lang = info["general"].get("lang", "en")
     loc = Path(wikitextprocessor.__file__).parent / "data" / lang / "localization.json"
     shutil.copy(loc if loc.exists() else loc.parent.parent / "en" / "localization.json", folder / "localization.json")
-    from .site import open_context
+    from linecaster_mediawiki.site import open_context
 
     w = open_context(folder, lang)                 # its own: Site.wtp()'s, which readers share, stays open
     for dump in dumps:
@@ -102,7 +102,7 @@ def intake(folder: Path, dumps: list[Path], siteinfo: Path | None = None, namesp
         style_sheets(w, dump, {TEMPLATE, *namespaces})
     w.close_db_conn()
     if texvc:
-        from .texvc import install
+        from linecaster_mediawiki.texvc import install
 
         install(folder)
     return folder
@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> None:
     if a.cmd == "intake":
         print(intake(a.site, a.dumps, a.siteinfo, tuple(a.namespace), texvc=not a.no_texvc))
     elif a.cmd == "texvc":
-        from .texvc import install
+        from linecaster_mediawiki.texvc import install
 
         print(install(a.site))
 

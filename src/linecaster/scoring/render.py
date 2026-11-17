@@ -6,10 +6,10 @@ default), after its region's text. A ground truth's illegible spans (``status`` 
 become U+FFFD, one per character; its corrections are not applied."""
 from __future__ import annotations
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.refs import parse
-from ..data.transcription import Transcription, render_table
-from .lanes import REPLACEMENT
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.refs import parse
+from linecaster.data.transcription import Transcription, render_table
+from linecaster.scoring.lanes import REPLACEMENT
 
 #: text name -> the layers it holds
 TEXTS = {"full": ("body", "furniture"), "body": ("body",)}

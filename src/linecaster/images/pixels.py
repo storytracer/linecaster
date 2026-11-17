@@ -28,7 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 from loguru import logger
 
-from . import accel as hw
+from linecaster.images import accel as hw
 
 #: how many decoded pages a process keeps by default (``keep``): a page passes all of a task's in-process blocks before
 #: the next is read, so a few are enough; each is its RGB size (36 MB for 12 megapixels)
@@ -145,8 +145,8 @@ def decodes() -> int:
 
 
 def _decode(data: bytes, accel: str, device: int) -> Pixels:
-    from .convert import open_image
-    from .transcode import _PILLOW_JP2, gpu_decodable, pillow_codec
+    from linecaster.images.convert import open_image
+    from linecaster.images.transcode import _PILLOW_JP2, gpu_decodable, pillow_codec
 
     with open_image(data) as im:
         fallback = None

@@ -118,7 +118,7 @@ class Reused:
 def mark_reused(doc) -> None:
     """Mark a page read from its existing file (``image.extra["reused"]``): ``ImageFilesWriter`` does not write it
     again, and the console counts it apart from the downloads."""
-    from ..base.page import page_of, set_page
+    from linecaster.blocks.base.page import page_of, set_page
 
     page = page_of(doc)
     page.image.extra["reused"] = True
@@ -128,7 +128,7 @@ def mark_reused(doc) -> None:
 def is_reused(doc) -> bool:
     """Whether ``doc`` is a page read from its existing image file (``mark_reused``), or a resource read back from its
     copy (``linecaster.blocks.readers.resources``)."""
-    from ...data.page import PAGE_KEY
+    from linecaster.data.page import PAGE_KEY
 
     resource = doc.metadata.get("resource")
     if resource is not None:

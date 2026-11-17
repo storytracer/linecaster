@@ -15,15 +15,15 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from ..data.page import Page
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.sample import listing_sha256
-from ..data.upgrade import upgrade
-from .aggregate import rates, role_rates
-from .benchmark import Benchmark
-from .metrics import score_elements, score_page
-from .slices import SLICES
-from .strata import group as strata_group, page_strata
+from linecaster.data.page import Page
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.sample import listing_sha256
+from linecaster.data.upgrade import upgrade
+from linecaster.scoring.aggregate import rates, role_rates
+from linecaster.scoring.benchmark import Benchmark
+from linecaster.scoring.metrics import score_elements, score_page
+from linecaster.scoring.slices import SLICES
+from linecaster.scoring.strata import group as strata_group, page_strata
 
 SCORE_SCHEMA = "linecaster.score/1"
 
@@ -54,7 +54,7 @@ def read_records(folder: str | Path) -> Iterator[dict]:
 
 
 def scorer() -> str:
-    from . import scorer as named
+    from linecaster.scoring import scorer as named
 
     return named()
 
@@ -86,7 +86,7 @@ def score_pair(pid: str, truth_row: dict, out_row: dict | None, benchmark: Bench
     records = [{"schema": SCORE_SCHEMA, "page_id": pid, "item_id": item_id, **r, **flags, "run_id": run_id,
                 "benchmark": benchmark.ref, "benchmark_sha256": benchmark.sha256, "policy": policy.ref,
                 "output": benchmark.output, "scorer": scorer()} for r in got["rows"]]
-    from .slices import page_slices
+    from linecaster.scoring.slices import page_slices
 
     summary = {"page_id": pid, "item_id": item_id, "roles": got["roles"] if roles else {},
                "confusion": got.get("confusion", []), "missing": out_row is None,
@@ -247,9 +247,9 @@ def wanted_pages(benchmark: Benchmark, truths=None) -> list[str]:
 
 
 def _sampled(rule: dict, truths, transcription: str) -> list[str]:
-    from ..data.page import Page
-    from ..data.sample import SampleRule, sample_pairs
-    from .truth import page_values, read_rows
+    from linecaster.data.page import Page
+    from linecaster.data.sample import SampleRule, sample_pairs
+    from linecaster.scoring.truth import page_values, read_rows
 
     rows = truths.values() if isinstance(truths, dict) else read_rows(str(truths))
     pairs, strata = [], {}
@@ -380,7 +380,7 @@ def _write_parquet(rows: list[dict], path: str | Path) -> None:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from ..data.transcription import producer
+    from linecaster.data.transcription import producer
 
     table = pa.Table.from_pylist(rows)
     table = table.replace_schema_metadata({**(table.schema.metadata or {}), b"linecaster": producer().encode()})

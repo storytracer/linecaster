@@ -29,14 +29,14 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Any
 
-from ..errors import CatalogError
-from . import yamlio
-from ..engines.importers import IMPORTERS
-from ..markup.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
-from ..markup.resolve import ConventionsError, ResolvedConventions, resolve
-from .schema import (SCHEMA_DIR, ModelDoc, NormalizationDoc, PolicyDoc, PresetDoc, RecipeDoc, StrategyDoc,
+from linecaster.errors import CatalogError
+from linecaster.catalog import yamlio
+from linecaster.engines.importers import IMPORTERS
+from linecaster.markup.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
+from linecaster.markup.resolve import ConventionsError, ResolvedConventions, resolve
+from linecaster.catalog.schema import (SCHEMA_DIR, ModelDoc, NormalizationDoc, PolicyDoc, PresetDoc, RecipeDoc, StrategyDoc,
                      json_schemas, schema_file)
-from .vocabulary import VocabularyDoc
+from linecaster.catalog.vocabulary import VocabularyDoc
 
 CORE = Path(__file__).resolve().parent / "data"
 #: the rendering policy a block renders with unless it is given another
@@ -462,7 +462,7 @@ class Catalog:
     def _strategy_problems(self, pid: str, p: PresetDoc) -> list[str]:
         """A by-script preset's strategies: known presets of the same step, each covering its script
         (``linecaster.engines.scripts``) where its engine is installed here."""
-        from ..engines import scripts
+        from linecaster.engines import scripts
 
         out = []
         for code, ref in p.by_script.items():
@@ -498,8 +498,8 @@ class Catalog:
     def recipe_pipeline(self, ref: str) -> dict:
         """The expanded pipeline of recipe ``ref``, built from its pipeline script in this process without
         the engines (``linecaster.runtime.run.describe_recipe``): ``{"pipeline": [...], "pipeline_sha256": ...}``."""
-        from ..errors import LinecasterError
-        from ..runtime.run import describe_recipe
+        from linecaster.errors import LinecasterError
+        from linecaster.runtime.run import describe_recipe
 
         try:
             return describe_recipe(ref, self)
@@ -561,7 +561,7 @@ class Catalog:
     def _conventions_problems(self, d: Directory) -> list[str]:
         """Conventions entries: resolvable, their decisions applied by their format's importer; across a parent's
         children: a rule all of them repeat (it belongs in the parent), an override equal to what it replaces."""
-        from ..formats.html import HtmlConverter
+        from linecaster.formats.html import HtmlConverter
 
         applied = {"html": HtmlConverter.DECISIONS}
         problems: list[str] = []
@@ -673,8 +673,8 @@ def vocabulary_problems(d: Directory) -> list[str]:
     """The vocabularies against the data model: each defines a scheme of ``linecaster.data.SCHEMES``; the role,
     status and property vocabularies list exactly the data model's content roles (``ROLES``), statuses
     (``STATUSES``) and reasons (``REASONS``), and yes and no (``PROPERTIES``)."""
-    from ..data.policy import ROLES
-    from ..data.transcription import PROPERTIES, REASONS, SCHEMES, STATUSES
+    from linecaster.data.policy import ROLES
+    from linecaster.data.transcription import PROPERTIES, REASONS, SCHEMES, STATUSES
 
     problems = []
     expected = {"role": (tuple(ROLES), ()), "status": (STATUSES, tuple(REASONS)),
@@ -787,7 +787,7 @@ class ResolvedNormalization:
     @property
     def text_rule(self) -> bool:
         """Whether it acts on characters (``linecaster.text.normalize``), not on a document's structure."""
-        from .schema import TEXT_RULES
+        from linecaster.catalog.schema import TEXT_RULES
 
         return next(iter(self.rule)) in TEXT_RULES
 
@@ -816,7 +816,7 @@ class ResolvedStrategy:
     def text(self, s: str) -> str:
         """``s`` through the strategy's normalizations (character rules only: a structure rule acts on documents,
         ``linecaster.document.strategy``)."""
-        from ..text.normalize import apply
+        from linecaster.text.normalize import apply
 
         return apply(s or "", [n.rule for n in self.normalizations])
 
@@ -923,7 +923,7 @@ def engine_class(engine: str):
     """
     known = engine_ids()
     if engine not in known:
-        from .code import install_hint
+        from linecaster.catalog.code import install_hint
 
         hint = install_hint(engine)
         raise CatalogError(f"engine {engine!r} is not installed" + (f" ({hint})" if hint else "")
@@ -966,12 +966,12 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
         raise CatalogError(f"preset {r.ref} ({r.engine}) is built in and runs in the pipeline's process only; "
                            "linecaster serve hosts models")
     if r.engine not in known and not installed:
-        from . import code
+        from linecaster.catalog import code
 
         sources = code.engines() if code.REPO is not None else {}
         known = {**known, r.engine: sources[r.engine].target if r.engine in sources else r.engine}
     if r.engine not in known:
-        from .code import install_hint
+        from linecaster.catalog.code import install_hint
 
         hint = install_hint(r.engine)
         raise CatalogError(f"preset {r.ref} needs engine {r.engine!r}, which is not installed" + (f": {hint}" if hint else ""))

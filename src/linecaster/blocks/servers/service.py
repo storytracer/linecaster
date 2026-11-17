@@ -14,8 +14,8 @@ import urllib.request
 from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
-from ...errors import PipelineConfigError, ServerError
-from ..base.contract import Contracted
+from linecaster.errors import PipelineConfigError, ServerError
+from linecaster.blocks.base.contract import Contracted
 
 #: variables of the pipeline's environment a service never inherits: it runs in its image's own environments
 PIPELINE_ENV = ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME", "UV_PROJECT_ENVIRONMENT")
@@ -66,7 +66,7 @@ class ServiceServer(Contracted, PipelineStep):
         super().__init__()
         if server_env not in ("path", "uv", "auto"):
             raise PipelineConfigError(f"ServiceServer: server_env {server_env!r} (path, uv or auto)")
-        from ...catalog.registry import catalog
+        from linecaster.catalog.registry import catalog
 
         r = catalog().resolve(preset)
         serve = dict(r.content.get("serve") or {})
@@ -118,7 +118,7 @@ class ServiceServer(Contracted, PipelineStep):
                                       + [p for p in env.get("PATH", "").split(os.pathsep)
                                          if p and os.path.realpath(p) != own])
         if self._env_dir:                                   # the server environment's CUDA libraries
-            from .provision import ld_library_path
+            from linecaster.blocks.servers.provision import ld_library_path
 
             libs = ld_library_path(self._env_dir, env.get("LD_LIBRARY_PATH"))
             if libs:
@@ -132,21 +132,21 @@ class ServiceServer(Contracted, PipelineStep):
 
     def prepare(self) -> str | None:
         """Fetch the weights the service reads: vLLM's model folder (returned), or a vendor's ``weights_dir``."""
-        from ...catalog.fetch import check, hf_snapshot
+        from linecaster.catalog.fetch import check, hf_snapshot
 
         if self.server == "vllm":
-            from ...catalog.schema import Serve
+            from linecaster.catalog.schema import Serve
 
             version = Serve.model_validate(self.serve).version
             if self.server_env == "auto":                   # vLLM here if it is the preset's release
-                from .provision import found_release, release_of
+                from linecaster.blocks.servers.provision import found_release, release_of
 
                 here = found_release("vllm", self.environment()["PATH"])
                 self.server_env = "path" if here == release_of(version) else "uv"
                 logger.info("vllm {want}: {how}", want=version, how=f"the one here ({here})"
                             if self.server_env == "path" else f"built by uv (here: {here or 'none'})")
             if self.server_env == "uv":
-                from .provision import server_env
+                from linecaster.blocks.servers.provision import server_env
 
                 folder = server_env("vllm", version)
                 self._env_dir, self.vllm = str(folder), str(folder / "bin" / "vllm")

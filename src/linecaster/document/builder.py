@@ -46,14 +46,14 @@ line.
 """
 from __future__ import annotations
 
-from ..data.geometry import BBox
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.refs import parse
-from ..data.transcription import Cell, Line, Region, Table, Transcription
-from ..formats._xml import heading_level, hidden_line
-from ..text.recomposition import continuation, ends_with_mark, paragraphs as paragraphs_of
-from ..text.typography import line_bbox, zone_bbox
-from .model import Block, Document, Grid, Origin, Page, Span
+from linecaster.data.geometry import BBox
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.refs import parse
+from linecaster.data.transcription import Cell, Line, Region, Table, Transcription
+from linecaster.formats._xml import heading_level, hidden_line
+from linecaster.text.recomposition import continuation, ends_with_mark, paragraphs as paragraphs_of
+from linecaster.text.typography import line_bbox, zone_bbox
+from linecaster.document.model import Block, Document, Grid, Origin, Page, Span
 
 #: content role -> block kind (roles not listed: paragraph); page numbers are placed (``block_kind``)
 KIND_OF_ROLE: dict[str, str] = {
@@ -156,7 +156,7 @@ class DocumentBuilder:
         """The document, every origin's box clamped to its page (a layout box often reaches a few pixels past the
         edge); the transcriptions keep their boxes. Its language and direction are the pages' where all record the
         same one, a block's its region's where they differ from the document's."""
-        from ..data.transcription import producer
+        from linecaster.data.transcription import producer
 
         self.doc.producer = producer()
         for k, field in enumerate(("language", "direction")):

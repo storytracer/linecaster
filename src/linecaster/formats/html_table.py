@@ -4,7 +4,7 @@ its text content with whitespace runs as one space (``<br>`` a space). The HTML 
 (``Table.html``). Nested tables are read as text of their cell."""
 from __future__ import annotations
 
-from ..data.transcription import Cell, Table
+from linecaster.data.transcription import Cell, Table
 
 
 def _span(value: str | None) -> int:

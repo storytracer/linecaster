@@ -26,10 +26,10 @@ from typing import Any, Iterable, Sequence
 
 from lxml import etree
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.refs import word as word_ref
-from ..data.transcription import Annotator, Edit, Line, Reading, Region, Source, Transcription, Word
-from ..data.writing import CHECKS, language_tag
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.refs import word as word_ref
+from linecaster.data.transcription import Annotator, Edit, Line, Reading, Region, Source, Transcription, Word
+from linecaster.data.writing import CHECKS, language_tag
 
 EXT_KEY = "linecaster"
 #: the classification schemes of a writing system, as page files hold them
@@ -557,7 +557,7 @@ def transcription(regions: list[FileRegion], lines: list[FileLine], annotators: 
     people (kind ``human``). What each annotator made follows the page/2 upgrade (``linecaster.data.upgrade``):
     regions by the layout step, roles, heading levels and the order by the step that set them last, lines by the
     line step, readings by recognition."""
-    from ..data.policy import classify_label
+    from linecaster.data.policy import classify_label
 
     if ground_truth:
         source.kind = "ground_truth"

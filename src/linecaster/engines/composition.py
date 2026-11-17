@@ -5,8 +5,8 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.transcription import Transcription
-from .base import RuleEngine
+from linecaster.data.transcription import Transcription
+from linecaster.engines.base import RuleEngine
 
 
 class LinkedCompositionEngine(RuleEngine):
@@ -42,8 +42,8 @@ class LinkedCompositionEngine(RuleEngine):
                  policy=None, **options):
         """The page's document, named ``name`` (the page id); ``width`` and ``height``: the page image's size (else
         the transcription's source's); ``policy``: the rendering policy (default: the default policy)."""
-        from ..data.policy import DEFAULT_POLICY
-        from ..document import build_document
+        from linecaster.data.policy import DEFAULT_POLICY
+        from linecaster.document import build_document
 
         o = self.configured(options)
         return build_document(t, name, width, height, sections=o.sections, policy=policy or DEFAULT_POLICY)
@@ -53,8 +53,8 @@ class LinkedCompositionEngine(RuleEngine):
         """One item's document from its pages in order (page ``n`` = the ``n``-th), named ``name`` (the item id).
         ``page_ids`` are the pages' ids, as references to other pages name them (``<page_id>#<id>``), ``sizes``
         their images' (width, height)."""
-        from ..data.policy import DEFAULT_POLICY
-        from ..document import DocumentBuilder
+        from linecaster.data.policy import DEFAULT_POLICY
+        from linecaster.document import DocumentBuilder
 
         o = self.configured(options)
         b = DocumentBuilder(name, sections=o.sections, policy=policy or DEFAULT_POLICY)

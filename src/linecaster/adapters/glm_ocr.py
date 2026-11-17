@@ -9,14 +9,14 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url, png_bytes
+from linecaster.adapters import ChatAdapter, data_url, png_bytes
 
 
 def encode_png(image: bytes, max_pixels: int) -> str:
     """RGB, downscaled to ``max_pixels`` if larger (never up), base64 PNG."""
     from PIL import Image
 
-    from ..images.pixels import rgb_image
+    from linecaster.images.pixels import rgb_image
 
     img = rgb_image(image)
     w, h = img.size

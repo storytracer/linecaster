@@ -12,7 +12,7 @@ from __future__ import annotations
 import base64
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url, png_encode
+from linecaster.adapters import ChatAdapter, data_url, png_encode
 
 #: formats sent byte-for-byte when the image is already RGB
 PASSTHROUGH_FORMATS = {"PNG": "image/png", "JPEG": "image/jpeg"}
@@ -21,8 +21,8 @@ PASSTHROUGH = {"resize": None, "passthrough": "RGB PNG/JPEG", "else": "RGB PNG"}
 
 def encode_image(data: bytes) -> tuple[str, str]:
     """``(mime, base64)`` of a page image at full resolution (a PNG without its damaged ancillary chunks)."""
-    from ..images import drop_damaged_png_chunks, open_image
-    from ..images.pixels import rgb_image
+    from linecaster.images import drop_damaged_png_chunks, open_image
+    from linecaster.images.pixels import rgb_image
 
     clean = drop_damaged_png_chunks(data)
     with open_image(clean) as img:

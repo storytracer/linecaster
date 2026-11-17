@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .transcription import SCHEMA, AnnotationSet, Transcription
+from linecaster.data.transcription import SCHEMA, AnnotationSet, Transcription
 
 PAGE_KEY = "page"
 #: the format of a stored page record (its row's ``schema``); ``PageRecordReader`` reads earlier ones as this one

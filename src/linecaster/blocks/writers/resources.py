@@ -7,7 +7,7 @@ import json
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
 
-from ..base.contract import Contracted
+from linecaster.blocks.base.contract import Contracted
 
 
 class ResourceFilesWriter(Contracted, PipelineStep):
@@ -37,8 +37,8 @@ class ResourceFilesWriter(Contracted, PipelineStep):
     def run(self, data, rank: int = 0, world_size: int = 1):
         from datatrove.io import get_datafolder
 
-        from ..readers.resources import RESOURCE_KEY
-        from .images import _write_whole
+        from linecaster.blocks.readers.resources import RESOURCE_KEY
+        from linecaster.blocks.writers.images import _write_whole
 
         out = get_datafolder(self.output_folder)
         for doc in data:
@@ -81,8 +81,8 @@ class ResourceRecordWriter(Contracted, PipelineStep):
     def run(self, data, rank: int = 0, world_size: int = 1):
         from datatrove.io import get_datafolder
 
-        from ..base.page import ERRORS_KEY
-        from ..readers.resources import RESOURCE_KEY
+        from linecaster.blocks.base.page import ERRORS_KEY
+        from linecaster.blocks.readers.resources import RESOURCE_KEY
 
         folder, f = get_datafolder(self.output_folder), None
         try:

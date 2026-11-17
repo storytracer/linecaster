@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import re
 
-from ..data.transcription import Table
+from linecaster.data.transcription import Table
 
 #: a reference as a contents page or index prints it: a page, chapter or section, in the digits of any script or roman
 #: (``j`` for ``i``), with or without its word (one of these, or any abbreviation of up to four letters with its
@@ -68,7 +68,7 @@ def _words(text: str) -> int:
     runs = text.split()
     if len(runs) > 1:
         return len(runs)
-    from .tokens import tokens
+    from linecaster.scoring.tokens import tokens
 
     return max(len(runs), len(tokens(text, "uax29")))
 

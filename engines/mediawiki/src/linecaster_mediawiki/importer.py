@@ -14,8 +14,8 @@ from pydantic import Field
 
 from linecaster.engines.api import Importer, conventions as catalog_conventions
 
-from .reader import PageReader
-from .site import Site
+from linecaster_mediawiki.reader import PageReader
+from linecaster_mediawiki.site import Site
 
 
 class MediaWikiImporter(Importer):

@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...catalog.registry import DEFAULT_POLICY_REF, rendering_policy
-from ...errors import PipelineConfigError
-from ...document import COMPOSED_KEY, DOCUMENT_KEY, to_text
-from ..base.contract import Contract, Part, parts
-from ..base.item import ITEM_KEY, item_pages
-from ..base.rule import RuleBlock
+from linecaster.catalog.registry import DEFAULT_POLICY_REF, rendering_policy
+from linecaster.errors import PipelineConfigError
+from linecaster.document import COMPOSED_KEY, DOCUMENT_KEY, to_text
+from linecaster.blocks.base.contract import Contract, Part, parts
+from linecaster.blocks.base.item import ITEM_KEY, item_pages
+from linecaster.blocks.base.rule import RuleBlock
 
 UNITS = ("page", "item")
 

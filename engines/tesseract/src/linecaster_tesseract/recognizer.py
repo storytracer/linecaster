@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecaster.data import Annotator, Transcription, Word
 from linecaster.data.geometry import BBox, xywh
 
-from .models import MODEL_IDS, Tessdata, tessdata, tessdata_dir
+from linecaster_tesseract.models import MODEL_IDS, Tessdata, tessdata, tessdata_dir
 
 
 def crop_line(image: np.ndarray, polygon, pad: int) -> tuple[np.ndarray, int, int]:

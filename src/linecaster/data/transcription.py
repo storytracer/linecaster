@@ -67,10 +67,10 @@ RULE_STEPS = frozenset({"unicode", "typography", "recomposition", "normalization
 def producer() -> str:
     """The linecaster that runs here: its release and, where known, its commit (``0.10.0 (1a2b3c4d5e6f)``, ``dirty``
     with uncommitted changes), as a data file names its writer."""
-    from .. import __version__
+    from linecaster import __version__
 
     try:
-        from ..runtime.provenance import commit
+        from linecaster.runtime.provenance import commit
 
         c = commit()
     except Exception:  # noqa: BLE001 - provenance is best effort
@@ -479,7 +479,7 @@ class AnnotationSet(_Extensible):
                    label: str = "", role: str | None = None, heading_level: int | None = None, **fields) -> Region:
         """Appends a region and, with ``role`` (a content role or a region label), its ``role`` classification
         (and a ``heading_level`` one), all by ``annotator``."""
-        from .policy import classify_label
+        from linecaster.data.policy import classify_label
         r = Region(annotator=annotator, id=id, box=box, polygon=polygon, label=label, **fields)
         self.regions.append(r)
         if role is not None:
@@ -501,7 +501,7 @@ class AnnotationSet(_Extensible):
         """Adds a classification; a ``language``, ``script`` or ``direction`` that is none
         (``linecaster.data.writing.check``), and a property scheme's value other than ``yes`` or ``no``
         (``PROPERTIES``), is a ``ValueError``."""
-        from .writing import check
+        from linecaster.data.writing import check
 
         if scheme in PROPERTIES and str(value) not in ("yes", "no"):
             raise ValueError(f"{scheme} is a property scheme: its values are yes and no, not {value!r}")
@@ -519,7 +519,7 @@ class AnnotationSet(_Extensible):
         or a word of a line falls back to its line, a line to its region (``region_of``), a region to the regions it
         lies in (``Zone.parent``), anything to the page (``""``). ``None`` where nothing records one: a value is never
         guessed here (``linecaster.text.scripts`` infers one from a text)."""
-        from .refs import parse
+        from linecaster.data.refs import parse
 
         seen = set()
         while target not in seen:
@@ -579,7 +579,7 @@ class AnnotationSet(_Extensible):
 
     def label(self, target: Ref) -> str:
         """The region label of a region, from its content role (``linecaster.data.policy.region_label``)."""
-        from .policy import region_label
+        from linecaster.data.policy import region_label
         return region_label(self, target)
 
     def heading_level(self, target: Ref) -> int | None:
@@ -723,7 +723,7 @@ class Transcription(AnnotationSet):
     def hidden_lines(self) -> set[str]:
         """The ids of lines whose own status puts them nowhere under the default policy (``duplicate``,
         ``removed``, ``suppressed``)."""
-        from .policy import DEFAULT_POLICY
+        from linecaster.data.policy import DEFAULT_POLICY
         return {c.target for c in self.classifications
                 if c.scheme == "status" and DEFAULT_POLICY.layer(None, status=c.value) == "none"
                 and self.line(c.target) is not None}
@@ -775,7 +775,7 @@ class Transcription(AnnotationSet):
         """The page's literal text, as laid out, full page: the read lines in reading order, one per line;
         a region with a table structure is written as a Markdown table instead of its lines (an HTML table when a
         cell spans); regions the default policy puts nowhere (removed, suppressed, duplicate) left out."""
-        from .policy import DEFAULT_POLICY
+        from linecaster.data.policy import DEFAULT_POLICY
         tables = {tb.target: tb for tb in self.tables if tb.cells}
         hidden = {r.id for r in self.regions if DEFAULT_POLICY.layer_of(self, r.id) == "none"}
         out, done = [], set()

@@ -30,8 +30,8 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.transcription import Annotator
-from ..formats import _provenance as P
+from linecaster.data.transcription import Annotator
+from linecaster.formats import _provenance as P
 
 RUN_SCHEMA = "linecaster.run-record/1"
 METS = "http://www.loc.gov/METS/"
@@ -130,7 +130,7 @@ def step_entries(models: list[Annotator]) -> list[dict[str, Any]]:
 
 def ocrd_step(step: str) -> str:
     """The OCR-D functional step of a linecaster step."""
-    from ..catalog.schema import OCRD_STEPS
+    from linecaster.catalog.schema import OCRD_STEPS
 
     return OCRD_STEPS.get(step, OCRD_FALLBACK_STEP)
 
@@ -204,7 +204,7 @@ def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any
     for a server this run does not start, what the backend knows (engine, preset, else the served model's name);
     for a chat backend its adapter, preset and hash, model and revision, the options set over the preset
     (``overrides``: the sampling, the repair pass) and, while it is on, the repetition detection (on by default)."""
-    from ..blocks.base.block import ENGINE_OPERATIONAL, plain
+    from linecaster.blocks.base.block import ENGINE_OPERATIONAL, plain
 
     if backend.get("backend") == "in-process":       # where the engine's service is (an endpoint) does not count
         options = {k: v for k, v in (backend.get("options") or {}).items() if k not in ENGINE_OPERATIONAL}
@@ -234,8 +234,8 @@ def functional_block(block, served: dict[str, dict] | None = None) -> dict[str, 
     """What a block contributes to the pipeline's hash: its class and its functional parameters (every parameter
     but its ``operational_params()`` and those of its ``unhashed_defaults`` at their default; backends by their
     engine, options and preset, ``_functional_backend``), its condition and group. Server blocks contribute nothing (their models count through the blocks they serve)."""
-    from ..blocks.base.contract import contract_of
-    from .builder import block_dict
+    from linecaster.blocks.base.contract import contract_of
+    from linecaster.runtime.builder import block_dict
 
     if contract_of(block).role == "server":
         return None
@@ -266,7 +266,7 @@ def pipeline_sha256(plan) -> str:
     """The hash of the pipeline's functional parameters (``functional_pipeline``), canonical JSON: the same for a
     resumed run, a run on another executor or backend, or into another folder; different when a block, a preset, an
     engine option or any other functional parameter changes."""
-    from ..catalog.registry import canonical_sha256
+    from linecaster.catalog.registry import canonical_sha256
 
     return canonical_sha256(functional_pipeline(plan))
 
@@ -335,7 +335,7 @@ def script_entry(script: str | None, name: str | None = None) -> dict[str, Any] 
 
 def new_run_id() -> str:
     """A new run id: 32 hex digits (a uuid4's), unique for every launch (``RunRecord.run_id``'s default)."""
-    from .record import _run_id
+    from linecaster.runtime.record import _run_id
 
     return _run_id()
 
@@ -399,8 +399,8 @@ def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) 
     the run's ``recipe``: kind, id, hash and functional content, as the catalog in place has them (a strategy: its
     normalizations, each with its hash; ``literal`` none). A name the catalog does not know (a test's fake) is left
     out."""
-    from ..catalog.registry import catalog, entry_id
-    from ..errors import CatalogError
+    from linecaster.catalog.registry import catalog, entry_id
+    from linecaster.errors import CatalogError
 
     found: dict[tuple[str, str], None] = {}
 
@@ -451,7 +451,7 @@ def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) 
 
 
 def canonical(content: Any) -> str:
-    from ..catalog.registry import canonical_sha256
+    from linecaster.catalog.registry import canonical_sha256
 
     return canonical_sha256(content)
 
@@ -467,7 +467,7 @@ def run_record(options: dict[str, Any], plan=None, *, script: str | None = None,
     ``extra`` (the Jobs' image and dependencies), the software (linecaster release and commit, Python, key
     packages, engine packages) and the launching machine's ``hardware``; ``script_name`` names the script outside a
     git checkout (``script_entry``). Validated against ``RunRecord``."""
-    from .record import RunRecord
+    from linecaster.runtime.record import RunRecord
 
     opts = _plain(dict(options))
     if opts.get("env"):

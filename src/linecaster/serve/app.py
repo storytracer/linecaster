@@ -48,10 +48,10 @@ from opentelemetry import context as otel_context
 from opentelemetry import trace as trace_api
 from opentelemetry.trace import StatusCode
 
-from ..backends import resolve
-from ..images.pixels import decode_pixels
-from ..data.transcription import SCHEMA, Transcription
-from ..tracing import context_of
+from linecaster.backends import resolve
+from linecaster.images.pixels import decode_pixels
+from linecaster.data.transcription import SCHEMA, Transcription
+from linecaster.tracing import context_of
 
 #: the format of the transcriptions requests and responses carry (``/health`` says it; a ``Served`` client refuses a
 #: server that speaks another)
@@ -159,7 +159,7 @@ def build_app(hosted: list[Hosted], decode_workers: int = 4, tracer=None, after_
     no spans. ``after_first_call()`` runs in the event loop once each model has answered its first request.
     ``decoded_gb``: the decoded page images the process keeps (``linecaster.images.pixels.keep``), so the requests of
     one page's steps decode it once."""
-    from ..images import pixels
+    from linecaster.images import pixels
 
     pixels.keep(pages=1 << 20, nbytes=int(decoded_gb * 2**30))
     tracer = tracer or trace_api.NoOpTracer()
@@ -267,7 +267,7 @@ def serve_provider(traces: str | None = None):
 
     from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ParentBased
 
-    from ..tracing import RUN_ENV, TASK_ENV, TRACES_ENV, otlp_configured, resource, task_provider
+    from linecaster.tracing import RUN_ENV, TASK_ENV, TRACES_ENV, otlp_configured, resource, task_provider
 
     traces = traces or os.environ.get(TRACES_ENV)
     if not traces and not otlp_configured():
@@ -280,7 +280,7 @@ def serve_provider(traces: str | None = None):
 
 def serve(hosted: list[Hosted], host: str = "127.0.0.1", port: int = 8100, decode_workers: int = 4,
           traces: str | None = None, decoded_gb: float = DECODED_GB) -> None:
-    from ..runtime.logs import configure, install_trace_ids
+    from linecaster.runtime.logs import configure, install_trace_ids
 
     configure()
     provider = serve_provider(traces)

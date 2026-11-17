@@ -35,7 +35,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from ...errors import ServerError
+from linecaster.errors import ServerError
 
 #: the server's package on PyPI
 PACKAGES = {"vllm": "vllm", "sglang": "sglang"}

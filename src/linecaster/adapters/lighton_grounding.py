@@ -51,10 +51,10 @@ from __future__ import annotations
 import re
 from typing import Any, ClassVar
 
-from ..data.transcription import Annotator, Description, Formula, Link, RawOutput, Source, Transcription
-from ..formats.html_table import table_from_html
-from . import data_url
-from .lighton_ocr3 import LightOnOCR3Adapter
+from linecaster.data.transcription import Annotator, Description, Formula, Link, RawOutput, Source, Transcription
+from linecaster.formats.html_table import table_from_html
+from linecaster.adapters import data_url
+from linecaster.adapters.lighton_ocr3 import LightOnOCR3Adapter
 
 #: the card's grounding prompt, the text part after the image
 PROMPT = "grounding"

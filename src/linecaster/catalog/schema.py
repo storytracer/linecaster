@@ -16,14 +16,14 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer, model_validator
 
-from ..data.page import PAGE_SCHEMA, Page
-from ..data.policy import RenderingPolicy
-from ..document.model import SCHEMA as DOCUMENT_SCHEMA, Document
-from ..markup.model import ConventionsDoc
-from .vocabulary import VocabularyDoc
-from ..scoring.benchmark import Benchmark
-from ..errors import CatalogError
-from ..runtime.record import RunRecord
+from linecaster.data.page import PAGE_SCHEMA, Page
+from linecaster.data.policy import RenderingPolicy
+from linecaster.document.model import SCHEMA as DOCUMENT_SCHEMA, Document
+from linecaster.markup.model import ConventionsDoc
+from linecaster.catalog.vocabulary import VocabularyDoc
+from linecaster.scoring.benchmark import Benchmark
+from linecaster.errors import CatalogError
+from linecaster.runtime.record import RunRecord
 
 #: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``. The first five run models,
 #: the others rules (their engines are built in, ``linecaster.engines``, or come with an engine package); ``import``
@@ -707,7 +707,7 @@ class Evidence3(_Doc):
 def upgrade_evidence_2(data: dict) -> dict:
     """An ``evidence/2`` record as ``evidence/3``: lanes by their strategy (``linecaster.scoring.lanes.LEGACY``),
     the unit ``codepoint``, the output ``literal``, no hashes (it is comparable to no record written since)."""
-    from ..scoring.lanes import LEGACY
+    from linecaster.scoring.lanes import LEGACY
 
     out = {k: v for k, v in data.items() if k != "schema"}
     out["schema"] = "linecaster.evidence/3"

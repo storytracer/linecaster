@@ -12,11 +12,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ..data.sample import listing_sha256
-from .counts import UNITS
-from .lanes import DEFAULT_LANE, LEGACY, lane, resolve
-from .render import TEXTS
-from .tokens import DEFAULT_WORDS, WORDS
+from linecaster.data.sample import listing_sha256
+from linecaster.scoring.counts import UNITS
+from linecaster.scoring.lanes import DEFAULT_LANE, LEGACY, lane, resolve
+from linecaster.scoring.render import TEXTS
+from linecaster.scoring.tokens import DEFAULT_WORDS, WORDS
 
 SCHEMA = "linecaster.benchmark/2"
 #: element metrics (``linecaster.scoring.metrics.score_elements``): text per element, tables, formulas, reading order
@@ -84,7 +84,7 @@ class ElementSettings(_Model):
     max_cells: int = Field(500_000_000, ge=1, description="past this many aligned units a page is one group")
 
     def matching(self):
-        from .matching import Settings
+        from linecaster.scoring.matching import Settings
 
         return Settings(self.containment, self.short, self.ngram, self.candidates, self.stop, self.max_cells)
 
@@ -136,8 +136,8 @@ class Benchmark(_Model):
             self.lanes = [lane(x) for x in self.lanes]
         except KeyError as e:
             raise ValueError(f"lanes: {e.args[0]}") from None
-        from ..catalog.registry import catalog
-        from ..errors import CatalogError
+        from linecaster.catalog.registry import catalog
+        from linecaster.errors import CatalogError
 
         try:
             written = catalog().strategy(self.output, use="output")      # known, and meant for writing texts
@@ -174,7 +174,7 @@ class Benchmark(_Model):
     def sha256(self) -> str:
         """The hash of what it does: everything but ``description``, with each lane's and the output strategy's
         hash (a change of a lane in a release changes it); ``words`` only where it is not the default tokenizer."""
-        from ..catalog.registry import catalog
+        from linecaster.catalog.registry import catalog
 
         content = self.model_dump(mode="json", by_alias=True, exclude={"description"})
         if content["words"] == DEFAULT_WORDS:

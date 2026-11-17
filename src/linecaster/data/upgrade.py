@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .policy import role_of_label
-from .transcription import (
+from linecaster.data.policy import role_of_label
+from linecaster.data.transcription import (
     DECISIONS, RULE_STEPS, SCHEMA, Annotator, Cell, Classification, Decision, Description, Edit, Formula, Line, Link,
     Paragraph,
     ParagraphRow, RawOutput, Reading, ReadingOrder, Region, Source, Table, Transcription, Word,

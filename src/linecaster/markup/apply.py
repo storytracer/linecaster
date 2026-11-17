@@ -6,9 +6,9 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
-from .decisions import Decision
-from .matchers import Matcher
-from .resolve import ResolvedConventions
+from linecaster.markup.decisions import Decision
+from linecaster.markup.matchers import Matcher
+from linecaster.markup.resolve import ResolvedConventions
 
 
 @dataclass

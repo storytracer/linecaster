@@ -2,9 +2,9 @@
 (``linecaster.runtime.builder``) expands it into its blocks; the graph and the plan keep the group."""
 from __future__ import annotations
 
-from ...errors import PipelineConfigError
-from .block import Block
-from .contract import Contract, contract_of
+from linecaster.errors import PipelineConfigError
+from linecaster.blocks.base.block import Block
+from linecaster.blocks.base.contract import Contract, contract_of
 
 
 class Composite(Block):

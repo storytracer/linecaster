@@ -17,11 +17,11 @@ one task per machine starts it; more tasks share one service with --recognition-
 image is the preset's ``serve.image`` unless --image is given; it needs uv (the vLLM and OXR images have it, the
 Falcon-OCR image does not).
 """
-from ..blocks.recognition.chat import PageRecognizer
-from ..blocks.servers.service import ServiceServer
-from ..catalog.registry import catalog
-from ..errors import PipelineConfigError
-from ..runtime import run
+from linecaster.blocks.recognition.chat import PageRecognizer
+from linecaster.blocks.servers.service import ServiceServer
+from linecaster.catalog.registry import catalog
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime import run
 
 
 def options(ap):

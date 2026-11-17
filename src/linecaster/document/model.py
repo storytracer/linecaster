@@ -29,7 +29,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..data.transcription import Cell
+from linecaster.data.transcription import Cell
 
 _UNSTATED = lambda v: v is None          # noqa: E731  (an optional field left out of the JSON when not stated)
 

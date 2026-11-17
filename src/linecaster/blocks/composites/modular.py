@@ -2,11 +2,11 @@
 recognition, each model step with its own engine and backend (``pipelines/transcribe_modular.py``)."""
 from __future__ import annotations
 
-from ..base.composite import Composite
-from ..layout.detector import LayoutDetector
-from ..lines.assigner import LineAssigner
-from ..lines.detector import LineDetector
-from ..recognition.recognizers import LineRecognizer
+from linecaster.blocks.base.composite import Composite
+from linecaster.blocks.layout.detector import LayoutDetector
+from linecaster.blocks.lines.assigner import LineAssigner
+from linecaster.blocks.lines.detector import LineDetector
+from linecaster.blocks.recognition.recognizers import LineRecognizer
 
 
 def _block(given, cls, transcription: str):

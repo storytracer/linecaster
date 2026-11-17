@@ -14,11 +14,11 @@ from typing import Any
 
 from datatrove.data import MediaType
 
-from ...data.source import SourceDocument
-from ...errors import PipelineConfigError
-from ..base.contract import Contract, Part
-from ..base.page import PageBlock
-from ..base.rule import now, rule_backend, stamp
+from linecaster.data.source import SourceDocument
+from linecaster.errors import PipelineConfigError
+from linecaster.blocks.base.contract import Contract, Part
+from linecaster.blocks.base.page import PageBlock
+from linecaster.blocks.base.rule import now, rule_backend, stamp
 
 #: where the document comes from
 SOURCES = ("media", "uri", "metadata")
@@ -103,7 +103,7 @@ class TranscriptionImporter(PageBlock):
         uri = _dotted(page.metadata, self.uri_key)
         if not uri:
             return None
-        from .images import read_uri
+        from linecaster.blocks.conversion.images import read_uri
 
         return read_uri(str(uri)), str(uri), None
 

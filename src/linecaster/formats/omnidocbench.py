@@ -34,10 +34,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.transcription import Table, Transcription
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.transcription import Table, Transcription
 # the traversal the scorer's elements share: both views cut a page alike
-from ..scoring.elements import SKIP, display_formula, reading_blocks, table_text  # noqa: F401
+from linecaster.scoring.elements import SKIP, display_formula, reading_blocks, table_text  # noqa: F401
 
 #: linecaster content roles -> OmniDocBench's ``category_type`` (other roles: ``text_block``)
 CATEGORIES = {
@@ -76,7 +76,7 @@ def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT
     ``attributes`` its ``page_attribute`` (the groups the harness reports by). ``tables``: which of its tables are
     tables to the harness: ``data`` (``linecaster.scoring.tables.table_kind``: printed as tables; a contents list
     or layout table is its text, ``text_block``, so its words are still scored) or ``all``."""
-    from ..scoring.tables import table_kind
+    from linecaster.scoring.tables import table_kind
 
     dets: list[dict] = []
 
@@ -117,7 +117,7 @@ def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT
 def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAULT_POLICY, tables: str = "data") -> str:
     """A run's page ``t`` as Markdown (module docstring); an empty string for a page the run lacks. ``tables``: as
     ``truth_page``'s, so that both sides write a table alike."""
-    from ..scoring.tables import table_kind
+    from linecaster.scoring.tables import table_kind
 
     if t is None:
         return ""
@@ -159,7 +159,7 @@ def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAU
 def page_attributes(gt: Transcription) -> dict[str, str]:
     """A ground-truth page's slices (``linecaster.scoring.slices``) as OmniDocBench page attributes (``yes``/``no``),
     by which its evaluation groups its page results."""
-    from ..scoring.slices import page_slices
+    from linecaster.scoring.slices import page_slices
 
     sl = page_slices(gt)
     return {k: "yes" if k in sl else "no" for k in ("tables", "formulas")}
@@ -190,9 +190,9 @@ def export(folder, truth_rows: dict[str, dict], run_rows: dict[str, dict | None]
 
     import yaml
 
-    from ..data import Page
-    from ..data.transcription import producer
-    from ..data.upgrade import upgrade
+    from linecaster.data import Page
+    from linecaster.data.transcription import producer
+    from linecaster.data.upgrade import upgrade
 
     write = (lambda s: s) if not strategy else _written(strategy)
     folder = Path(folder)
@@ -225,7 +225,7 @@ def export(folder, truth_rows: dict[str, dict], run_rows: dict[str, dict | None]
 
 
 def _written(strategy: str):
-    from ..catalog.registry import catalog
+    from linecaster.catalog.registry import catalog
 
     return catalog().strategy(strategy, use="output").text
 
@@ -467,8 +467,8 @@ def from_omnidocbench(entry: dict | str | bytes, ground_truth: bool = True, uri:
       (``LANGUAGES``: ``en``, ``zh-Hans``, ``mul`` for English and Chinese mixed)."""
     import json
 
-    from ..data.transcription import Annotator, Edit, Formula, Link, Source
-    from .html_table import table_from_html
+    from linecaster.data.transcription import Annotator, Edit, Formula, Link, Source
+    from linecaster.formats.html_table import table_from_html
 
     if isinstance(entry, (str, bytes)):
         entry = json.loads(entry)

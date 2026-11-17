@@ -4,7 +4,7 @@ from __future__ import annotations
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.base import PipelineStep
 
-from ..base.contract import Contracted
+from linecaster.blocks.base.contract import Contracted
 
 #: file extension per image format (Pillow's names, as ``PageImage.format`` holds them)
 IMAGE_FILE_EXTENSIONS = {"jpeg": "jpg", "png": "png", "webp": "webp", "tiff": "tif", "jpeg2000": "jp2",
@@ -52,9 +52,9 @@ class ImageFilesWriter(Contracted, PipelineStep):
         from datatrove.data import MediaType
         from datatrove.io import get_datafolder
 
-        from ..base.page import failed, image_bytes, page_of, set_page
-        from ..readers.existing import is_reused
-        from ..readers.manifests import OCR_EXTENSIONS, OCR_ORIGINAL
+        from linecaster.blocks.base.page import failed, image_bytes, page_of, set_page
+        from linecaster.blocks.readers.existing import is_reused
+        from linecaster.blocks.readers.manifests import OCR_EXTENSIONS, OCR_ORIGINAL
 
         out = get_datafolder(self.output_folder)
         ocr_out = get_datafolder(self.ocr_folder) if self.ocr_folder is not None else None

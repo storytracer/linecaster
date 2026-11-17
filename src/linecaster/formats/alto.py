@@ -31,9 +31,9 @@ from typing import Any
 
 from lxml import etree
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.transcription import Annotator, Source, Transcription
-from . import _languages as L, _provenance as P, _xml as X
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.transcription import Annotator, Source, Transcription
+from linecaster.formats import _languages as L, _provenance as P, _xml as X
 
 NS = "http://www.loc.gov/standards/alto/ns-v4#"
 XSI = "http://www.w3.org/2001/XMLSchema-instance"

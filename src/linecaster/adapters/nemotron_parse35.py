@@ -19,12 +19,12 @@ from __future__ import annotations
 import re
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url, png_bytes
+from linecaster.adapters import ChatAdapter, data_url, png_bytes
 
 
 def png_full(image: bytes) -> str:
     """RGB at the original size, base64 PNG."""
-    from ..images.pixels import rgb_image
+    from linecaster.images.pixels import rgb_image
 
     img = rgb_image(image)
     return png_bytes(img)
@@ -52,7 +52,7 @@ def to_markdown(raw: str, revision: str | None = None, preset: str = "nemotron-3
 
         from huggingface_hub import snapshot_download
 
-        from . import chat_model
+        from linecaster.adapters import chat_model
 
         spec = chat_model(preset)
         root = snapshot_download(spec.model, revision=revision or spec.revision,

@@ -27,7 +27,7 @@ from collections import deque
 
 from loguru import logger
 
-from .observers import Observer
+from linecaster.runtime.observers import Observer
 
 #: how often a progress log line is written where there is no live progress line
 EVERY_SECONDS = 30
@@ -299,7 +299,7 @@ class Console:
             parts.append(f"{count(self.reused)} reused")
         if self.earlier:
             parts.append(f"{count(sum(self.earlier.values()))} from earlier folders")
-        from ..net.http import pause_left, paused, proxy_counts
+        from linecaster.net.http import pause_left, paused, proxy_counts
 
         if (wait := paused()) is not None:
             parts.append("paused: server errors, " + (f"next try in {duration(wait)}" if wait else "trying"))
@@ -403,8 +403,8 @@ class Progress(Observer):
             c.start_task(rank)
 
     def on_leave(self, doc) -> None:
-        from ..blocks.base.page import failed
-        from ..blocks.readers.existing import is_reused
+        from linecaster.blocks.base.page import failed
+        from linecaster.blocks.readers.existing import is_reused
 
         reused = is_reused(doc)
         nbytes, bad = _nbytes(doc), failed(doc)
@@ -413,7 +413,7 @@ class Progress(Observer):
             self.unit = "files"
             earlier = None if bad else doc.metadata["resource"].get("reused_from")
         elif not bad:                               # a page image read from an earlier harvest's folder
-            from ..data.page import PAGE_KEY
+            from linecaster.data.page import PAGE_KEY
 
             image = (doc.metadata.get(PAGE_KEY) or {}).get("image") or {}
             earlier = (image.get("extra") or {}).get("reused_from")

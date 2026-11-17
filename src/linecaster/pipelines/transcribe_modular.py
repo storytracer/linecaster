@@ -28,16 +28,16 @@ server started from it.
 
 ``linecaster.runtime.run`` has the options every pipeline shares; ``--recipe`` fills the slots.
 """
-from ..blocks.binding import Binder
-from ..blocks.composites.modular import ModularTranscriber
-from ..blocks.composition import Composer, Recomposer, Typographer
-from ..blocks.layout.detector import LayoutDetector
-from ..blocks.lines.detector import LineDetector
-from ..blocks.recognition.recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
-from ..blocks.writers.files import PAGE_FILE_EXTENSIONS, PageFileWriter
-from ..blocks.writers.items import ItemDocumentWriter, ItemTextWriter, parse_texts
-from ..errors import PipelineConfigError
-from ..runtime import run
+from linecaster.blocks.binding import Binder
+from linecaster.blocks.composites.modular import ModularTranscriber
+from linecaster.blocks.composition import Composer, Recomposer, Typographer
+from linecaster.blocks.layout.detector import LayoutDetector
+from linecaster.blocks.lines.detector import LineDetector
+from linecaster.blocks.recognition.recognizers import FormulaRecognizer, LineRecognizer, TableRecognizer
+from linecaster.blocks.writers.files import PAGE_FILE_EXTENSIONS, PageFileWriter
+from linecaster.blocks.writers.items import ItemDocumentWriter, ItemTextWriter, parse_texts
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime import run
 
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 #: the rule-based steps, each a slot (a preset; none: the step does not run)
@@ -110,7 +110,7 @@ def models(a) -> list[dict]:
 
 
 def pipeline(a, script: str) -> list:
-    from ..backends import Served
+    from linecaster.backends import Served
 
     picks = chosen(a)
     missing = [f"--{s}" for s in ("layout", "lines", "recognition") if s not in picks]

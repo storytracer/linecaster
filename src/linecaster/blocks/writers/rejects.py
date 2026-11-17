@@ -13,8 +13,8 @@ import json
 from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 
-from ..base.contract import Contracted
-from ..base.page import ERRORS_KEY
+from linecaster.blocks.base.contract import Contracted
+from linecaster.blocks.base.page import ERRORS_KEY
 
 #: the keys of an error entry that become a reject's own fields
 OWN = ("field", "error", "raw_value")

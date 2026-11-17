@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base.contract import Contract, parts
-from ..base.page import image_bytes
-from ..base.rule import RuleBlock
+from linecaster.blocks.base.contract import Contract, parts
+from linecaster.blocks.base.page import image_bytes
+from linecaster.blocks.base.rule import RuleBlock
 
 
 class Tagger(RuleBlock):
@@ -41,7 +41,7 @@ class Tagger(RuleBlock):
 
     def __init__(self, preset, transcription: str = "ocr_new", options: dict[str, Any] | None = None):
         super().__init__(preset, transcription, options)
-        from ...backends import resolve
+        from linecaster.backends import resolve
 
         try:
             cls = resolve(self.backend.spec)
@@ -66,7 +66,7 @@ class Tagger(RuleBlock):
     def apply(self, page, t) -> None:
         image = None
         if self.reads_image:
-            from ..base.page import decode_rgb
+            from linecaster.blocks.base.page import decode_rgb
 
             image = decode_rgb(image_bytes(self._doc))
         self.engine(image, t, page=page.page_id)

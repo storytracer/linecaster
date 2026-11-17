@@ -20,9 +20,9 @@ from collections import Counter
 from collections.abc import Iterable, Iterator
 from typing import Any
 
-from ..data.page import Page
-from ..data.refs import parse
-from ..data.transcription import Transcription
+from linecaster.data.page import Page
+from linecaster.data.refs import parse
+from linecaster.data.transcription import Transcription
 
 SCHEMA = "linecaster.truth-check/1"
 #: the page values a stratified sample or a benchmark's strata may name besides a classification scheme:
@@ -44,8 +44,8 @@ def read_rows(folder: str, ids: set[str] | None = None) -> Iterator[dict]:
     Parquet), upgraded; with ``ids``, only those pages (their lines decoded only)."""
     from datatrove.io import get_datafolder
 
-    from ..data.upgrade import upgrade
-    from .run import _ID
+    from linecaster.data.upgrade import upgrade
+    from linecaster.scoring.run import _ID
 
     df = get_datafolder(folder)
     for name in sorted(df.list_files()):
@@ -164,7 +164,7 @@ def _illegible(t: Transcription) -> int:
 
 def check_page(page: Page, transcription: str = "ground_truth") -> dict[str, Any]:
     """One page's report (module docstring); ``missing`` where the page has no such transcription."""
-    from .tables import table_kind
+    from linecaster.scoring.tables import table_kind
 
     t = page.transcriptions.get(transcription)
     out: dict[str, Any] = {"page_id": page.page_id, "item_id": page.item_id}
@@ -261,7 +261,7 @@ def summarize(pages: list[dict]) -> dict[str, Any]:
 def check(truth: str, transcription: str = "ground_truth", ids: set[str] | None = None) -> dict[str, Any]:
     """A folder of page records checked (module docstring): ``{"schema", "truth", "transcription", "producer",
     "total", "pages"}``; with ``ids``, only those pages (one a folder lacks is reported ``missing``)."""
-    from ..data.transcription import producer
+    from linecaster.data.transcription import producer
 
     pages = [check_page(p, transcription) for p in read_pages(truth, ids)]
     for pid in sorted((ids or set()) - {p["page_id"] for p in pages}):
@@ -350,7 +350,7 @@ def script_note(script: str) -> str:
     if script in MARKED:
         notes.append("its letters take combining marks: unit grapheme (the default) counts a letter with its marks "
                      "as one character, and the word metrics keep the marks")
-    from ..text.scripts import RIGHT_TO_LEFT
+    from linecaster.text.scripts import RIGHT_TO_LEFT
 
     if script in RIGHT_TO_LEFT:
         notes.append("written right to left: both sides are compared in the order stored (logical order)")
@@ -385,10 +385,10 @@ def benchmark(truth: str, id: str, transcription: str = "ground_truth", rule=Non
     the dataset (``dataset``, else the one its sources name) and importer (``importer``, else the preset or engine
     of the import annotator, else the source's format). A comment per script recorded says what the lanes and the
     tokenizer do with it."""
-    from ..data.sample import listing_sha256, sample_pairs
-    from ..data.transcription import producer
-    from .benchmark import SCHEMA as BENCHMARK
-    from .benchmark import Benchmark
+    from linecaster.data.sample import listing_sha256, sample_pairs
+    from linecaster.data.transcription import producer
+    from linecaster.scoring.benchmark import SCHEMA as BENCHMARK
+    from linecaster.scoring.benchmark import Benchmark
 
     pages = list(read_pages(truth))
     if not pages:

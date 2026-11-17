@@ -17,12 +17,12 @@ OUT2/documents/<strategy>/<item>.<ext>; with --jsonl also OUT2/texts/<strategy>.
 normalized unless a text names a strategy. ``linecaster.runtime.run`` has the options every pipeline shares (IMAGES
 is the page records folder here).
 """
-from ..blocks.binding import Binder
-from ..blocks.composition import Composer, Recomposer
-from ..blocks.readers.records import PageRecordReader
-from ..blocks.writers.items import DEFAULT_TEXTS, ItemDocumentWriter, ItemTextWriter, parse_texts
-from ..errors import PipelineConfigError
-from ..runtime import run
+from linecaster.blocks.binding import Binder
+from linecaster.blocks.composition import Composer, Recomposer
+from linecaster.blocks.readers.records import PageRecordReader
+from linecaster.blocks.writers.items import DEFAULT_TEXTS, ItemDocumentWriter, ItemTextWriter, parse_texts
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime import run
 
 #: the rule-based steps of the item stage, each a slot
 RULE_SLOTS = ("recomposition", "composition")

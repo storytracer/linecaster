@@ -53,7 +53,7 @@ from __future__ import annotations
 
 from urllib.parse import urlsplit
 
-from ..errors import PipelineConfigError
+from linecaster.errors import PipelineConfigError
 
 #: the fields of level 1, at the root and per host
 GENERAL = ("rate_limits", "attempt_timeout", "max_retries", "user_agent", "random_user_agent", "block_on", "stop_on",
@@ -120,7 +120,7 @@ def _moved(entry: dict, where: str) -> None:
         old.append("proxies (a path)")
     if not old:
         return
-    from .http import BLOCK_ON
+    from linecaster.net.http import BLOCK_ON
 
     new: dict = {}
     if "pause_on" in entry or "blacklist_on" in entry:
@@ -160,7 +160,7 @@ class HTTPPolicy:
     def __init__(self, path: str, base: dict | None = None):
         from datatrove.io import get_datafolder
 
-        from ..catalog import yamlio
+        from linecaster.catalog import yamlio
 
         self.path, self.base = path, dict(base or {})
         folder, _, name = path.rpartition("/")
@@ -185,7 +185,7 @@ class HTTPPolicy:
 
     def _one_setting_per_list(self, where: str) -> None:
         """Hosts that use one proxy list share its pool, so they must agree on its ``per_worker``."""
-        from .proxies import DEFAULT_PER_WORKER
+        from linecaster.net.proxies import DEFAULT_PER_WORKER
 
         settings: dict[str, set] = {}
         for host in (None, *self.hosts):
@@ -200,7 +200,7 @@ class HTTPPolicy:
     @staticmethod
     def _block_or_stop(policy: dict, where: str) -> None:
         """Something blocks or stops: refuse one in both ``block_on`` (or its default) and ``stop_on``."""
-        from .http import BLOCK_ON
+        from linecaster.net.http import BLOCK_ON
 
         block = policy["block_on"] if "block_on" in policy else BLOCK_ON
         both = set(block or ()) & set(policy.get("stop_on") or ())
@@ -252,7 +252,7 @@ class HTTPPolicy:
         if "file" in section and not isinstance(section["file"], str):
             raise PipelineConfigError(f"{where}: file is the proxy list's path (any fsspec path)")
         if "per_worker" in section:
-            from .proxies import per_worker_setting
+            from linecaster.net.proxies import per_worker_setting
 
             per_worker_setting(section["per_worker"], where)
         for key in ("block_ttl", "broken_ttl"):
@@ -329,8 +329,8 @@ class HTTPPolicy:
 def rules(s: dict) -> str:
     """What holds for a fetcher's settings ``s`` (``HTTPFetcher``'s), in words: its path, rate limits, retries, what
     blocks and how it is answered there, what stops the run."""
-    from .http import BLOCK_FIRST_WAIT, BLOCK_ON, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, HTTP_DEFAULTS, MAX_PAUSE
-    from .proxies import DEFAULT_PER_WORKER, describe_per_worker
+    from linecaster.net.http import BLOCK_FIRST_WAIT, BLOCK_ON, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, HTTP_DEFAULTS, MAX_PAUSE
+    from linecaster.net.proxies import DEFAULT_PER_WORKER, describe_per_worker
 
     proxied = bool(s.get("proxy_file"))
     stop = list(s.get("stop_on") or ())
@@ -395,14 +395,14 @@ class Fetchers:
     def config(self, url: str):
         """The ``linecaster.net.http.HTTPConfig`` for ``url`` (the IIIF and METS choices among them), without a
         fetcher."""
-        from .http import HTTP_DEFAULTS, HTTPConfig
+        from linecaster.net.http import HTTP_DEFAULTS, HTTPConfig
 
         return HTTPConfig(**{k: v for k, v in self.settings(url).items() if k in HTTP_DEFAULTS})
 
     def for_url(self, url: str, last: bool = True):
         """The fetcher for ``url`` (an http(s) URL), made at its first use in this process. ``last``: it becomes
         ``last`` (False for a request that is not the pages', a manifest's: the window is the pages')."""
-        from .http import HTTPFetcher
+        from linecaster.net.http import HTTPFetcher
 
         settings = self.settings(url)
         try:

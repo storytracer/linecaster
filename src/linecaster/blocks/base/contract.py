@@ -11,9 +11,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from ...catalog.schema import PARTS
-from ...errors import PipelineConfigError
-from .block import Block
+from linecaster.catalog.schema import PARTS
+from linecaster.errors import PipelineConfigError
+from linecaster.blocks.base.block import Block
 
 #: page-level parts: they belong to no transcription
 PAGE_PARTS = frozenset({"image", "metadata", "transcription_file"})

@@ -10,9 +10,9 @@ from datatrove.data import Document, Media, MediaType
 from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
-from ...data.page import PAGE_KEY, Page, PageImage
-from ...errors import CatalogError, PageError, PipelineConfigError, ServerError
-from .contract import Contracted
+from linecaster.data.page import PAGE_KEY, Page, PageImage
+from linecaster.errors import CatalogError, PageError, PipelineConfigError, ServerError
+from linecaster.blocks.base.contract import Contracted
 
 #: where a page records what failed on it: a list of entries (``error_entry``)
 ERRORS_KEY = "errors"
@@ -44,7 +44,7 @@ def decode_rgb(data: bytes, accel: str | None = None):
     process, on a GPU where the machine has one (``linecaster.images.pixels``; ``accel`` default the process's, which
     ``use_decoding`` sets). datatrove's ``Document`` is left as it is (it has slots, and its metadata is written out):
     the decoded pages are kept by their bytes object."""
-    from ...images.pixels import decode_rgb as decode
+    from linecaster.images.pixels import decode_rgb as decode
 
     return decode(data, accel)
 
@@ -53,9 +53,9 @@ def use_decoding(accel: str) -> None:
     """Sets this process's page decoding (``linecaster.images.pixels.set_decoding``): ``accel`` (``auto``, ``gpu``,
     ``cpu``) and, where it may use a GPU, the worker's (one per worker, round robin; on Ray and Jobs a task sees its
     own GPU only). CUDA is left alone for ``cpu`` and where nvImageCodec is not installed."""
-    from ...broker import _WORKER_INDEX
-    from ...images import accel as hw
-    from ...images.pixels import set_decoding
+    from linecaster.broker import _WORKER_INDEX
+    from linecaster.images import accel as hw
+    from linecaster.images.pixels import set_decoding
 
     device = None
     if accel != "cpu" and hw.gpu_available():
@@ -65,7 +65,7 @@ def use_decoding(accel: str) -> None:
 
 def decodes() -> int:
     """How many image files this process has decoded (not counting the pages it kept)."""
-    from ...images.pixels import decodes as count
+    from linecaster.images.pixels import decodes as count
 
     return count()
 
@@ -129,7 +129,7 @@ class ErrorBudget:
 def new_page_document(page_id: str, data: bytes, uri: str | None = None, item_id: str | None = None,
                       sequence: int | None = None, metadata: dict | None = None) -> Document:
     """A ``Document`` for a page image read from ``uri``; size and format come from the image header."""
-    from ...images import open_image
+    from linecaster.images import open_image
 
     with open_image(data) as im:
         fmt, (w, h) = (im.format or "").lower() or None, im.size

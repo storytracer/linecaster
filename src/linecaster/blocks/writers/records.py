@@ -8,8 +8,8 @@ import json
 from datatrove.io import DataFolderLike
 from datatrove.pipeline.writers import JsonlWriter, ParquetWriter
 
-from ...data.page import PAGE_KEY, PAGE_SCHEMA
-from ..base.contract import Contracted
+from linecaster.data.page import PAGE_KEY, PAGE_SCHEMA
+from linecaster.blocks.base.contract import Contracted
 
 
 def stamp_run(page: dict, run_id: str) -> None:
@@ -92,7 +92,7 @@ class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
     def __init__(self, output_folder: DataFolderLike, output_filename: str = "${rank}.jsonl.gz",
                  item_shards: int | None = None, **kwargs):
         if item_shards:
-            from .shards import SHARD_KEY
+            from linecaster.blocks.writers.shards import SHARD_KEY
 
             output_filename = f"${{{SHARD_KEY}}}/{output_filename}"
         super().__init__(output_folder, output_filename, adapter=page_record, **kwargs)
@@ -100,8 +100,8 @@ class PageJsonlWriter(_Flushed, Contracted, JsonlWriter):
 
     def write(self, document, rank: int = 0, **kwargs):
         if self.item_shards:
-            from ..base.page import page_of
-            from .shards import SHARD_KEY, item_shard
+            from linecaster.blocks.base.page import page_of
+            from linecaster.blocks.writers.shards import SHARD_KEY, item_shard
 
             page = page_of(document)
             document.metadata[SHARD_KEY] = item_shard(page.item_id or document.id, self.item_shards)

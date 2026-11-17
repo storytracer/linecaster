@@ -61,7 +61,7 @@ from datetime import datetime, timezone
 
 from loguru import logger
 
-from .errors import LinecasterError
+from linecaster.errors import LinecasterError
 
 #: the broker's format, in ``broker.json``
 FORMAT = "linecaster.broker/1"
@@ -322,7 +322,7 @@ class Broker:
         worker index (``set_worker_index``), else random among one free slot per CPU."""
         index = self._worker_index or _WORKER_INDEX[0]
         if index is None:
-            from .runtime.cpus import available_cpus
+            from linecaster.runtime.cpus import available_cpus
 
             size = available_cpus()
             start = random.randrange(size)

@@ -2,7 +2,7 @@
 ``TableRecognizer`` (the structure of table regions) and ``FormulaRecognizer`` (LaTeX of formula regions)."""
 from __future__ import annotations
 
-from ..base.model import ModelBlock
+from linecaster.blocks.base.model import ModelBlock
 
 
 class LineRecognizer(ModelBlock):

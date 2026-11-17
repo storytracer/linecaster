@@ -19,15 +19,15 @@ import base64
 import io
 from typing import Any, ClassVar
 
-from ..data.transcription import Transcription
-from . import ChatAdapter, data_url
+from linecaster.data.transcription import Transcription
+from linecaster.adapters import ChatAdapter, data_url
 
 
 def jpeg_longest_at_most(image: bytes, longest: int, quality: int = 95) -> tuple[str, tuple[int, int]]:
     """RGB, downscaled (LANCZOS) only if the longest side exceeds ``longest``, base64 JPEG; and the size."""
     from PIL import Image
 
-    from ..images.pixels import rgb_image
+    from linecaster.images.pixels import rgb_image
 
     img = rgb_image(image)
     w, h = img.size
@@ -43,7 +43,7 @@ def to_markdown(doctags: str) -> str:
     """The page text of a SmolDocling completion: outer whitespace stripped, DocTags converted
     with docling-core (body and furniture layers, empty image placeholder), stripped again. Empty DocTags give
     ``""``; docling-core does not raise on garbage (the ``docling`` extra)."""
-    from ..formats.docling import require_docling
+    from linecaster.formats.docling import require_docling
 
     require_docling()
     from docling_core.types.doc import DoclingDocument

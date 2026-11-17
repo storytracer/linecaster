@@ -9,8 +9,8 @@ count per task, over the task's share.
 """
 from __future__ import annotations
 
-from ...data.sample import Sample, SampleRule
-from ...errors import PipelineConfigError
+from linecaster.data.sample import Sample, SampleRule
+from linecaster.errors import PipelineConfigError
 
 
 class Sampled:

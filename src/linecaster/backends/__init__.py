@@ -15,8 +15,8 @@ The third backend is for VLMs: ``Chat("dots-ocr", endpoint="http://127.0.0.1:800
 with a chat preset's model behind an OpenAI-compatible server (vLLM, SGLang, a hosted endpoint), through saturate
 as well; the preset's adapter (``linecaster.adapters``) builds the requests and parses the completions.
 """
-from .chat import Chat
-from .in_process import EngineModel, InProcess, resolve
-from .served import Served
+from linecaster.backends.chat import Chat
+from linecaster.backends.in_process import EngineModel, InProcess, resolve
+from linecaster.backends.served import Served
 
 __all__ = ["Chat", "EngineModel", "InProcess", "Served", "resolve"]

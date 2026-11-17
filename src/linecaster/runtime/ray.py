@@ -34,9 +34,9 @@ import time
 from datatrove.executor.ray import RayPipelineExecutor
 from loguru import logger
 
-from ..errors import LinecasterError, PipelineConfigError
-from .cpus import available_cpus, limit_threads
-from .jobs import point_to_gpu
+from linecaster.errors import LinecasterError, PipelineConfigError
+from linecaster.runtime.cpus import available_cpus, limit_threads
+from linecaster.runtime.jobs import point_to_gpu
 
 #: the marker a task writes to the logging folder when the run must stop
 STOP_MARKER = "stopped.json"
@@ -92,7 +92,7 @@ def hand_over() -> None:
     """The task's process ends: its fetchers are closed and its worker slot in the broker handed over, so the next
     process on this machine is the same worker and goes on with its proxies (``linecaster.broker``)."""
     if "linecaster.net.http" in sys.modules:
-        from ..net.http import close_shared
+        from linecaster.net.http import close_shared
 
         close_shared()
 
@@ -162,9 +162,9 @@ class RayExecutor(RayPipelineExecutor):
         return at_once
 
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
-        from ..blocks.base.page import NOT_THE_PAGES
+        from linecaster.blocks.base.page import NOT_THE_PAGES
 
-        from ..broker import set_worker_index
+        from linecaster.broker import set_worker_index
 
         limit_threads(available_cpus())                 # the task's CPUs, not the machine's
         at_once = max(1, self.workers * self.tasks_per_job)            # tasks at once: distinct ranks, distinct slots

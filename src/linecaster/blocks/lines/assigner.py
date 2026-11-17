@@ -17,14 +17,14 @@ from __future__ import annotations
 
 import time
 
-from ...data.geometry import BBox
-from ...data.geometry.frames import to_frame
-from ...data.geometry.order import place_unordered
-from ...data.page import Page
-from ...data.transcription import Annotator, Line, Region, Transcription
-from ...data.writing import check
-from ...text.typography import hidden, line_bbox, union, zone_bbox
-from ..base.page import PageBlock
+from linecaster.data.geometry import BBox
+from linecaster.data.geometry.frames import to_frame
+from linecaster.data.geometry.order import place_unordered
+from linecaster.data.page import Page
+from linecaster.data.transcription import Annotator, Line, Region, Transcription
+from linecaster.data.writing import check
+from linecaster.text.typography import hidden, line_bbox, union, zone_bbox
+from linecaster.blocks.base.page import PageBlock
 
 SKIP_LABELS = frozenset({"picture", "chart"})
 
@@ -145,7 +145,7 @@ class LineAssigner(PageBlock):
         return not (c.label == "formula" and self.formulas_separately)
 
     def process_page(self, doc, page: Page) -> Page:
-        from ..base.rule import now
+        from linecaster.blocks.base.rule import now
 
         start, began = now()
         t = page.transcription(self.transcription)

@@ -6,8 +6,8 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ..images.convert import to_working_webp
-from .base import RuleEngine
+from linecaster.images.convert import to_working_webp
+from linecaster.engines.base import RuleEngine
 
 
 class WebpLosslessImageEngine(RuleEngine):
@@ -92,13 +92,13 @@ class ImageConvertEngine(RuleEngine):
 
     def decode(self, data: bytes, device: int = 0, **options):
         """The image decoded to 8-bit sRGB (``linecaster.images.transcode.decode``)."""
-        from ..images.transcode import decode
+        from linecaster.images.transcode import decode
 
         return decode(data, self.configured(options).accel, device)
 
     def encode(self, decoded, device: int = 0, **options) -> tuple[bytes, dict[str, Any]]:
         """``(bytes, record)``: the decoded image encoded (``linecaster.images.transcode.encode`` and ``record``)."""
-        from ..images.transcode import encode, record
+        from linecaster.images.transcode import encode, record
 
         o = self.configured(options)
         out, encoder = encode(decoded.rgb, o.format, accel=o.accel, device=device, notes=decoded.notes,

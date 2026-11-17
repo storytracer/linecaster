@@ -28,10 +28,10 @@ import html
 import re
 from typing import Any, ClassVar
 
-from ..data import Transcription
-from ..errors import ServerError
-from . import text_lines
-from .dots import PASSTHROUGH, DotsAdapter
+from linecaster.data import Transcription
+from linecaster.errors import ServerError
+from linecaster.adapters import text_lines
+from linecaster.adapters.dots import PASSTHROUGH, DotsAdapter
 
 #: one layout block: its label, its box (0 to 1000), its content up to the next block or page marker
 BLOCK = re.compile(r"<BLOCK>(\w+)\[([^\]]*)\]<FORK>(.*?)(?=<BLOCK>|</?PAGE>|\Z)", re.S)
@@ -68,7 +68,7 @@ def read_blocks(raw: str, t: Transcription, annotator: int) -> bool:
         return False
     from lxml import html as H
 
-    from ..formats.html import HtmlConverter
+    from linecaster.formats.html import HtmlConverter
 
     root = H.fromstring(f"<html><body>{''.join(blocks)}</body></html>")
     HtmlConverter().read(root, t, annotator, annotator)

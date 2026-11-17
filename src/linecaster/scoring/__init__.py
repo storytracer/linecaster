@@ -3,19 +3,19 @@
 cluster or code point (``counts``, ``metrics``) and aggregated into corpus rates with bootstrap intervals over items
 (``aggregate``). A score names the linecaster that made it (``scorer``). Import-light, like ``linecaster.data``: the
 alignment needs ``rapidfuzz`` (the extra ``linecaster[rapidfuzz]``), imported when counting."""
-from .aggregate import RATES, rates, role_rates
-from .counts import UNITS, EditCounts, edit_counts
-from .elements import ELEMENTS_VERSION
-from .lanes import DEFAULT_LANE, LEGACY, REPLACEMENT, lane, normalize
-from .metrics import confusion, role_words, score_page, words
-from .render import TEXTS, text
-from .tokens import WORDS, WORDS_VERSION, tokens
+from linecaster.scoring.aggregate import RATES, rates, role_rates
+from linecaster.scoring.counts import UNITS, EditCounts, edit_counts
+from linecaster.scoring.elements import ELEMENTS_VERSION
+from linecaster.scoring.lanes import DEFAULT_LANE, LEGACY, REPLACEMENT, lane, normalize
+from linecaster.scoring.metrics import confusion, role_words, score_page, words
+from linecaster.scoring.render import TEXTS, text
+from linecaster.scoring.tokens import WORDS, WORDS_VERSION, tokens
 
 
 def scorer() -> str:
     """What scored: the linecaster release and commit (``linecaster.data.transcription.producer``), in every score
     and evidence record (before 0.10, ``linecaster-scorer@1``)."""
-    from ..data.transcription import producer
+    from linecaster.data.transcription import producer
 
     return f"linecaster {producer()}"
 

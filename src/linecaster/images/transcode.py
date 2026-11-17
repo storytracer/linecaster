@@ -35,8 +35,8 @@ import numpy as np
 import PIL
 from PIL import Image, features
 
-from . import accel as hw
-from .convert import ImageTooLarge, _open, _warnings_into, check_size, to_srgb
+from linecaster.images import accel as hw
+from linecaster.images.convert import ImageTooLarge, _open, _warnings_into, check_size, to_srgb
 
 #: the output formats: linecaster's name -> (Pillow's format, file extension)
 FORMATS = {"jpg": ("JPEG", "jpg"), "jp2": ("JPEG2000", "jp2"), "png": ("PNG", "png"), "webp": ("WEBP", "webp")}

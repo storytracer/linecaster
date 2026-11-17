@@ -13,10 +13,10 @@ from datatrove.io import DataFileLike, DataFolderLike
 from datatrove.pipeline.readers.base import BaseDiskReader
 from loguru import logger
 
-from ...errors import PipelineConfigError
-from ..base.contract import Contracted
-from ..base.page import new_page_document
-from .manifests import safe_id
+from linecaster.errors import PipelineConfigError
+from linecaster.blocks.base.contract import Contracted
+from linecaster.blocks.base.page import new_page_document
+from linecaster.blocks.readers.manifests import safe_id
 
 #: points per inch: a PDF page's size is given in points
 POINTS = 72
@@ -80,7 +80,7 @@ class PdfReader(Contracted, BaseDiskReader):
         self.dpi, self.text_layer = dpi, text_layer
 
     def read_file(self, filepath: str):
-        from ...images.convert import check_size
+        from linecaster.images.convert import check_size
 
         pdf_module = pdfium()
         with self.data_folder.open(filepath, "rb") as f:

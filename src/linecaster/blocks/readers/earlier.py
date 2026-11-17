@@ -178,7 +178,7 @@ def mark_reused_from(doc, earlier: Earlier) -> None:
     """Marks a page read from an earlier harvest's copy (``image.extra``: ``reused_from``, the folder;
     ``reused_from_uri``, the copy there): ``ImageFilesWriter`` writes it into this run's folder, and the console counts
     it apart from the downloads."""
-    from ..base.page import page_of, set_page
+    from linecaster.blocks.base.page import page_of, set_page
 
     page = page_of(doc)
     extra = {**page.image.extra, "reused_from": earlier.folder, "reused_from_uri": earlier.uri}

@@ -27,9 +27,9 @@ from dataclasses import dataclass, field
 from linecaster.data import Annotator, Cell, Table, Transcription
 from linecaster.data.geometry import BBox, bbox_of, xywh
 
-from .compat import create_pipeline, paddle_image
-from .crops import crop_bbox
-from .weights import catalog_weights, check, resolve
+from linecaster_paddlex.compat import create_pipeline, paddle_image
+from linecaster_paddlex.crops import crop_bbox
+from linecaster_paddlex.weights import catalog_weights, check, resolve
 
 
 @dataclass

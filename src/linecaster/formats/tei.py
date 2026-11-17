@@ -63,9 +63,9 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
-from ..data.transcription import Description, Edit, Formatting, Link, Source, Transcription
-from ..data.writing import language_tag
-from . import _xml as X
+from linecaster.data.transcription import Description, Edit, Formatting, Link, Source, Transcription
+from linecaster.data.writing import language_tag
+from linecaster.formats import _xml as X
 
 
 #: a zone's ``@type`` or ``@subtype``, lower-cased without punctuation -> the content role

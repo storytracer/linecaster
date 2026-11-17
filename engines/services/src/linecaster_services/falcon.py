@@ -19,8 +19,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from linecaster.data import Annotator, Transcription
 
-from . import http
-from .page import jpeg, rgb, text_transcription
+from linecaster_services import http
+from linecaster_services.page import jpeg, rgb, text_transcription
 
 
 class FalconRecognitionEngine:

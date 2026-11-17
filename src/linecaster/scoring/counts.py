@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Literal
 
-from .lanes import REPLACEMENT
+from linecaster.scoring.lanes import REPLACEMENT
 
 #: the units a character error rate counts in
 UNITS = ("grapheme", "codepoint")

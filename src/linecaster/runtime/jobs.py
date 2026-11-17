@@ -29,7 +29,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from datatrove.executor import JobsPipelineExecutor
 
-from ..errors import PipelineConfigError
+from linecaster.errors import PipelineConfigError
 
 REPO = "https://github.com/storytracer/linecaster"
 #: the checkout the launcher runs from (pipelines, engines, stubs)
@@ -380,8 +380,8 @@ class JobsExecutor(JobsPipelineExecutor):
     def _run_for_rank(self, rank: int, local_rank: int = 0, node_rank: int = -1):
         import datatrove.executor.jobs as datatrove_jobs
 
-        from ..broker import set_worker_index
-        from .logs import add_task_logger
+        from linecaster.broker import set_worker_index
+        from linecaster.runtime.logs import add_task_logger
 
         set_worker_index(local_rank, self.tasks_per_job)    # a multi-GPU Job's tasks run at once on one machine
         original = datatrove_jobs.add_task_logger
@@ -397,8 +397,8 @@ def point_to_gpu(pipeline: list, local: int) -> list:
     (``ModelServer``, ``ChatModelServer``: attribute ``port``) and every served backend on loopback
     moves ``local`` ports up, so each GPU has its own servers and clients (a layout server on 8100 and
     vLLM on 8000 become 8103 and 8003 on GPU 3)."""
-    from ..backends import Chat, Served
-    from ..blocks.servers.serve import ChatModelServer, ModelServer
+    from linecaster.backends import Chat, Served
+    from linecaster.blocks.servers.serve import ChatModelServer, ModelServer
 
     pipeline = deepcopy(pipeline)
     for step in pipeline:

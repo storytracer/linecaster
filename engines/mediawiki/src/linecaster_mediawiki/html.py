@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 
 from lxml import etree
 
-from .proofread import CALL_END, CALL_FIRST, CALL_MARKS, FOOT_START, HEAD_END
+from linecaster_mediawiki.proofread import CALL_END, CALL_FIRST, CALL_MARKS, FOOT_START, HEAD_END
 
 BLOCK_TAGS = frozenset({"div", "p", "center", "blockquote", "table", "ul", "ol", "dl", "li", "dd", "dt", "h1", "h2",
                         "h3", "h4", "h5", "h6", "pre", "hr", "section", "figure", "caption", "tr", "td", "th",

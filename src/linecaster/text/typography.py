@@ -47,10 +47,10 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..data.geometry import BBox, bbox_of, xywh
-from ..data.geometry.frames import to_frame
-from ..data.policy import DEFAULT_POLICY, classify_label
-from ..data.transcription import Annotator, Line, Link, Region, Transcription, Zone
+from linecaster.data.geometry import BBox, bbox_of, xywh
+from linecaster.data.geometry.frames import to_frame
+from linecaster.data.policy import DEFAULT_POLICY, classify_label
+from linecaster.data.transcription import Annotator, Line, Link, Region, Transcription, Zone
 
 PAGE_NUMBER_MIN_CONF = 0.75
 DEMOTE = 1.2

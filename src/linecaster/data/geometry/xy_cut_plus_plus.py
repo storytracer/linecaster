@@ -49,9 +49,9 @@ from bisect import bisect_right
 from statistics import median
 from typing import Mapping, Sequence
 
-from .frames import HORIZONTAL_LR, to_frame
-from .order import _split
-from .types import BBox
+from linecaster.data.geometry.frames import HORIZONTAL_LR, to_frame
+from linecaster.data.geometry.order import _split
+from linecaster.data.geometry.types import BBox
 
 TITLE, VISION, OTHERS, TEXT, CROSS = "title", "vision", "others", "text", "cross-layout"
 

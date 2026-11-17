@@ -67,7 +67,7 @@ def plain(value: Any) -> Any:
         return sorted((plain(v) for v in value), key=str)
     if isinstance(value, PurePath):
         return value.as_posix()
-    from .contract import Part
+    from linecaster.blocks.base.contract import Part
 
     if isinstance(value, Part):
         return str(value)

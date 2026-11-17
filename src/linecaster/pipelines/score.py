@@ -15,7 +15,7 @@ files, the tasks share each file (every k-th record each), so --tasks 100 uses 1
 readable where the tasks run (object storage on a cluster). --preset names the preset measured when the run follows
 no recipe (as ``linecaster score``), --context the rest of the pipeline it was measured in.
 """
-from ..runtime import run
+from linecaster.runtime import run
 
 
 def options(ap):
@@ -31,10 +31,10 @@ def models(a) -> list[dict]:
 
 
 def pipeline(a, script: str):
-    from ..blocks.scoring import PageScorer
-    from ..blocks.writers import ScoreWriter
-    from ..catalog import yamlio
-    from ..errors import PipelineConfigError
+    from linecaster.blocks.scoring import PageScorer
+    from linecaster.blocks.writers import ScoreWriter
+    from linecaster.catalog import yamlio
+    from linecaster.errors import PipelineConfigError
 
     if not (a.truth and a.benchmark and getattr(a, "pages", None)):
         raise PipelineConfigError("score: give --pages (the run's page records), --truth and --benchmark")
@@ -56,10 +56,10 @@ def report(out: str, pages: str, truth: str, bench_data: dict, transcription: st
            preset: str | None = None, context: str | None = None) -> dict:
     """The tasks' score files put together (``aggregate``), written as OUT/scores.parquet and OUT/evidence.yaml, and
     the rates printed as ``linecaster score`` prints them."""
-    from ..catalog.registry import rendering_policy
-    from ..scoring.benchmark import read_benchmark
-    from ..scoring.evidence import evidence, write_evidence
-    from ..scoring.run import aggregate, write_scores
+    from linecaster.catalog.registry import rendering_policy
+    from linecaster.scoring.benchmark import read_benchmark
+    from linecaster.scoring.evidence import evidence, write_evidence
+    from linecaster.scoring.run import aggregate, write_scores
 
     bench = read_benchmark(bench_data)
     result = aggregate(out, truth, bench, transcription, rendering_policy(bench.policy))

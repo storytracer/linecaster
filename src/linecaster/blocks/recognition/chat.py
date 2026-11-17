@@ -38,13 +38,13 @@ import time
 
 from loguru import logger
 
-from ...adapters import ENGINE
-from ...backends import Chat, InProcess, Served
-from ...data.transcription import Line, RawOutput, Reading, Transcription
-from ...errors import CatalogError, PageError, PipelineConfigError, ServerError
-from ..base.contract import Contract, parts
-from ..base.model import ModelBlock, Passed, preset_backend, produces
-from ..base.page import ErrorBudget, error_entry, image_bytes, page_of, record_error, set_page
+from linecaster.adapters import ENGINE
+from linecaster.backends import Chat, InProcess, Served
+from linecaster.data.transcription import Line, RawOutput, Reading, Transcription
+from linecaster.errors import CatalogError, PageError, PipelineConfigError, ServerError
+from linecaster.blocks.base.contract import Contract, parts
+from linecaster.blocks.base.model import ModelBlock, Passed, preset_backend, produces
+from linecaster.blocks.base.page import ErrorBudget, error_entry, image_bytes, page_of, record_error, set_page
 
 
 def chat_backend(backend, block: str, prefer: str) -> Chat:
@@ -62,7 +62,7 @@ def page_backend(backend, block: str) -> Chat | InProcess | Served:
     ``Chat`` backend on the task's chat server, a page engine's preset its ``InProcess`` backend; a preset of
     another unit is refused (``PipelineConfigError``)."""
     if isinstance(backend, str):
-        from ...catalog.registry import catalog
+        from linecaster.catalog.registry import catalog
 
         try:
             r = catalog().resolve(backend)
@@ -333,7 +333,7 @@ class PageRecognizer(ModelBlock):
             image = page_of(doc).image
             width, height = (image.width, image.height) if image is not None else (None, None)
             if not (width and height):
-                from ...images import open_image
+                from linecaster.images import open_image
 
                 with open_image(image_bytes(doc)) as im:
                     width, height = im.size
@@ -625,7 +625,7 @@ class RegionRecognizer(PageRecognizer):
     # cannot go along: saturate sends the same headers with every request, and a chat server reads it from the
     # headers only
     def _request(self, row: dict) -> dict:
-        from ...adapters import png_encode
+        from linecaster.adapters import png_encode
 
         state, region = row["state"], row["region"]
         crop = self.adapter.crop_region(state["image"], region, state["scale"], self.pad)
@@ -638,7 +638,7 @@ class RegionRecognizer(PageRecognizer):
     def _rows(self, data, results):
         from PIL import Image
 
-        from ...images.pixels import decode_pixels, last_decode
+        from linecaster.images.pixels import decode_pixels, last_decode
 
         for doc in self._passing(data, results):
             page = page_of(doc)

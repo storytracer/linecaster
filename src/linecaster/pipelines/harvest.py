@@ -52,11 +52,11 @@ launch, and --retry-failed also runs the finished books with failed pages again:
 pages are fetched (the others are read from OUT/images), without it every page of those books is fetched again.
 ``linecaster.runtime.run`` has the options every pipeline shares.
 """
-from ..blocks.conversion import TranscriptionImporter
-from ..blocks.writers.images import ImageFilesWriter
-from ..blocks.writers.resources import ResourceFilesWriter, ResourceRecordWriter
-from ..errors import PipelineConfigError
-from ..runtime import run
+from linecaster.blocks.conversion import TranscriptionImporter
+from linecaster.blocks.writers.images import ImageFilesWriter
+from linecaster.blocks.writers.resources import ResourceFilesWriter, ResourceRecordWriter
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime import run
 
 
 def options(ap):
@@ -85,7 +85,7 @@ def pipeline(a, script: str) -> list:
                                   "would need fetching anyway")
     index = None
     if a.reuse_from and not a.items:      # page images: one index of the earlier folders' records per launch
-        from ..blocks.readers.earlier import INDEX, build_index
+        from linecaster.blocks.readers.earlier import INDEX, build_index
 
         index = f"{out}/{INDEX}"
         if not getattr(a, "dry_run", False):

@@ -1,8 +1,8 @@
 """linecaster's document: a page or an item as a reader reads it (``model``), built from transcriptions
 (``builder``) and written out as HTML, Markdown, text and JSON (``serialize``)."""
-from .builder import KIND_OF_ROLE, DocumentBuilder, block_kind, build_document
-from .model import KINDS, SCHEMA, Block, Document, Grid, Origin, Page, Span
-from .serialize import EXPORT_FORMATS, export, from_json, load_document, table_html, to_html, to_json, to_markdown, \
+from linecaster.document.builder import KIND_OF_ROLE, DocumentBuilder, block_kind, build_document
+from linecaster.document.model import KINDS, SCHEMA, Block, Document, Grid, Origin, Page, Span
+from linecaster.document.serialize import EXPORT_FORMATS, export, from_json, load_document, table_html, to_html, to_json, to_markdown, \
     to_text
 
 #: the ``Document.metadata`` keys of a composed page or item (``Composer``): the document (as a dict) and, for a page,

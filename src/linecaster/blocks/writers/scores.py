@@ -9,8 +9,8 @@ import json
 from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 
-from ..base.contract import Contracted
-from ..scoring.pages import SCORE_KEY
+from linecaster.blocks.base.contract import Contracted
+from linecaster.blocks.scoring.pages import SCORE_KEY
 
 
 class ScoreWriter(Contracted, PipelineStep):

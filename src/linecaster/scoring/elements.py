@@ -30,9 +30,9 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..data.policy import DEFAULT_POLICY, RenderingPolicy
-from ..data.refs import parse
-from ..data.transcription import Table, Transcription
+from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
+from linecaster.data.refs import parse
+from linecaster.data.transcription import Table, Transcription
 
 #: the version of the element scorer's rules (elements, matching, attribution), in evidence records: a change that
 #: moves element scores raises it
@@ -161,7 +161,7 @@ def _attributes(t: Transcription, target: str, region: str | None) -> tuple[tupl
 
 
 def _parsed_table(html: str) -> Table | None:
-    from ..formats.html_table import table_from_html
+    from linecaster.formats.html_table import table_from_html
 
     try:
         return table_from_html(html, annotator=0, target="")
@@ -170,7 +170,7 @@ def _parsed_table(html: str) -> Table | None:
 
 
 def _pipe_table(rows: list[str]) -> Table | None:
-    from ..data.transcription import Cell
+    from linecaster.data.transcription import Cell
 
     body = [r for r in rows if not _PIPE_RULE.match(r)]
     cells = []
@@ -198,7 +198,7 @@ class _Builder:
                                 attributes=_attributes(self.t, target, region), **fields))
 
     def table(self, tb: Table, role: str | None, layer: str, region: str | None, lines: tuple[str, ...] = ()) -> None:
-        from .tables import table_kind
+        from linecaster.scoring.tables import table_kind
 
         kind = table_kind(tb)
         if self.tables == "all" or kind == "data":
@@ -220,7 +220,7 @@ def elements(t: Transcription | None, policy: RenderingPolicy = DEFAULT_POLICY, 
     """The elements of ``t`` in reading order (module docstring); none for a missing transcription."""
     if t is None:
         return []
-    from .render import illegible_spans
+    from linecaster.scoring.render import illegible_spans
 
     b = _Builder(t, policy, tables)
     illegible = illegible_spans(t)
@@ -253,7 +253,7 @@ def elements(t: Transcription | None, policy: RenderingPolicy = DEFAULT_POLICY, 
 def _block(b: _Builder, t: Transcription, illegible, policy: RenderingPolicy, region: str | None, role: str | None,
            what) -> None:
     """One of ``reading_blocks``' blocks as its elements."""
-    from .render import line_text
+    from linecaster.scoring.render import line_text
 
     layer = policy.layer_of(t, region) if region is not None else policy.layer(None)
     if layer in UNSCORED or role in SKIP:
@@ -287,7 +287,7 @@ def _block(b: _Builder, t: Transcription, illegible, policy: RenderingPolicy, re
 def _line_elements(b: _Builder, t: Transcription, illegible, policy: RenderingPolicy) -> None:
     """A transcription without regions: its lines, with Markdown's and HTML's blocks that span lines (module
     docstring)."""
-    from .render import line_text
+    from linecaster.scoring.render import line_text
 
     layer = policy.layer(None)
     lines = [(ln, line_text(t, ln, illegible)) for ln in t.ordered_lines()]

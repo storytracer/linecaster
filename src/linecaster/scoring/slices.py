@@ -3,7 +3,7 @@ the pages with tables or formulas apart from the rest (``summarize``: an evidenc
 every slice its ground truth meets (``SLICES``); a slice is a property of the page, never of the output scored."""
 from __future__ import annotations
 
-from ..data.transcription import Transcription
+from linecaster.data.transcription import Transcription
 
 #: slice -> what puts a page in it (written into the evidence record)
 SLICES = {
@@ -15,7 +15,7 @@ SLICES = {
 
 def page_slices(gt: Transcription) -> list[str]:
     """The slices of a page with ground truth ``gt``."""
-    from .tables import table_kind
+    from linecaster.scoring.tables import table_kind
 
     tables = [tb for tb in gt.tables if tb.cells and table_kind(tb) == "data"]     # printed as tables
     out = []

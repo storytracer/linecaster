@@ -27,17 +27,17 @@ from datatrove.io import DataFileLike, DataFolderLike, get_datafolder, get_shard
 from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.readers.parquet import ParquetReader
 
-from ...errors import PageError, PipelineConfigError
-from ...net.http import prefetched
-from .earlier import Earlier, EarlierImages, mark_reused_from
-from .existing import ExistingImages, Reused, mark_reused
-from .sampling import Sampled
-from .tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, position_slices, row_slices, rows_between,
+from linecaster.errors import PageError, PipelineConfigError
+from linecaster.net.http import prefetched
+from linecaster.blocks.readers.earlier import Earlier, EarlierImages, mark_reused_from
+from linecaster.blocks.readers.existing import ExistingImages, Reused, mark_reused
+from linecaster.blocks.readers.sampling import Sampled
+from linecaster.blocks.readers.tables import (PAGES_PER_TASK, first_rows, item_ranges, item_runs, position_slices, row_slices, rows_between,
                      slice_batches, table_rows, tasks_for, total_rows, whole_file)
-from ..base.block import reported_file
-from ..base.contract import Contracted
-from ...data.page import Page, PageImage
-from ..base.page import NOT_THE_PAGES, ErrorBudget, error_entry, new_page_document, record_error, set_page
+from linecaster.blocks.base.block import reported_file
+from linecaster.blocks.base.contract import Contracted
+from linecaster.data.page import Page, PageImage
+from linecaster.blocks.base.page import NOT_THE_PAGES, ErrorBudget, error_entry, new_page_document, record_error, set_page
 
 IMAGE_EXTENSIONS = ("webp", "jpg", "jpeg", "png", "tif", "tiff", "jp2")
 IMAGE_GLOB = "**/*.{" + ",".join(IMAGE_EXTENSIONS) + "}"
@@ -64,7 +64,7 @@ class _Opener:
     (``linecaster.net.policy``), one per host's settings)."""
 
     def __init__(self, http: dict | None = None, http_policy: str | None = None):
-        from ...net.policy import Fetchers
+        from linecaster.net.policy import Fetchers
 
         self._folders: dict = {}
         self._fetchers = Fetchers(http, http_policy)     # pickled without its fetchers (their threads)
@@ -104,7 +104,7 @@ class _Opener:
         value = future.result()
         if isinstance(value, bytes):
             return value
-        from ...net.http import fetch_record
+        from linecaster.net.http import fetch_record
 
         if fetches is not None and (record := fetch_record(value)) is not None:
             fetches.append({**record, "what": "image"})
@@ -219,7 +219,7 @@ class ImageFolderReader(Sampled, Contracted, BaseDiskReader):
         return "" if item is None else item, _stem(path)
 
     def _compute_sample(self, save: bool):
-        from ...data.sample import sample_pairs
+        from linecaster.data.sample import sample_pairs
 
         files = self._listing()
         sample = sample_pairs([self._key(f) for f in files], self.sample)
@@ -446,7 +446,7 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
     def _compute_sample(self, save: bool):
         import array
 
-        from ...data.sample import sample_pairs
+        from linecaster.data.sample import sample_pairs
 
         pairs = list(self._id_rows())
         sample = sample_pairs(pairs, self.sample)
@@ -623,7 +623,7 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
                 except (*NOT_THE_PAGES, PageError):
                     raise
                 except Exception as e:  # noqa: BLE001 - the page's error; the task goes on within its budget
-                    from ...net.http import failed_fetch
+                    from linecaster.net.http import failed_fetch
 
                     if (record := failed_fetch(e)) is not None:     # its attempts, for the page's trace
                         fetches.append({**record, "what": "image"})

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import regex
 
-from .common import GITHUB, HEADER, SITE, Links
+from linecaster.docs.common import GITHUB, HEADER, SITE, Links
 
 #: the raw Markdown of the repository's files, for llms.txt
 RAW = "https://raw.githubusercontent.com/storytracer/linecaster/main"

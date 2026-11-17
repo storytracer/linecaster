@@ -19,7 +19,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import LiteralScalarString
 
-from ..errors import CatalogError
+from linecaster.errors import CatalogError
 
 #: the first line of a catalog file: its JSON Schema, relative to the file
 MODELINE = "# yaml-language-server: $schema={}"

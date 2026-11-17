@@ -41,18 +41,18 @@ from collections import Counter
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-from ..data.transcription import (
+from linecaster.data.transcription import (
     Annotator, Cell as TableCell, Description, Edit as EditAnnotation, Formatting, Formula, Link, Table, Transcription,
 )
-from ..data.writing import language_tag
-from ..markup.apply import Conventions, Coverage
-from ..markup.decisions import (
+from linecaster.data.writing import language_tag
+from linecaster.markup.apply import Conventions, Coverage
+from linecaster.markup.decisions import (
     Block, Break, Caption, Cell, Continues, Decision, Describe, Edit, Format, Invisible, Language, Note, Picture,
     Remove, RunsOn, Unwrap,
 )
-from ..markup.matchers import TreeMatcher
-from ..markup.resolve import ResolvedConventions
-from ..text.formulas import clean as clean_formula, layout_brace
+from linecaster.markup.matchers import TreeMatcher
+from linecaster.markup.resolve import ResolvedConventions
+from linecaster.text.formulas import clean as clean_formula, layout_brace
 
 BLOCK_TAGS = frozenset({"p", "div", "center", "blockquote", "section", "article", "pre", "dd", "dt", "figure",
                         "dl", "ul", "ol", "address", "main", "nav", "aside", "header", "footer", "body", "html"})
@@ -265,7 +265,7 @@ def _auto(el) -> str | None:
     """The directionality HTML gives an element with ``dir="auto"`` (or a ``bdi`` without ``dir``): its text's first
     strong character (``linecaster.text.scripts.first_strong_direction``), descendants that have a ``dir`` or are
     ``bdi``, scripts and the like skipped; ``None`` without one (the element takes its parent's)."""
-    from ..text.scripts import first_strong_direction
+    from linecaster.text.scripts import first_strong_direction
 
     def walk(e) -> str | None:
         found = first_strong_direction(e.text or "")

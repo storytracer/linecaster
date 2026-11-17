@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..errors import PipelineConfigError, ServerError
-from ..runtime.secrets import EnvVar, resolve
+from linecaster.errors import PipelineConfigError, ServerError
+from linecaster.runtime.secrets import EnvVar, resolve
 
 #: seconds the protocol check waits for a server's ``/health``
 HEALTH_TIMEOUT = 10.0
@@ -38,7 +38,7 @@ def server_protocol(endpoint: str, headers: dict[str, str] | None = None,
     import urllib.error
     import urllib.request
 
-    from ..net.http import USER_AGENT
+    from linecaster.net.http import USER_AGENT
 
     root = endpoint.rstrip("/")
     root = root[:-len("/v1")] if root.endswith("/v1") else root
@@ -63,7 +63,7 @@ def check_protocol(endpoint: str, headers: dict[str, str] | None = None) -> str 
     """Refuses a ``linecaster serve`` at ``endpoint`` that speaks another transcription format than this client
     (``ServerError``): its transcriptions would not read here, nor ours there. Returns the protocol, ``None`` when no
     linecaster server answered (``server_protocol``)."""
-    from ..data.page import PAGE_SCHEMA
+    from linecaster.data.page import PAGE_SCHEMA
 
     found = server_protocol(endpoint, headers)
     if found is not None and found != PAGE_SCHEMA:
@@ -142,7 +142,7 @@ class Served:
         for k in ("preset", "engine", "api_key", "headers"):
             if getattr(self, k) is not None:
                 out[k] = getattr(self, k)
-        from ..blocks.base.block import plain
+        from linecaster.blocks.base.block import plain
 
         return plain(out)
 

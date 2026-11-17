@@ -20,8 +20,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from ..data.page import Page
-from .truth import check_page, read_pages, summarize, supports
+from linecaster.data.page import Page
+from linecaster.scoring.truth import check_page, read_pages, summarize, supports
 
 #: the columns, in order, as the Hub's dataset features
 FEATURES = {"id": {"dtype": "string", "_type": "Value"}, "item_id": {"dtype": "string", "_type": "Value"},
@@ -78,8 +78,8 @@ def publish(truth: str, out: str, transcription: str = "ground_truth", images: s
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from ..data.sample import split_of
-    from ..data.transcription import producer
+    from linecaster.data.sample import split_of
+    from linecaster.data.transcription import producer
 
     pages = [p for p in read_pages(truth) if transcription in p.transcriptions]
     if not pages:
@@ -131,8 +131,8 @@ def dataset_card(total: dict, sup: dict, licenses: Counter, datasets: Counter, s
     docstring)."""
     import yaml
 
-    from ..data.page import PAGE_SCHEMA as PAGE
-    from ..data.transcription import producer
+    from linecaster.data.page import PAGE_SCHEMA as PAGE
+    from linecaster.data.transcription import producer
 
     recorded = sorted(licenses)
     card_license = (recorded[0].lower() if len(recorded) == 1 else "other") if recorded else (license or "other")

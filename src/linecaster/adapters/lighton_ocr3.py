@@ -16,7 +16,7 @@ from __future__ import annotations
 import base64
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url, png_bytes
+from linecaster.adapters import ChatAdapter, data_url, png_bytes
 
 #: pixels per image token along each side: 16-px patches merged 2 x 2 (the reference script's ``SERVING["patch"]``)
 PATCH = 32
@@ -26,7 +26,7 @@ PROMPT_MARGIN = 64
 
 def png_thumbnail(image: bytes, longest: int) -> tuple[str, tuple[int, int]]:
     """RGB, ``thumbnail((longest, longest))`` (downscale only, Pillow's default filter), base64 PNG; and the size."""
-    from ..images.pixels import rgb_image
+    from linecaster.images.pixels import rgb_image
 
     img = rgb_image(image)
     img.thumbnail((longest, longest))

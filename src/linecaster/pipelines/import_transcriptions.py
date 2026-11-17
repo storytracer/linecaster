@@ -19,9 +19,9 @@ image). Page records in OUT/pages, failed pages in OUT/rejects.
     uv run pipelines/import_transcriptions.py OUT --parquet lines.parquet --data-key text --context-key language \\
         --importer text-import --set import.line_image=true --read-images
 """
-from ..blocks.conversion.transcriptions import TranscriptionImporter
-from ..errors import PipelineConfigError
-from ..runtime import run
+from linecaster.blocks.conversion.transcriptions import TranscriptionImporter
+from linecaster.errors import PipelineConfigError
+from linecaster.runtime import run
 
 
 def options(ap):
@@ -47,8 +47,8 @@ def models(a) -> list[dict]:
 
 def importer(a):
     """The importer as a rule block takes it: a preset ref, or an engine id as an in-process engine spec."""
-    from ..backends import InProcess
-    from ..catalog.registry import engine_ids
+    from linecaster.backends import InProcess
+    from linecaster.catalog.registry import engine_ids
 
     if not a.importer:
         raise PipelineConfigError("import_transcriptions: pick --importer (a preset of step import, e.g. "

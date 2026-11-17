@@ -4,7 +4,7 @@
 ``layout.single-region.v1``, no model, in the pipeline's process only)."""
 from __future__ import annotations
 
-from ..base.model import ModelBlock
+from linecaster.blocks.base.model import ModelBlock
 
 
 class LayoutDetector(ModelBlock):

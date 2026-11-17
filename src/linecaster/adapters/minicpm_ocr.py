@@ -33,7 +33,7 @@ import base64
 import json
 from typing import Any, ClassVar
 
-from . import ChatAdapter, data_url
+from linecaster.adapters import ChatAdapter, data_url
 
 #: region labels -> the SDK's region type, for regions whose producer gave no PP-DocLayoutV3 label
 FROM_LABEL = {"title": "doc_title", "section_header": "paragraph_title", "caption": "figure_title",
@@ -88,7 +88,7 @@ class MiniCPMOCRAdapter(ChatAdapter):
         the polygon white."""
         from PIL import Image, ImageDraw
 
-        from ..data.geometry import bbox_of
+        from linecaster.data.geometry import bbox_of
 
         b = bbox_of(region.polygon)
         x0, y0, x1, y1 = int(b.x0), int(b.y0), int(b.x1), int(b.y1)
@@ -121,8 +121,8 @@ class MiniCPMOCRAdapter(ChatAdapter):
 
     def request(self, image: bytes) -> dict:
         """A whole page as one ``text`` region (not how the SDK uses the model; for ``PageRecognizer``)."""
-        from ..images.pixels import rgb_image
-        from . import png_encode
+        from linecaster.images.pixels import rgb_image
+        from linecaster.adapters import png_encode
 
         png = png_encode(rgb_image(image))
         return self.request_region(png)
@@ -172,7 +172,7 @@ class MiniCPMOCRAdapter(ChatAdapter):
 
 def _spec(spec):
     if spec is None:
-        from . import chat_model
+        from linecaster.adapters import chat_model
 
         return chat_model(PRESET)
     return spec

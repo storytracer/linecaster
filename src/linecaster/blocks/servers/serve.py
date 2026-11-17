@@ -11,8 +11,8 @@ from __future__ import annotations
 from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
-from ...errors import CatalogError, PipelineConfigError, ServerError
-from ..base.contract import Contracted
+from linecaster.errors import CatalogError, PipelineConfigError, ServerError
+from linecaster.blocks.base.contract import Contracted
 
 #: vLLM's switch for its FlashInfer sampler, which compiles its kernels when it is first used (JIT) and so needs a
 #: CUDA toolkit (``nvcc``); without one vLLM fails at its first request ("Could not find nvcc")
@@ -60,7 +60,7 @@ class ModelServer(Contracted, PipelineStep):
         """Start the server and wait until it answers (idempotent; stopped when the task's pages are through)."""
         if self._server is not None:
             return
-        from ...serve import engine
+        from linecaster.serve import engine
 
         env = self._observers.environment() if self._observers is not None else {}
         server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script, env)
@@ -145,7 +145,7 @@ class ChatModelServer(Contracted, PipelineStep):
         if server_env not in ("path", "uv", "auto"):
             raise PipelineConfigError(f"ChatModelServer: server_env {server_env!r} (path, uv or auto)")
         if isinstance(spec, str):
-            from ...adapters import chat_model
+            from linecaster.adapters import chat_model
 
             spec = chat_model(spec)
         self.spec, self.port, self.host = spec, port, host
@@ -200,7 +200,7 @@ class ChatModelServer(Contracted, PipelineStep):
         traces URL) with the protocol linecaster uses (``OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf``, vLLM's
         default is gRPC). vLLM continues a ``traceparent`` it gets in a request's headers, which saturate cannot set
         per request: its spans are traces of their own. Nothing for SGLang, or without OTLP."""
-        from ...tracing import otlp_traces_endpoint
+        from linecaster.tracing import otlp_traces_endpoint
 
         endpoint = otlp_traces_endpoint()
         if self.server != "vllm" or endpoint is None:
@@ -238,7 +238,7 @@ class ChatModelServer(Contracted, PipelineStep):
         if self._env_dir:                                    # a server environment's own CUDA toolkit and libraries
             import os
 
-            from .provision import cuda_home, ld_library_path
+            from linecaster.blocks.servers.provision import cuda_home, ld_library_path
 
             home = cuda_home(self._env_dir)
             libs = ld_library_path(self._env_dir, os.environ.get("LD_LIBRARY_PATH"))
@@ -280,7 +280,7 @@ class ChatModelServer(Contracted, PipelineStep):
     def found_here(self) -> str:
         """``"path"`` when the server on this machine's ``PATH`` (vLLM's ``vllm``, SGLang in an image's Python) has
         the preset's release, else ``"uv"``."""
-        from .provision import found_release, release_of
+        from linecaster.blocks.servers.provision import found_release, release_of
 
         want = getattr(self.spec, "server_version", None)
         python = None
@@ -312,7 +312,7 @@ class ChatModelServer(Contracted, PipelineStep):
         if self.server_env == "auto":                       # the server here if it is the preset's release
             self.server_env = self.found_here()
         if self.server_env == "uv":                         # the server's packages are part of its environment
-            from .provision import server_env
+            from linecaster.blocks.servers.provision import server_env
 
             self.outside_venv = True
 

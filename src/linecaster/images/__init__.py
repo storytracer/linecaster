@@ -1,6 +1,6 @@
 """Page images: the working image (``convert``: lossless WebP, size limits) and layout plots (``plots``).
 Import-light: Pillow and numpy; no datatrove, saturate or engines."""
-from .convert import (
+from linecaster.images.convert import (
     ImageTooLarge,
     check_size,
     drop_damaged_png_chunks,

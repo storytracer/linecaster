@@ -15,7 +15,7 @@ Khmer km, Panjabi and Punjabi pa); a code is written as the later name.
 """
 from __future__ import annotations
 
-from ..data.writing import is_script, language_tag
+from linecaster.data.writing import is_script, language_tag
 
 #: PAGE language name -> BCP 47 tag
 PAGE_LANGUAGES = {

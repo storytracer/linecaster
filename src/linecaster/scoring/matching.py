@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .lanes import REPLACEMENT
+from linecaster.scoring.lanes import REPLACEMENT
 
 
 @dataclass(frozen=True)

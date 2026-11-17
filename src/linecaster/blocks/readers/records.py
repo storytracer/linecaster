@@ -6,15 +6,15 @@ from datatrove.io import DataFolder, DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
-from ...data.page import PAGE_KEY, PAGE_SCHEMA
-from ...data.upgrade import upgrade as _upgrade
-from ...errors import PageError, PipelineConfigError
-from ..base.block import reported_file
-from ..base.contract import Contract, Contracted, Part
-from ..base.page import error_entry, record_error
-from .fragments import read_image
-from .images import _Opener
-from .sampling import Sampled
+from linecaster.data.page import PAGE_KEY, PAGE_SCHEMA
+from linecaster.data.upgrade import upgrade as _upgrade
+from linecaster.errors import PageError, PipelineConfigError
+from linecaster.blocks.base.block import reported_file
+from linecaster.blocks.base.contract import Contract, Contracted, Part
+from linecaster.blocks.base.page import error_entry, record_error
+from linecaster.blocks.readers.fragments import read_image
+from linecaster.blocks.readers.images import _Opener
+from linecaster.blocks.readers.sampling import Sampled
 
 #: the folder page records had before phase 1 (``OUT/rows``; today ``OUT/pages``)
 OLD_FOLDER = "rows"
@@ -138,7 +138,7 @@ class PageRecordReader(Sampled, Contracted, PipelineStep):
         return files or self._old_folder()
 
     def _compute_sample(self, save: bool):
-        from ...data.sample import sample_pairs
+        from linecaster.data.sample import sample_pairs
 
         where, pairs = [], []
         for path in self._files():

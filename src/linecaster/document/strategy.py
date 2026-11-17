@@ -26,9 +26,9 @@ from __future__ import annotations
 
 import unicodedata
 
-from ..text.normalize import apply_rule
-from ..text.offsets import moved
-from .model import Block, Document
+from linecaster.text.normalize import apply_rule
+from linecaster.text.offsets import moved
+from linecaster.document.model import Block, Document
 
 #: the block kinds whose text is not words (a formula's LaTeX)
 NOT_TEXT = frozenset({"formula"})
@@ -37,8 +37,8 @@ NOT_TEXT = frozenset({"formula"})
 def apply(doc: Document, strategy) -> Document:
     """``doc`` written by ``strategy`` (a ``ResolvedStrategy``, or its name: ``literal``, a strategy's id,
     normalizations joined by ``+``); ``doc`` itself is left as it is."""
-    from ..catalog.registry import catalog
-    from ..catalog.schema import TEXT_RULES
+    from linecaster.catalog.registry import catalog
+    from linecaster.catalog.schema import TEXT_RULES
 
     if isinstance(strategy, str):
         strategy = catalog().strategy(strategy, use="output")
@@ -198,7 +198,7 @@ def _rows_at(text: str, w: int) -> tuple[str, str]:
 
 
 def _division_marks(doc: Document, method: str) -> None:
-    from ..text.recomposition import Lexicon, ends_with_mark, resolve_mark
+    from linecaster.text.recomposition import Lexicon, ends_with_mark, resolve_mark
 
     if method != "unicode-marks":
         raise ValueError(f"unknown division-mark method {method!r}")
@@ -215,7 +215,7 @@ def _division_marks(doc: Document, method: str) -> None:
 
 
 def _flow(b: Block) -> None:
-    from ..text.recomposition import ends_with_mark, separator
+    from linecaster.text.recomposition import ends_with_mark, separator
 
     if not b.wraps:
         return

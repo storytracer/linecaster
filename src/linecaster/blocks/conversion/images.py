@@ -17,12 +17,12 @@ from datatrove.io import DataFolderLike, get_datafolder
 from datatrove.pipeline.base import PipelineStep
 from loguru import logger
 
-from ...data.page import PageImage
-from ...errors import PageError
-from ...images.convert import ImageTooLarge
-from ..base.contract import Contract, Contracted, parts
-from ..base.page import error_entry, page_of, record_error, set_page
-from ..base.rule import now, rule_backend, stamp
+from linecaster.data.page import PageImage
+from linecaster.errors import PageError
+from linecaster.images.convert import ImageTooLarge
+from linecaster.blocks.base.contract import Contract, Contracted, parts
+from linecaster.blocks.base.page import error_entry, page_of, record_error, set_page
+from linecaster.blocks.base.rule import now, rule_backend, stamp
 
 
 def _read(uri: str) -> bytes:
@@ -35,7 +35,7 @@ def _read(uri: str) -> bytes:
 def read_uri(uri: str, page_id: str = "", metadata: dict | None = None) -> bytes:
     """The image bytes at ``uri`` (any fsspec path); a fragment names a PDF page or a Parquet row
     (``linecaster.blocks.readers.fragments.read_image``), and one that names neither is a ``PageError``."""
-    from ..readers.fragments import read_image
+    from linecaster.blocks.readers.fragments import read_image
 
     return read_image(uri, _read, page_id, metadata)
 
@@ -172,7 +172,7 @@ class ImageConverter(Contracted, PipelineStep):
         rel = f"{page.item_id or '_'}/{doc.id}.{ext}"
         try:
             if self.skip_existing and rel.rsplit("/", 1)[1] in self._listing(out, rel.rsplit("/", 1)[0]):
-                from ...images import open_image
+                from linecaster.images import open_image
 
                 with out.open(rel, "rb") as f, open_image(f.read()) as im:
                     return ("existing", rel, im.size)
@@ -204,7 +204,7 @@ class ImageConverter(Contracted, PipelineStep):
             if self._batcher is None:
                 from huggingface_hub import HfApi
 
-                from ...images.accel import Batcher
+                from linecaster.images.accel import Batcher
 
                 api = HfApi()
                 self._batcher = Batcher(lambda items: (api.batch_bucket_files(bucket[0], add=list(items)),
@@ -308,14 +308,14 @@ class ImageConverter(Contracted, PipelineStep):
 
     # ----------------------------------------------------------------- the stages
     def run(self, data, rank: int = 0, world_size: int = 1):
-        from ...broker import _WORKER_INDEX
-        from ...images import accel
+        from linecaster.broker import _WORKER_INDEX
+        from linecaster.images import accel
 
         out = get_datafolder(self.output_folder)
         self._listings, self._listings_lock, self._batcher = {}, threading.Lock(), None
         engine = self.backend.model()
         ext = engine.extension() if hasattr(engine, "extension") else "webp"
-        from ...runtime.cpus import available_cpus, ray_task_cpus
+        from linecaster.runtime.cpus import available_cpus, ray_task_cpus
 
         index, workers = _WORKER_INDEX[0] or (0, 1)
         cpu_only = getattr(getattr(engine, "options", None), "accel", "cpu") == "cpu"

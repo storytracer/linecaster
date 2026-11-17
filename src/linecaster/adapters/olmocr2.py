@@ -17,8 +17,8 @@ import base64
 import re
 from typing import Any, ClassVar
 
-from ..data.transcription import Transcription
-from . import ChatAdapter, data_url, png_longest
+from linecaster.data.transcription import Transcription
+from linecaster.adapters import ChatAdapter, data_url, png_longest
 
 #: front matter, then the body (optional: a blank page is answered with front matter alone)
 FRONT_MATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*(?:\n(.*))?$", re.DOTALL)

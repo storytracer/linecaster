@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64
 from typing import Any, ClassVar
 
-from . import ChatAdapter
+from linecaster.adapters import ChatAdapter
 
 #: magic bytes -> media type (WebP checked separately)
 MAGIC = (
@@ -40,7 +40,7 @@ class QianfanOCRAdapter(ChatAdapter):
         return dict(self.config.get("chat_template_kwargs") or {})
 
     def request(self, image: bytes) -> dict:
-        from ..images import drop_damaged_png_chunks
+        from linecaster.images import drop_damaged_png_chunks
 
         image = drop_damaged_png_chunks(image)            # the server's decoder refuses a damaged PNG chunk too
         url = f"data:{sniff_mime(image)};base64," + base64.b64encode(image).decode()

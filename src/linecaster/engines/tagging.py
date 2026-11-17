@@ -89,12 +89,12 @@ from typing import Any, ClassVar, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ..data.geometry import BBox, bbox_of
-from ..data.geometry.frames import to_frame
-from ..data.policy import role_of_label
-from ..data.transcription import Annotator, RawOutput, Transcription, producer
-from ..errors import PipelineConfigError, ServerError
-from .base import RuleEngine
+from linecaster.data.geometry import BBox, bbox_of
+from linecaster.data.geometry.frames import to_frame
+from linecaster.data.policy import role_of_label
+from linecaster.data.transcription import Annotator, RawOutput, Transcription, producer
+from linecaster.errors import PipelineConfigError, ServerError
+from linecaster.engines.base import RuleEngine
 
 #: statuses whose zones a tagger leaves alone: they are no text of the page
 SKIPPED_STATUSES = ("duplicate", "removed", "suppressed")
@@ -667,8 +667,8 @@ class ChatTaggingEngine(RuleEngine):
 
     def _vocabulary(self, scheme: str):
         if scheme not in self._vocabularies:
-            from ..catalog.registry import catalog
-            from ..errors import CatalogError
+            from linecaster.catalog.registry import catalog
+            from linecaster.errors import CatalogError
 
             try:
                 c = catalog()
@@ -683,8 +683,8 @@ class ChatTaggingEngine(RuleEngine):
         if key not in self._resolved:
             out = {"model": m.model, "revision": m.revision, "preset": None, "preset_sha256": None}
             if m.preset:
-                from ..catalog.registry import catalog
-                from ..errors import CatalogError
+                from linecaster.catalog.registry import catalog
+                from linecaster.errors import CatalogError
 
                 try:
                     c = catalog()
@@ -811,7 +811,7 @@ class ChatTaggingEngine(RuleEngine):
         """The images a member sees, as base64 PNGs (``linecaster.adapters.png_bytes``), with what each is."""
         from PIL import Image, ImageDraw
 
-        from ..adapters import png_bytes
+        from linecaster.adapters import png_bytes
 
         img, shown, scale = page_image
         kinds, out = [], []
@@ -843,7 +843,7 @@ class ChatTaggingEngine(RuleEngine):
         return kinds, out
 
     def _body(self, member: dict, images: list[str], text: str) -> dict:
-        from ..adapters import data_url
+        from linecaster.adapters import data_url
 
         return {"model": member["model"], "max_tokens": member["max_tokens"], "temperature": member["temperature"],
                 "messages": [{"role": "user", "content": [*(data_url("image/png", b) for b in images),

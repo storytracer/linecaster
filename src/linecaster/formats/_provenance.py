@@ -15,7 +15,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
-from ..data.transcription import RULE_STEPS, Annotator
+from linecaster.data.transcription import RULE_STEPS, Annotator
 
 SOFTWARE = "linecaster"
 #: the ``Annotator`` fields a page file carries, in this order
@@ -37,7 +37,7 @@ def version() -> str:
     try:
         return dist_version("linecaster")
     except PackageNotFoundError:
-        from .. import __version__
+        from linecaster import __version__
 
         return __version__
 

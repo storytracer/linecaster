@@ -99,7 +99,7 @@ class Site:
     def texvc(self):
         """MediaWiki's TeX checker for this wiki (``linecaster_mediawiki.texvc``), one per process; None where the
         site was taken in without it."""
-        from .texvc import Texvc
+        from linecaster_mediawiki.texvc import Texvc
 
         key = ("texvc", Path(self.folder).resolve())
         if key not in _CONTEXTS:

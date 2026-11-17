@@ -26,7 +26,7 @@ import sys
 from datatrove.executor import LocalPipelineExecutor
 from loguru import logger
 
-from .console import Console, block_label, console_sink, count
+from linecaster.runtime.console import Console, block_label, console_sink, count
 
 #: datatrove's task log line format, kept for the task log files
 TASK_LOG_FORMAT = ("{time:YYYY-MM-DD HH:mm:ss.SSS} | <level>{level: <8}</level> | {name}:{function}:{line} - "
@@ -38,7 +38,7 @@ def task_logger(logging_dir, rank: int, local_rank: int = 0, node_rank: int = -1
     console handler (``console_sink``, every worker's). Returns the log file."""
     from datatrove.utils.logging import DATATROVE_COLORIZE_LOG_FILES
 
-    from .logs import add_task_logger, json_logs
+    from linecaster.runtime.logs import add_task_logger, json_logs
 
     if json_logs():
         return add_task_logger(logging_dir, rank, local_rank, node_rank)
@@ -58,7 +58,7 @@ def log_pipeline(pipeline) -> None:
 
 def close_task_logger(logfile) -> None:
     """The task is over: its log file closed, the console handler alone again."""
-    from .logs import json_logs
+    from linecaster.runtime.logs import json_logs
 
     logger.complete()
     if not json_logs():
@@ -113,7 +113,7 @@ def size_before(logging_dir, ranks) -> int:
 
 def blocks(pipeline) -> list[str]:
     """The pipeline's blocks by name, without the builder's boundaries."""
-    from .observers import Boundary
+    from linecaster.runtime.observers import Boundary
 
     return [block_label(getattr(step, "block", step)) for step in pipeline if not isinstance(step, Boundary)]
 
@@ -163,10 +163,10 @@ class LocalExecutor(LocalPipelineExecutor):
         import datatrove.executor.base as base
         from datatrove.utils.stats import PipelineStats
 
-        from ..blocks.base.page import NOT_THE_PAGES
+        from linecaster.blocks.base.page import NOT_THE_PAGES
 
         stack_dumps()
-        from ..broker import set_worker_index
+        from linecaster.broker import set_worker_index
 
         ignore_ctrl_c_in_workers()
         set_worker_index(local_rank, self.workers)   # the pool's worker index: the broker's slot search starts there
@@ -227,7 +227,7 @@ class LocalExecutor(LocalPipelineExecutor):
                            s="s" if left != 1 else "")
 
     def run(self):
-        from .logs import json_logs
+        from linecaster.runtime.logs import json_logs
 
         if self.depends is not None and not self.depends._launched:
             self.depends.run()
@@ -265,8 +265,8 @@ class LocalExecutor(LocalPipelineExecutor):
         if self.workers > 1:                     # the worker processes report their counts to this one
             import multiprocess
 
-            from .console import Progress
-            from .observers import Boundary
+            from linecaster.runtime.console import Progress
+            from linecaster.runtime.observers import Boundary
 
             manager = multiprocess.Manager()
             shared = manager.dict()

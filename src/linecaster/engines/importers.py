@@ -23,10 +23,10 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.source import SourceDocument
-from ..data.transcription import Annotator, Transcription
-from ..data.writing import language_tag
-from .base import RuleEngine
+from linecaster.data.source import SourceDocument
+from linecaster.data.transcription import Annotator, Transcription
+from linecaster.data.writing import language_tag
+from linecaster.engines.base import RuleEngine
 
 #: the context keys that state a page's writing system
 WRITING = ("language", "script", "direction")
@@ -95,7 +95,7 @@ class AltoImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
     def read(self, source, options):
-        from ..formats import from_alto
+        from linecaster.formats import from_alto
 
         return from_alto(source.as_bytes(), image_width=source.image_width, image_height=source.image_height,
                          uri=source.uri, ground_truth=options.ground_truth)
@@ -115,7 +115,7 @@ class PageXmlImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
     def read(self, source, options):
-        from ..formats import from_page
+        from linecaster.formats import from_page
 
         return from_page(source.as_bytes(), uri=source.uri, ground_truth=options.ground_truth)
 
@@ -134,7 +134,7 @@ class HocrImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
     def read(self, source, options):
-        from ..formats import from_hocr
+        from linecaster.formats import from_hocr
 
         return from_hocr(source.as_bytes(), uri=source.uri, ground_truth=options.ground_truth)
 
@@ -159,7 +159,7 @@ class TextImporter(Importer):
                                              "whole image (a line-level dataset)")
 
     def read(self, source, options):
-        from ..formats.text import from_text
+        from linecaster.formats.text import from_text
 
         return from_text(source.data, uri=source.uri, ground_truth=options.ground_truth,
                          line_image=getattr(options, "line_image", False), image_width=source.image_width,
@@ -183,7 +183,7 @@ class DoclingImporter(Importer):
         page_no: int | None = Field(None, description="the document's page to read (None: every page)")
 
     def read(self, source, options):
-        from ..formats.docling import from_docling
+        from linecaster.formats.docling import from_docling
 
         return from_docling(source.as_text(), page_no=options.page_no, ground_truth=options.ground_truth,
                             dataset=source.dataset, record=source.record)
@@ -208,8 +208,8 @@ class HtmlImporter(Importer):
     def read(self, source, options):
         from lxml import html as lxml_html
 
-        from ..formats.html import HtmlConverter
-        from .api import conventions as resolve_conventions
+        from linecaster.formats.html import HtmlConverter
+        from linecaster.engines.api import conventions as resolve_conventions
 
         c = resolve_conventions(options.conventions) if options.conventions else None
         t = Transcription()
@@ -249,7 +249,7 @@ class TeiImporter(Importer):
                                                "xml:id of its surface or pb")
 
     def read(self, source, options):
-        from ..formats.tei import from_tei
+        from linecaster.formats.tei import from_tei
 
         return from_tei(source.as_bytes(), page=getattr(options, "page", 1), uri=source.uri,
                         ground_truth=options.ground_truth)
@@ -270,7 +270,7 @@ class IiifImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
     def read(self, source, options):
-        from ..formats.iiif import from_annotation_page
+        from linecaster.formats.iiif import from_annotation_page
 
         return from_annotation_page(source.as_text(), uri=source.uri, ground_truth=options.ground_truth,
                                     image_width=source.image_width, image_height=source.image_height)
@@ -294,7 +294,7 @@ class AutoImporter(Importer):
                                                        "iiif": IiifImporter, "text": TextImporter}
 
     def read(self, source, options):
-        from ..formats.text import sniff
+        from linecaster.formats.text import sniff
 
         fmt = source.format if source.format in self.BY_FORMAT else sniff(source.as_bytes())
         return self.BY_FORMAT[fmt](ground_truth=options.ground_truth).read(source, options)
@@ -321,7 +321,7 @@ class OmniDocBenchImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
     def read(self, source, options):
-        from ..formats.omnidocbench import from_omnidocbench
+        from linecaster.formats.omnidocbench import from_omnidocbench
 
         t = from_omnidocbench(source.as_text(), ground_truth=options.ground_truth, uri=source.uri)
         w, h = t.source.image_width, t.source.image_height

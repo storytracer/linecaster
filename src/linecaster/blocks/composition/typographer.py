@@ -2,7 +2,7 @@
 heading levels from type-size ratios, ``linecaster.text.typography``)."""
 from __future__ import annotations
 
-from ..base.rule import RuleBlock
+from linecaster.blocks.base.rule import RuleBlock
 
 
 class Typographer(RuleBlock):

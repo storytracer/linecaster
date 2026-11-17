@@ -3,7 +3,7 @@
 needs Docling."""
 from __future__ import annotations
 
-from ..data.transcription import Cell, Table, Transcription
+from linecaster.data.transcription import Cell, Table, Transcription
 
 
 def require_docling() -> None:
@@ -51,8 +51,8 @@ def from_docling(source, page_no: int | None = None, ground_truth: bool = False,
     require_docling()
     from docling_core.types.doc import ContentLayer, CoordOrigin, DoclingDocument, SectionHeaderItem, TableItem
 
-    from ..data.policy import classify_label
-    from ..data.transcription import Annotator, Source
+    from linecaster.data.policy import classify_label
+    from linecaster.data.transcription import Annotator, Source
 
     if isinstance(source, str):
         doc = DoclingDocument.model_validate_json(source)

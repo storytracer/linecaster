@@ -15,8 +15,8 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..data.policy import ROLES
-from ..data.transcription import EDITS, REASONS
+from linecaster.data.policy import ROLES
+from linecaster.data.transcription import EDITS, REASONS
 
 
 def _check_role(v: str) -> str:

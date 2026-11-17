@@ -17,8 +17,8 @@ from collections.abc import Iterable, Iterator
 
 from datatrove.data import Document
 
-from ...data.page import Page
-from .page import page_of
+from linecaster.data.page import Page
+from linecaster.blocks.base.page import page_of
 
 #: where an item document keeps its item record
 ITEM_KEY = "item"

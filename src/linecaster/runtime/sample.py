@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from ..data.sample import RULE, Sample
+from linecaster.data.sample import RULE, Sample
 
 #: the sample's file in the run folder
 SAMPLE_FILE = "sample.parquet"
@@ -26,7 +26,7 @@ def sample_table(sample: Sample):
 
     schema = sample_schema()
     columns = {name: [getattr(s, name) for s in sample.selected] for name in schema.names}
-    from .. import __version__
+    from linecaster import __version__
 
     # the release that wrote it (not the commit: the same sample gives the same bytes within a release)
     meta = {b"linecaster.sample": json.dumps(sample.record(), sort_keys=True).encode(), b"rule": RULE.encode(),

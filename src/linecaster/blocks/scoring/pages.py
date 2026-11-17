@@ -12,7 +12,7 @@ from typing import Any
 
 from datatrove.pipeline.base import PipelineStep
 
-from ..base.contract import Contracted
+from linecaster.blocks.base.contract import Contracted
 
 SCORE_KEY = "score"
 
@@ -42,9 +42,9 @@ class PageScorer(Contracted, PipelineStep):
         self.truth, self.benchmark, self.transcription, self.run_id = truth, benchmark, transcription, run_id
 
     def run(self, data, rank: int = 0, world_size: int = 1):
-        from ...catalog.registry import rendering_policy
-        from ...scoring.benchmark import read_benchmark
-        from ...scoring.run import read_truth, score_pair, wanted_pages
+        from linecaster.catalog.registry import rendering_policy
+        from linecaster.scoring.benchmark import read_benchmark
+        from linecaster.scoring.run import read_truth, score_pair, wanted_pages
 
         bench = read_benchmark(self.benchmark)
         policy = rendering_policy(bench.policy)

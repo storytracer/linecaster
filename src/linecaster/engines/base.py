@@ -31,8 +31,8 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..data.transcription import Annotator
-from . import scripts as S
+from linecaster.data.transcription import Annotator
+from linecaster.engines import scripts as S
 
 
 class RuleEngine:

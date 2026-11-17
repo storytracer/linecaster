@@ -15,9 +15,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecaster.data import Annotator, Formula, Transcription
 from linecaster.data.geometry import bbox_of
 
-from .compat import create_transformers_predictor, paddle_image
-from .crops import crop_bbox
-from .weights import check, resolve
+from linecaster_paddlex.compat import create_transformers_predictor, paddle_image
+from linecaster_paddlex.crops import crop_bbox
+from linecaster_paddlex.weights import check, resolve
 
 DEFAULT_FORMULA_MODEL = "PP-FormulaNet_plus-L"
 

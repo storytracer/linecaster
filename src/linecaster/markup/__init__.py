@@ -13,11 +13,11 @@ the transcription is the importer's: each format's importer applies the decision
 Import-light, like ``linecaster.data``: pydantic and lxml; cssselect and a JSONPath implementation when a matcher
 needs them.
 """
-from .apply import Conventions, Coverage
-from .decisions import DECISIONS, Decision, decision_class
-from .matchers import JsonMatcher, Matcher, TextMatcher, TreeMatcher
-from .model import SCHEMA, ConventionsDoc, JsonMatch, Match, Rule, TextMatch, TreeMatch
-from .resolve import ResolvedConventions, resolve
+from linecaster.markup.apply import Conventions, Coverage
+from linecaster.markup.decisions import DECISIONS, Decision, decision_class
+from linecaster.markup.matchers import JsonMatcher, Matcher, TextMatcher, TreeMatcher
+from linecaster.markup.model import SCHEMA, ConventionsDoc, JsonMatch, Match, Rule, TextMatch, TreeMatch
+from linecaster.markup.resolve import ResolvedConventions, resolve
 
 __all__ = [
     "DECISIONS", "SCHEMA", "Conventions", "ConventionsDoc", "Coverage", "Decision", "JsonMatch", "JsonMatcher",

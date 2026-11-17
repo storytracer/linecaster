@@ -4,9 +4,9 @@ from __future__ import annotations
 from datatrove.data import Document
 from datatrove.pipeline.base import PipelineStep
 
-from ..base.contract import Contract, Contracted
-from ..base.item import ITEM_KEY, item_pages
-from ..base.page import set_page
+from linecaster.blocks.base.contract import Contract, Contracted
+from linecaster.blocks.base.item import ITEM_KEY, item_pages
+from linecaster.blocks.base.page import set_page
 
 
 class Splitter(Contracted, PipelineStep):
