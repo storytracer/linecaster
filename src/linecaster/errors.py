@@ -1,5 +1,5 @@
 """linecaster's errors. Library code raises these, never ``SystemExit``; only the command line (``linecaster.cli``,
-``linecaster.runtime.run.main``) turns them into an exit code.
+``linecaster.execution.run.main``) turns them into an exit code.
 
 * ``PipelineConfigError``: a pipeline that cannot run as built: its contracts do not fit (every problem listed), an
   option or a component's parameter is wrong, its input is missing, or its run folder belongs to another pipeline;

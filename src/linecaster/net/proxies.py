@@ -1,4 +1,4 @@
-"""Proxies shared through the broker (``linecaster.broker``): each proxy of a list has one owner at a time, the worker
+"""Proxies shared through the broker (``linecaster.net.broker``): each proxy of a list has one owner at a time, the worker
 that holds its lease, so what holds per proxy (a server's rate limits per IP, its blocks) holds across every worker
 that shares the broker, on any executor and machine, and across runs pointed at the same folder.
 
@@ -56,7 +56,7 @@ from dataclasses import dataclass, field
 
 from loguru import logger
 
-from linecaster.broker import EVERY_SCOPE, Broker, Resource, resource_id
+from linecaster.net.broker import EVERY_SCOPE, Broker, Resource, resource_id
 from linecaster.errors import PipelineConfigError
 from linecaster.net.http import BLOCK_FIRST_WAIT, BLOCK_TTL, BROKEN_AFTER, BROKEN_TTL, block_wait, doubling
 
@@ -677,7 +677,7 @@ def shared_pool(broker: Broker, proxies: list[str], per_worker: int | str = DEFA
     ``per_worker``: ``PipelineConfigError`` otherwise.
 
     Args:
-        broker: the broker (``linecaster.broker.shared``).
+        broker: the broker (``linecaster.net.broker.shared``).
         proxies: the proxy list.
         per_worker: how many proxies the worker holds (``ProxyPool``; default a fair share).
     """
@@ -699,9 +699,9 @@ def pools() -> list[ProxyPool]:
 
 
 def close_pools() -> None:
-    """Forgets this process's shared pools and hands over its brokers' slots (``linecaster.broker.hand_over_shared``):
+    """Forgets this process's shared pools and hands over its brokers' slots (``linecaster.net.broker.hand_over_shared``):
     the leases stay with the worker for the slot's next process."""
-    from linecaster.broker import hand_over_shared
+    from linecaster.net.broker import hand_over_shared
 
     with _POOLS_LOCK:
         _POOLS.clear()

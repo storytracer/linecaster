@@ -191,7 +191,7 @@
             }
           ],
           "default": null,
-          "description": "each LaTeX formula as the characters it prints (linecaster.text.latex), for comparison",
+          "description": "each LaTeX formula as the characters it prints (linecaster.normalization.latex), for comparison",
           "title": "Latex"
         },
         "edits": {

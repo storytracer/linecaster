@@ -64,7 +64,7 @@ A page is one datatrove `Document`: `id` is the page id, `text` the primary tran
 **A page's time in the run** is on its record, `Page.measurements`: `seconds`, the wall time from when the reader
 handed the page over to when it reached the first block that writes pages, binds or serves (the blocks' times
 between, waiting in served windows and queues included), and `datetime`, when the reader handed it over (ISO 8601,
-UTC). `linecaster.runtime.observers.PageTiming` sets them on every page stage that writes pages; a record read from
+UTC). `linecaster.execution.observers.PageTiming` sets them on every page stage that writes pages; a record read from
 an earlier run adds the new run's time to the one it carries and keeps the first `datetime`. Each annotator's own
 time is in its `measurements`.
 
@@ -492,7 +492,7 @@ row that would start a Markdown block escaped), text and JSON; the JSON is the c
 A **text** is a document written by a **transcription strategy** in a format: `<strategy>:<format>`
 (`literal:txt`, `latin-historic+unicode-marks+flow:md`). `literal` changes nothing; a strategy of the catalog
 (`linecaster.catalog`: normalizations and strategies) applies its normalizations in order: rules on characters
-(`linecaster.text.normalize`: `nfc`, `long-s`, `ligatures`, `r-rotunda`, `superscript-e`, ...) to every block's text
+(`linecaster.normalization.rules`: `nfc`, `long-s`, `ligatures`, `r-rotunda`, `superscript-e`, ...) to every block's text
 and cell, and rules on the document: the source's edits, `divided-words`, `unicode-marks` (division marks resolved
 by squiddleocr's rule, the document's words as the lexicon), `flow` (the wraps joined: by a space, or none where
 Unicode's line breaking joins the words; a row that still ends in a division mark joined without a space, the mark

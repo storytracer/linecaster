@@ -308,14 +308,14 @@ class ImageConverter(Contracted, PipelineStep):
 
     # ----------------------------------------------------------------- the stages
     def run(self, data, rank: int = 0, world_size: int = 1):
-        from linecaster.broker import _WORKER_INDEX
+        from linecaster.net.broker import _WORKER_INDEX
         from linecaster.images import accel
 
         out = get_datafolder(self.output_folder)
         self._listings, self._listings_lock, self._batcher = {}, threading.Lock(), None
         engine = self.backend.model()
         ext = engine.extension() if hasattr(engine, "extension") else "webp"
-        from linecaster.runtime.cpus import available_cpus, ray_task_cpus
+        from linecaster.execution.cpus import available_cpus, ray_task_cpus
 
         index, workers = _WORKER_INDEX[0] or (0, 1)
         cpu_only = getattr(getattr(engine, "options", None), "accel", "cpu") == "cpu"

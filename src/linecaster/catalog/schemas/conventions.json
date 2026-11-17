@@ -69,7 +69,7 @@
           "$ref": "#/$defs/Match"
         },
         "decision": {
-          "description": "a decision's name (linecaster.markup.decisions.DECISIONS, or a package's)",
+          "description": "a decision's name (linecaster.conventions.decisions.DECISIONS, or a package's)",
           "title": "Decision",
           "type": "string"
         },

@@ -22,7 +22,7 @@ run's page records ─────► transcription (ocr_new) ──────
 | conventions | what a public source's markup means, declaratively (`linecaster.conventions`) | linecaster's catalog |
 | page records | the neutral exchange format: a ground truth imported into linecaster's data model, or a run's output | the dataset (`linecaster truth publish`), the run |
 | rendering policy, output strategy, lanes | how both sides are rendered, written and compared | linecaster's catalog |
-| the scorer | page and element metrics, strata, aggregation | linecaster (`linecaster.scoring`) |
+| the scorer | page and element metrics, strata, aggregation | linecaster (`linecaster.evaluation`) |
 | a benchmark | a definition: a ground truth, its page set, the policy, lanes, metrics (`linecaster.benchmark/2`; `linecaster benchmark init`) | the evaluation |
 | an evaluation | the runs scored under a benchmark, their score records and evidence | the evaluation's own repository |
 | an external benchmark | another project's ground-truth format, scorer and dataset (OmniDocBench) | that project; linecaster imports its ground truth and exports to it |
@@ -32,7 +32,7 @@ external benchmark's code never runs inside linecaster: its ground truth is read
 scorer can score models on its pages, and a ground truth and a run are written as its files by an exporter, so its own
 evaluation scores them unchanged ([export](#export-to-omnidocbench-linecaster-export-omnidocbench)).
 
-Scoring is `linecaster.scoring` (import-light, like `linecaster.data`); its alignment needs the extra
+Scoring is `linecaster.evaluation` (import-light, like `linecaster.data`); its alignment needs the extra
 `linecaster[rapidfuzz]`.
 
 ## Ground truth
@@ -128,7 +128,7 @@ Per page and role, where the ground truth marks the role (no boxes needed):
 | `role_words_true`, `role_words_output`, `role_words_both` | the words (as for `token_recall`) the ground truth puts in the role, those the output puts there, and their multiset intersection; precision and recall per role follow |
 
 **Words.** The word metrics cut the lane's text into words by the benchmark's tokenizer (`words`,
-`linecaster.scoring.tokens`); a word with an illegible character is left out:
+`linecaster.evaluation.tokens`); a word with an illegible character is left out:
 
 | Tokenizer | Words |
 |---|---|
@@ -153,7 +153,7 @@ OmniDocBench does: each side is cut into elements, the ground truth's elements a
 match is compared on its own; the reading order is scored apart (`metrics: [elements, tables, formulas,
 reading_order]`, the default with the page metrics).
 
-**Elements** (`linecaster.scoring.elements`), in each side's reading order: a region's run of lines (its text, as
+**Elements** (`linecaster.evaluation.elements`), in each side's reading order: a region's run of lines (its text, as
 the texts render it: illegible spans as U+FFFD), a table (by `table_kind`: data tables are tables, the rest text,
 unless the benchmark's `elements.tables` is `all`), a formula (a formula region, or a line that is a display
 formula), a description where the policy scores it (`page-layers-described`). An output without regions (a model's
@@ -161,7 +161,7 @@ Markdown) is cut into its lines, with the components that span lines
 recognized: an HTML table, a pipe table, a `$$…$$` or `\[…\]` formula, a `#` heading. Each element records its role,
 kind, layer, and the writing system and classifications that hold for it.
 
-**Matching** (`linecaster.scoring.matching`): both sides' contents written by the output strategy and the matching
+**Matching** (`linecaster.evaluation.matching`): both sides' contents written by the output strategy and the matching
 lane (`elements.lane`, default `alnum`: letters, marks and digits of any script, so markup, punctuation and
 formula notation do not keep a match apart), as units (grapheme clusters by default), so it works the same in
 every script. An element's candidates are the elements of the other side sharing the most n-grams of units; its home
@@ -182,11 +182,11 @@ deletions; an extra element all insertions; extra text is never free.
 |---|---|
 | `element_cer` | `Σ(s + d + i) / Σn` over the elements |
 | `element_ned` | `Σ(s + d + i) / Σm`, `m = max(n, h + s + i)`: normalized edit distance, at most 1 |
-| `teds`, `teds_s` | per ground-truth table, the tree-edit-distance similarity (Zhong et al., 2020) to the output table of its group, of content and structure or structure alone (`linecaster.scoring.teds`, from the tables' cells; 0 without one) |
+| `teds`, `teds_s` | per ground-truth table, the tree-edit-distance similarity (Zhong et al., 2020) to the output table of its group, of content and structure or structure alone (`linecaster.evaluation.teds`, from the tables' cells; 0 without one) |
 | `table_recall` | the share of ground-truth tables the output gives as tables |
 | `table_precision` | the share of the output's tables that are in a group with a ground-truth table |
-| `formula_cer`, `formula_ned` | per ground-truth formula, the edit distance of the cleaned LaTeX (`linecaster.text.formulas.clean`, without spaces) to the output's in its group |
-| `order_kendall` | of the pairs of matched ground-truth elements (those of regions the ground truth's order ranks, where it has one: furniture it leaves unordered is not ordered), the share the output puts the other way round (`linecaster.scoring.order`) |
+| `formula_cer`, `formula_ned` | per ground-truth formula, the edit distance of the cleaned LaTeX (`linecaster.normalization.formulas.clean`, without spaces) to the output's in its group |
+| `order_kendall` | of the pairs of matched ground-truth elements (those of regions the ground truth's order ranks, where it has one: furniture it leaves unordered is not ordered), the share the output puts the other way round (`linecaster.evaluation.order`) |
 | `order_edit` | the edit distance between the ground truth's order of its matched elements and the output's, over their number: OmniDocBench's reading-order measure |
 
 The element rates are per text and lane (`element_cer_full_diplomatic`); the formula and order rates are for the
@@ -196,7 +196,7 @@ lane: `level` (`element`), `side` (`truth` or `output`), `element`, `index`, `ki
 
 ## Strata
 
-Rates by strata are a run's rates on part of what was compared (`linecaster.scoring.strata`). The element rates are
+Rates by strata are a run's rates on part of what was compared (`linecaster.evaluation.strata`). The element rates are
 always given by `role` and `kind`; a benchmark's `strata` adds dimensions:
 
 - of an element: `role`, `kind`, `layer`, `match` (its group's kind), `table_kind`, and any scheme it records:
@@ -232,7 +232,7 @@ many tasks, here (`--workers`) or on a Ray cluster (`--on ray`), like every othe
 
 Each task scores a share of the run's page records (`PageScorer`: its pages' ground truth read in one pass, only
 their lines decoded) and writes their score records and page summaries (`ScoreWriter`: `OUT/records`, `OUT/pages`).
-When every task is done, the driver puts them together (`linecaster.scoring.run.aggregate`): the pages the run lacks
+When every task is done, the driver puts them together (`linecaster.evaluation.run.aggregate`): the pages the run lacks
 are scored as empty outputs, then the rates, intervals and conventions check as above, into `OUT/scores.parquet` and
 `OUT/evidence.yaml`. The score records are the ones `linecaster score` writes, page for page. With more tasks than
 page-record files, the tasks share each file (every k-th record each), so any number of tasks has work.
@@ -269,9 +269,9 @@ One measurement per file, kept by the evaluation:
 | `source` | `own-run`, `card-claim`, `vendor-benchmark` |
 | `run` | `uri` (the run folder), `run_id`, `pipeline_sha256`, `record_sha256` (of `run.yaml`) |
 | `benchmark` | `id@edition` and its `sha256` |
-| `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `words` (the tokenizer and the version of the word metrics' rules: 1 dropped combining marks and format characters, 2 keeps them; absent: whitespace, 1), `elements` (with element metrics: the version of the element scorer's rules, `linecaster.scoring.ELEMENTS_VERSION`, and the matching lane by id and `sha256`), `scorer` (the linecaster that scored, version and commit) |
+| `scoring` | `policy`, `output` and each of `lanes` by id and `sha256`, `unit`, `words` (the tokenizer and the version of the word metrics' rules: 1 dropped combining marks and format characters, 2 keeps them; absent: whitespace, 1), `elements` (with element metrics: the version of the element scorer's rules, `linecaster.evaluation.ELEMENTS_VERSION`, and the matching lane by id and `sha256`), `scorer` (the linecaster that scored, version and commit) |
 | `metrics` | name → `{value, lo, hi, n}`: `cer_full_diplomatic`, `cer_body_alnum`, `role_recall_header`, ... (`<metric>_<text>_<lane>`, `role_precision_<role>`, `role_recall_<role>`) |
-| `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has data tables (`tables`, `linecaster.scoring.tables`), formulas (`formulas`), or neither (`plain`); `linecaster.scoring.slices` |
+| `slices` | slice → `{definition, pages, metrics}`: CER and word recall on the pages whose ground truth has data tables (`tables`, `linecaster.evaluation.tables`), formulas (`formulas`), or neither (`plain`); `linecaster.evaluation.slices` |
 | `strata` | dimension → value → `{pages, elements, metrics}` ([strata](#strata)) |
 | `hardware` | `gpu` (model and count), `driver`, `cuda`, `cpu`, from the run record |
 | `software` | the server's version (vLLM, ...), the engine packages' versions |
@@ -304,7 +304,7 @@ formula regions `$$…$$`; a transcription without regions (a VLM's completion) 
 the attributes `tables` (data tables) and `formulas` (`yes`/`no`, the [slices](#aggregation)), by which OmniDocBench
 groups its page results.
 
-**Which tables are tables** (`--tables`, default `data`; `linecaster.scoring.tables`), on both sides alike: a table is
+**Which tables are tables** (`--tables`, default `data`; `linecaster.evaluation.tables`), on both sides alike: a table is
 `data` (printed as a table: at least two rows and two columns of filled cells, text or numbers alike), `contents` (a
 table of contents or an index laid out as a table: entries with page, chapter or section references, the references
 rising or the entries in alphabetical order) or `layout` (one row, one column or one cell, one column in practice, a
@@ -324,7 +324,7 @@ scoring, not one of its lanes; for scripts with combining marks linecaster's sco
     linecaster truth check TRUTH [--transcription ground_truth] [--ids FILE] [--json OUT]
 
 reads a ground truth's page records (a folder, local or fsspec; JSON Lines, gzipped or not, or Parquet) and reports,
-per page and in total (`linecaster.scoring.truth`: `check_page`, `check`, `render`):
+per page and in total (`linecaster.evaluation.truth`: `check_page`, `check`, `render`):
 
 | Reported | Is |
 |---|---|
@@ -335,7 +335,7 @@ per page and in total (`linecaster.scoring.truth`: `check_page`, `check`, `rende
 | `characters`, `illegible_characters` | the readings' characters (code points) and those with `status` `illegible` (a span, a word or a line); in total their share |
 | `language`, `script`, `direction`; `languages`, `scripts`, `directions` | the value recorded on the page (`Transcription.language("")`, ...), and every value recorded anywhere on it; in total the pages without one |
 | `roles`, `statuses` | the regions' content roles and the statuses, with counts |
-| `tables`, `table_kinds`, `formulas` | tables with cells by kind (`linecaster.scoring.tables`: `data`, `contents`, `layout`); formulas of regions and inline (of a span) |
+| `tables`, `table_kinds`, `formulas` | tables with cells by kind (`linecaster.evaluation.tables`: `data`, `contents`, `layout`); formulas of regions and inline (of a span) |
 | `notes`, `continuations` | note regions (footnotes, endnotes) and `note_of` links; `continues` links |
 | `normalized` | the normalizations the source declares it embodies |
 
@@ -349,7 +349,7 @@ In total also the pages whose texts are the same (whitespace aside: `duplicates`
         [--importer IMPORTER] [--sample N] [--sample-items M] [--sample-per-item K] [--seed S]
         [--stratify SCHEME] [--per-stratum K] [--split NAME:FRACTION ...] [--in-split NAME]
 
-writes a `linecaster.benchmark/2` definition, validated, of the ground truth's pages (`linecaster.scoring.truth.benchmark`):
+writes a `linecaster.benchmark/2` definition, validated, of the ground truth's pages (`linecaster.evaluation.truth.benchmark`):
 
 - `pages`: the page ids, sorted, with their `sha256`; every page, or the sample's (a sample rule, below), and then the
   rule too (`pages.rule`);
@@ -378,7 +378,7 @@ hashed, as before:
   seed (`split_of`). A sample takes one split (`split`; `--in-split`, else the first named) and the rule's limits
   within it.
 - **strata**: a page value (`stratify`) the caller supplies per page (`select(..., strata=...)`: a mapping of page ids
-  or a function of the item and page id; `linecaster.scoring.truth.page_values`: a scheme recorded on the page,
+  or a function of the item and page id; `linecaster.evaluation.truth.page_values`: a scheme recorded on the page,
   `metadata.<key>`, `source.<field>`), each value's pages a stratum sampled apart by the rule: `per_stratum` pages
   of each, or `pages` shared in proportion to the strata's pages (largest remainders, ties by the value), or the
   rule's `items` and `per_item` in each. The strata's pages together come in the order of the rule's hashes; a page
@@ -392,7 +392,7 @@ Both are recorded in the rule (`stratify`, `per_stratum`, `splits`, `split`), an
     linecaster truth publish TRUTH OUT [--transcription ground_truth] [--images FOLDER | --no-images]
         [--split NAME:FRACTION ...] [--seed S] [--license LICENSE] [--name NAME] [--shard-pages 1000]
 
-writes a ground truth's page records as a dataset the Hugging Face Hub reads (`linecaster.scoring.publish`):
+writes a ground truth's page records as a dataset the Hugging Face Hub reads (`linecaster.evaluation.publish`):
 `OUT/data/<split>-<n>-of-<m>.parquet`, one row per page, and a dataset card, `OUT/README.md`.
 
 | Column | Holds |

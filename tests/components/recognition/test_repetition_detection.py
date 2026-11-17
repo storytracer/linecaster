@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from linecaster.adapters import RepetitionDetection, chat_model
+from linecaster.engines.chat import RepetitionDetection, chat_model
 from linecaster.backends import Chat
 from linecaster.core.page import new_page_document, page_of
 from linecaster.components.recognition.page_recognizer import PageRecognizer
@@ -62,7 +62,7 @@ def recognize(server, **overrides):
 def test_on_by_default_where_the_server_takes_it_and_the_field_goes_with_every_request():
     """Every preset served by vLLM 0.17.0 or later sends the defaults with its first request and every repair; a preset
     on SGLang sends nothing; ``false`` turns it off, ``true`` is the default and no override."""
-    from linecaster.adapters import chat_presets
+    from linecaster.engines.chat import chat_presets
     from linecaster.catalog.registry import catalog
 
     for ref in chat_presets():
@@ -110,7 +110,7 @@ def test_refused_where_the_server_would_ignore_the_field():
 
 
 def _preset(adapter):
-    from linecaster.adapters import ChatPreset
+    from linecaster.engines.chat import ChatPreset
     from linecaster.catalog.registry import catalog
 
     r = catalog().resolve(PRESET)
@@ -123,7 +123,7 @@ def _preset(adapter):
 def test_the_setting_is_in_the_fingerprint_and_the_step_record():
     """On by default, so not in the preset: the adapter's record (and so ``pipeline_sha256``) names it while it is on."""
     from linecaster.components.recognition import PageRecognizer
-    from linecaster.runtime import provenance
+    from linecaster.execution import provenance
 
     a = chat_model(PRESET)
     assert a.to_dict()["repetition_detection"] == DEFAULTS and "overrides" not in a.to_dict()
@@ -156,8 +156,8 @@ def test_a_loop_vllm_ended_is_stored_counted_and_never_repaired():
 
 
 def test_transcribe_vlm_turns_it_off_with_a_flag_and_takes_fields(tmp_path: Path):
-    from linecaster.pipelines import transcribe_vlm as shape
-    from linecaster.runtime import run
+    from linecaster.templates import transcribe_vlm as shape
+    from linecaster.execution import run
 
     def sets(*argv):
         a = run.parse(["IMAGES", "OUT", "--recognition", PRESET, *argv], shape.__doc__, shape.options,

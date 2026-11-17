@@ -3,7 +3,7 @@
 The broker is a shared folder through which workers across tasks, runs and machines agree on who uses which shared
 resource and what is unavailable until when. It is any datatrove `DataFolder` (a local folder, S3, any fsspec path)
 that every worker can reach: no server, no lock service, no queue. Workers write small JSON files, list the folder
-and read the modification times the storage reports. The code is `linecaster.broker`; proxies are the first kind of
+and read the modification times the storage reports. The code is `linecaster.net.broker`; proxies are the first kind of
 resource it coordinates (`linecaster.net.proxies`).
 
 Terms are the [glossary](glossary.md)'s: **broker**, **lease**, **mark**, **worker identity** (worker slot).
@@ -65,7 +65,7 @@ renew within the lease time)`.
 **Marks.** A mark holds for a resource in a scope (a host, or `*` for every scope) for `ttl` seconds from its file's
 modification time. It is written once and never changed; whoever sees it expired deletes it, past its `keep`
 seconds if it has them: a mark with `keep` stays readable that long after its end, no longer holding, so its data
-(a proxy's doubling, `last_wait`) reaches whoever claims the resource next (`linecaster.broker.Resource.last`). A
+(a proxy's doubling, `last_wait`) reaches whoever claims the resource next (`linecaster.net.broker.Resource.last`). A
 reader reads a mark's file once (it never changes) and keeps its end. The record is JSON: `ttl`, `until` (the end on
 the writer's clock, informational), `worker`, and the kind's data (`status`, `last_wait`, `keep` for proxies).
 A reader ignores the fields it does not know: a broker that does not know `keep` deletes a kept mark at its end
@@ -80,7 +80,7 @@ count as free for a host when no mark blocks them there.
 task is a new process, and the harvest runs one item per task, so leases tied to processes would change hands every
 few seconds. At its first use a process claims a free slot of its machine (`slots/<machine>/<n>`, a lease held by the
 process itself) and is that worker from then on. Its search starts at a slot of its own, so processes started together
-do not race for the same slots: the executor's worker index (`linecaster.broker.set_worker_index`: datatrove's local
+do not race for the same slots: the executor's worker index (`linecaster.net.broker.set_worker_index`: datatrove's local
 rank in a local run's pool, the rank modulo the tasks at once on Ray, the task's GPU in a multi-GPU Job), else a random
 place. From one listing of the machine's slots and one of the heartbeats it takes a handed-over slot first (a live
 heartbeat whose slot no process holds: its leases wait for a successor), then, with worker index k, the k-th free
@@ -91,7 +91,7 @@ so a relaunch takes the slots past them at one claim per process instead of raci
 peers claimed meanwhile are not, so a pool whose processes look one after the other still takes slots 0 to n−1. Processes started together with distinct worker indexes need one claim each (`tests/test_broker.py`). A process that ends hands its slot over
 (`Broker.hand_over`: the slot's lease is deleted, the worker's other leases stay), and the next process on that
 machine claims that slot (handed-over slots come first), is the same worker, finds the worker's leases (named after
-it) and renews them. On Ray each task hands over at its end (`linecaster.runtime.ray.RayExecutor`); a local run's worker processes outlive their
+it) and renews them. On Ray each task hands over at its end (`linecaster.execution.ray.RayExecutor`); a local run's worker processes outlive their
 tasks and keep their slots, and a process that ends normally hands over at its exit. A slot whose process crashed expires like any lease, and so do the leases of a slot no
 process takes over.
 
@@ -155,16 +155,16 @@ list is set) works on the broker:
 
 `--broker PATH` (or an HTTP policy's root key `broker`) names the folder; the default is `OUT/logs/broker`. Runs
 pointed at one path share the proxies and their blocks. A run's default worker count comes from the broker too
-(`linecaster.runtime.run.allocate`): from the proxies available at launch (the proxies in the file, less those with
+(`linecaster.execution.run.allocate`): from the proxies available at launch (the proxies in the file, less those with
 a live block or broken mark for the run's hosts and those leased by live workers of other runs, read with
-`linecaster.broker.survey_kind`), one per available proxy and at most one per CPU sharing them fairly, divided by N
+`linecaster.net.broker.survey_kind`), one per available proxy and at most one per CPU sharing them fairly, divided by N
 with `per_worker` 1 or N, and at most 64 with OUT on object storage ([pipelines](pipelines.md#tasks-workers-and-rate-limits));
 on local and Ray runs only (on HF Jobs each worker is a Job, so a proxy list never sets their number).
 
 ## The command
 
 `linecaster broker` reads and tidies a broker's folder (`PATH`: any fsspec path, e.g. `OUT/logs/broker` or
-`s3://bucket/broker`). The code is `linecaster.broker.survey_all`, `clean` and `purge`, usable from code with a
+`s3://bucket/broker`). The code is `linecaster.net.broker.survey_all`, `clean` and `purge`, usable from code with a
 `now` to judge liveness by.
 
 | Command | Does |

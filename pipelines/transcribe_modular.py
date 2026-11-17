@@ -16,9 +16,9 @@
 # linecaster-tesseract = { path = "../engines/tesseract", editable = true }
 # ///
 """The modular pipeline (``transcribe_modular.v1``): its components, options and slots are the pipeline shape
-``linecaster.pipelines.transcribe_modular``; this script gives it its environment. ``--help`` lists the options."""
-from linecaster.pipelines import transcribe_modular as shape
-from linecaster.runtime import run
+``linecaster.templates.transcribe_modular``; this script gives it its environment. ``--help`` lists the options."""
+from linecaster.templates import transcribe_modular as shape
+from linecaster.execution import run
 
 if __name__ == "__main__":
     run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)

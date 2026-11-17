@@ -53,7 +53,7 @@ def use_decoding(accel: str) -> None:
     """Sets this process's page decoding (``linecaster.images.pixels.set_decoding``): ``accel`` (``auto``, ``gpu``,
     ``cpu``) and, where it may use a GPU, the worker's (one per worker, round robin; on Ray and Jobs a task sees its
     own GPU only). CUDA is left alone for ``cpu`` and where nvImageCodec is not installed."""
-    from linecaster.broker import _WORKER_INDEX
+    from linecaster.net.broker import _WORKER_INDEX
     from linecaster.images import accel as hw
     from linecaster.images.pixels import set_decoding
 
@@ -152,7 +152,7 @@ class PageComponent(Contracted, PipelineStep):
       done, possibly out of order (served model components with their window). They report what happens to each page
       inside the component through ``notify`` (the observers' ``on_unit``).
 
-    The builder installs the observers (``linecaster.runtime.observers``): its boundary steps between components call
+    The builder installs the observers (``linecaster.execution.observers``): its boundary steps between components call
     ``on_enter`` and ``on_exit`` for every page; ``notify`` reaches them from inside a component. Neither shape sees
     tasks: ``rank`` and ``world_size`` are for readers and writers. The contract (``contract()``) comes from the
     class attributes of ``Contracted`` unless a component computes it.

@@ -1,7 +1,7 @@
-"""The harvest pipeline (``linecaster.pipelines.harvest``): reusing images an earlier launch wrote is opt-in
+"""The harvest pipeline (``linecaster.templates.harvest``): reusing images an earlier launch wrote is opt-in
 (``--reuse``); by default an item's pages are fetched again without a listing of its folder."""
-from linecaster.pipelines import harvest
-from linecaster.runtime import run
+from linecaster.templates import harvest
+from linecaster.execution import run
 
 
 def build(*extra):

@@ -1,0 +1,1383 @@
+"""One command line for a pipeline on every machine. A pipeline is a self-contained uv script (``pipelines/``)
+that runs one pipeline shape with slots for presets (``linecaster.templates``); ``main`` gives it:
+
+    uv run pipelines/transcribe_modular.py IMAGES OUT                              # this machine
+    uv run pipelines/transcribe_modular.py IMAGES OUT --on ray --tasks 64           # a Ray cluster, one task per GPU
+    uv run pipelines/transcribe_modular.py IMAGES OUT --on hf-jobs --namespace NS --commit <sha>   # Hugging Face Jobs
+    uv run pipelines/transcribe_modular.py serve                                   # linecaster serve with its models
+    uv run pipelines/transcribe_modular.py ray start --head                        # Ray's command line, same environment
+
+Engines run inside the pipeline (``--backend in-process``, the default on this machine) or behind a
+server that each task starts for itself (``--backend served``, the default on Ray and HF Jobs): the
+pipeline's own ``serve`` command here and on Ray, ``linecaster serve`` in the Job's environment on HF Jobs.
+``--endpoint`` points them at a server that is already running instead.
+
+A pipeline script passes ``main`` its ``__file__`` and its shape's docstring, the function that adds its options,
+the function that returns its engines from the options (for ``serve``) and the function that builds the pipeline
+(``reader``, ``engines`` and ``pages`` help with the usual parts), with its pipeline id and slots. ``describe``
+builds a shape in this process without its engines. The builder may also return
+``(pipeline, {"image": ..., "engines": False})``: the Jobs' container image, and whether a Job installs
+the pipeline's engine packages or linecaster alone.
+
+Before it launches, ``run`` writes the run record ``OUT/run.yaml`` (``linecaster.execution.provenance.run_record``:
+the run id, the pipeline script, the recipe, command line, options, executor, the pipeline's components with backends and
+presets, software, hardware); a later launch into the same OUT (a resume) keeps it and writes ``OUT/run-<time>.yaml``
+next to it, with its own run id. The page record writers name the launch's run id on every annotator it added
+(``Annotator.run``).
+Before that the builder (``linecaster.execution.builder``) turns the components the script returns into a plan: it checks
+their contracts (every problem listed, nothing launched), stamps the recipe before the first writer, applies
+``--until``, ``--after`` and ``--tap-after``, and cuts the pipeline into stages where the stream changes from pages to
+items with ``--tasks`` over 1 (each stage an executor that ``depends=`` on the one before). ``--page IMAGE`` runs one
+image through the pipeline in this process (``linecaster page``).
+``--tasks`` and ``--workers`` are chosen when the command line leaves them open (``allocate``): a pipeline without
+engines gets the task count its reader suggests (``auto_tasks``: tasks of about 1,000 pages, from the input); its
+workers, with a proxy list, follow the available proxies (those not blocked and not held by another run's workers):
+one per available proxy and at most one per CPU when the workers share them fairly (``proxies: {per_worker: share}``,
+the default), one per available proxy divided by N with ``per_worker`` 1 or N, at most
+``OBJECT_STORAGE_WORKERS`` with OUT on object storage; one when a host has rate limits without proxies (one task keeps
+them busy), and one per CPU otherwise; a pipeline with engines one task, and as many workers as tasks. ``--rate-limit``
+holds per worker: a server sees the workers running at once times it, which the run states before it starts
+(``rate_note``, with why it has the workers it has, ``workers_note``); with ``--proxies`` it holds per proxy, each
+proxy used by one worker at a time (the workers share them through ``--broker``, ``linecaster.net.broker``).
+``--dry-run`` writes nothing and prints the record with the plan and its Mermaid graph. A model dict may name a catalog
+``preset`` (``id``): ``preset_models`` fills in its engine and options, and the record and the
+page files carry the preset and its hash.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from collections.abc import Callable
+from pathlib import Path
+
+from linecaster.errors import CatalogError, LinecasterError, PipelineConfigError, exit_code
+from linecaster.execution.cpus import available_cpus
+
+ON = ("local", "ray", "hf-jobs")
+RUN_RECORD = "run.yaml"
+ENGINE_PORT = 8100
+#: the most workers a run through proxies gets by default with OUT on object storage (``allocate``): 250 workers
+#: writing to S3-compatible object storage hung in their listings of OUT/images where 64 ran cleanly, an observation
+#: from one setup, not a guarantee; ``--workers`` overrides
+OBJECT_STORAGE_WORKERS = 64
+#: Ray's own `uv run` support does not handle scripts (workers come up without the script's packages)
+RAY_UV = "RAY_ENABLE_UV_RUN_RUNTIME_ENV"
+
+
+def parser(description: str | None) -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path: local, s3://, hf://), or "
+                                              "--parquet, --manifests or --pages")
+    ap.add_argument("out", help="output folder (any fsspec path): page records in OUT/pages, logs in OUT/logs")
+    input_options(ap)
+    g = ap.add_argument_group("partial runs (components by class name, datatrove name or composite)")
+    g.add_argument("--until", metavar="BLOCK", help="run the components up to BLOCK, then write the page records "
+                                                    "(OUT/pages)")
+    g.add_argument("--after", metavar="BLOCK", help="start from page records (--pages DIR) with the components after "
+                                                    "BLOCK")
+    g.add_argument("--tap-after", nargs=2, action="append", default=[], metavar=("BLOCK", "DIR"),
+                   help="also write the page records as they leave BLOCK into DIR; repeatable")
+    g = ap.add_argument_group("output")
+    g.add_argument("--max-page-errors", type=float, default=0.01, metavar="SHARE",
+                   help="the share of a task's pages a component may fail on (counting at least 100 pages) before the "
+                        "task fails; failed pages go to OUT/rejects and keep their errors in the page records")
+    g.add_argument("--image-decode", choices=["auto", "gpu", "cpu"], default=None,
+                   help="how the model components decode page images: auto (on an NVIDIA GPU where the machine has one "
+                        "and linecaster[nvimgcodec] is installed, else Pillow), gpu (an error where none is), cpu "
+                        "(Pillow); default auto. Each step records its decoder")
+    g.add_argument("--retry-failed", action="store_true",
+                   help="local: finished tasks that left rejects (OUT/rejects) run again; with harvest.py their "
+                        "images that are there are read back and only the failed pages fetched")
+    g.add_argument("--new-pipeline", action="store_true",
+                   help="run into an OUT that holds a run of another pipeline (another pipeline_sha256) knowingly; "
+                        "without it such a run is refused")
+    g.add_argument("--trace-sample", type=float, default=None, metavar="SHARE",
+                   help="the share of pages traced, chosen by page id (default 0.01; 0: only failed pages and the "
+                        "task spans, 1: every page); traces go to OUT/traces and, with the OTEL_* variables, to an "
+                        "OTLP endpoint")
+    g.add_argument("--item-shards", type=int, default=None, metavar="N",
+                   help="write the page records into N item shards (OUT/pages/<shard>/<rank>.jsonl.gz), so a later "
+                        "stage (pipelines/bind.py) reads whole items")
+    g = ap.add_argument_group("where it runs")
+    g.add_argument("--on", choices=ON, default="local")
+    g.add_argument("--tasks", type=int, default=None,
+                   help="datatrove tasks (one GPU each on Ray and HF Jobs); default: a pipeline without engines "
+                        "tasks of about 1,000 pages (or 5 items) from its input (harvest.py: one item each), one "
+                        "otherwise")
+    g.add_argument("--workers", type=int, default=None,
+                   help="tasks at once; default: a pipeline without engines with --proxies one per available "
+                        "proxy, at most one per CPU (per_worker: share in an HTTP policy, the default) or divided by "
+                        f"per_worker (1 or N), at most {OBJECT_STORAGE_WORKERS} with OUT on object storage; "
+                        "one with --rate-limit without proxies, one per CPU otherwise; all tasks with engines")
+    g.add_argument("--backend", choices=["in-process", "served"], default=None,
+                   help="engines inside the pipeline or behind a server in each task "
+                        "(default: in-process here, served on Ray and HF Jobs)")
+    g.add_argument("--endpoint", default=None, help="a running server for the engines")
+    g.add_argument("--server-env", choices=["auto", "uv", "path"], default="auto",
+                   help="where a model's server (vLLM, SGLang) comes from: auto (the one on PATH or in the image "
+                        "when it is the preset's release, e.g. vLLM's image at linecaster's pin; else built by uv), "
+                        "uv (the preset's release, built by uv once per machine) or path (the one there, whatever "
+                        "its release)")
+    g = ap.add_argument_group("Ray")
+    g.add_argument("--address", default="auto",
+                   help="the Ray cluster: auto (the one on this machine, or RAY_ADDRESS), HOST:6379 or ray://HOST:10001")
+    g.add_argument("--cpus-per-task", type=int, default=None,
+                   help="CPUs a task reserves on its Ray node (default: 12, or the pipeline's own share; start the "
+                        "workers with ray start --num-cpus at least this)")
+    g.add_argument("--mem-per-cpu-gb", type=float, default=4,
+                   help="memory a task reserves per CPU, in GiB (ignored with --mem-per-task-gb)")
+    g.add_argument("--mem-per-task-gb", type=float, default=None,
+                   help="memory a task reserves, in GiB, whatever its CPUs (default: --mem-per-cpu-gb per CPU; "
+                        "start the workers with ray start --memory at least this)")
+    g.add_argument("--worker-env", choices=["script", "node"], default="script",
+                   help="the Python a task's Ray worker runs: script (this script's locked environment, built on each "
+                        "node by uv from the job's code, which the job uploads: any job on any cluster of nodes "
+                        "with uv and linecaster's Ray) or node (the Python the node's Ray runs)")
+    g.add_argument("--no-fit-check", dest="fit_check", action="store_false",
+                   help="launch without checking that a live Ray node can run a task (a cluster that adds nodes on "
+                        "demand)")
+    g = ap.add_argument_group("Hugging Face Jobs")
+    g.add_argument("--commit", help="linecaster commit the Jobs install (must be pushed); required for linecaster's "
+                                    "own scripts, unused by a script outside the checkout that takes linecaster "
+                                    "from a git tag, branch or rev")
+    g.add_argument("--namespace", default=None,
+                   help="the Hugging Face user or organization the Jobs run under and are billed to (required "
+                        "with --on hf-jobs; there is no default)")
+    g.add_argument("--flavor", default="l4x1")
+    g.add_argument("--gpus", type=int, default=1, help="GPUs per Job (l4x4: 4), one task each")
+    g.add_argument("--tasks-per-job", type=int, default=None,
+                   help="tasks a single-GPU Job runs one after the other (datatrove's tasks_per_job; each task "
+                        "starts its own servers)")
+    g.add_argument("--image", default=None, help="the Jobs' container image")
+    g.add_argument("--timeout", default="3h")
+    g.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="for the Jobs; repeatable")
+    g.add_argument("--dry-run", action="store_true", help="print the plan (stages, contracts, problems) and its "
+                                                          "Mermaid graph, pickle the pipeline; launch nothing")
+    return ap
+
+
+def input_options(ap: argparse.ArgumentParser) -> None:
+    """The input options (``reader``) and the sample's, shared by the pipelines and ``linecaster sample``."""
+    g = ap.add_argument_group("input (datatrove's reader options)")
+    g.add_argument("--paths-file", help="IMAGES: a file with one image per line, relative to IMAGES, instead of "
+                                        "finding the images (datatrove's paths_file); --manifests FOLDER: one "
+                                        "manifest per line")
+    g.add_argument("--glob-pattern", default=None, help="IMAGES: the image files to read (default every image "
+                                                        "file); --parquet: the Parquet files (default **/*.parquet); "
+                                                        "--manifests: the manifest files (default **/*.{json,xml}) or "
+                                                        "item tables (default **/*.parquet)")
+    g.add_argument("--item-from-parent", action="store_true",
+                   help="IMAGES: the parent folder is the item (item id)")
+    g.add_argument("--parquet", help="Parquet files with an image column instead of IMAGES (a folder or one .parquet "
+                                     "file), e.g. a Hub dataset: hf://datasets/<repo>@<revision>/data")
+    g.add_argument("--id-key", default="id", help="--parquet: the page id column (without it: <item>_<0001> from "
+                                                   "--item-key and --sequence-key)")
+    g.add_argument("--image-key", default="image", help="--parquet: the image column (bytes, an HF image struct, "
+                                                        "or a path)")
+    g.add_argument("--item-key", default=None, help="--parquet, --manifests with --manifest-key: the item id column")
+    g.add_argument("--sequence-key", default=None, help="--parquet: the page's position in its item")
+    g.add_argument("--image-folder", default=None, help="--parquet: the folder relative image paths start from")
+    g.add_argument("--manifests", help="items' manifests (IIIF or METS) instead of IMAGES: a "
+                                       "folder of manifest files, a .txt/.txt.gz list (one per line: a URL, or a "
+                                       "path relative to the list's folder), or with --manifest-key item tables "
+                                       "(a folder of Parquet files or one .parquet file)")
+    g.add_argument("--manifest-key", default=None,
+                   help="--manifests: the item tables' column with each item's manifest link (other columns go into "
+                        "its pages' metadata)")
+    g.add_argument("--manifest-format", choices=["iiif", "mets"], default=None,
+                   help="--manifests: the manifests' format (default: told apart by content)")
+    g.add_argument("--existing-ocr", action="store_true",
+                   help="--manifests: also the library's own OCR the manifest links (ALTO, hOCR), as the "
+                        "transcription ocr_original")
+    g.add_argument("--item-id-pattern", default=None,
+                   help="--manifests: a regular expression whose first group is the item id in each manifest "
+                        "entry (default: its last path segment that is not 'manifest')")
+    g.add_argument("--iiif-format", default="jpg", help="--manifests: the image format asked of IIIF image "
+                                                        "services (jpg, png, tif, webp; what the server offers)")
+    g.add_argument("--pages", help="page records of an earlier pipeline instead of IMAGES (e.g. "
+                                   "pipelines/harvest.py's OUT/pages), images fetched from their URIs")
+    g.add_argument("--uri-map", action="append", default=[], metavar="PREFIX=REPLACEMENT",
+                   help="--pages: rewrite the image URIs that start with PREFIX before reading them (the images "
+                        "moved since the records were written, or a local copy of remote files); repeatable")
+    g.add_argument("--page", metavar="IMAGE", help="one page image instead of IMAGES, run in this process without "
+                                                   "an executor (`linecaster page`)")
+    g.add_argument("--rate-limit", action="append", default=[], metavar="REQUESTS/SECONDS",
+                   help="http(s) requests (manifests, images, OCR) each worker may send, e.g. 5/1; repeatable, all "
+                        "windows apply; a server sees the workers running at once times this")
+    g.add_argument("--proxies", default=None, metavar="FILE",
+                   help="http(s) requests through these proxies: one per line, a URL or host:port[:user:pass] as "
+                        "Webshare lists them; each proxy has one worker at a time (--broker), the rate limits hold "
+                        "per proxy, a proxy that is blocked (a 429) is left out for that host until the block ends "
+                        "(Retry-After, else 60 s doubling up to an hour), a broken one (3 proxy errors in a row) for "
+                        "5 min, doubling; the environment's HTTPS_PROXY then does not apply")
+    g.add_argument("--broker", default=None, metavar="PATH",
+                   help="the folder (any fsspec path) through which the workers share the proxies and their blocks "
+                        "(linecaster.net.broker; default OUT/logs/broker); runs pointed at one path share them too")
+    ua = g.add_mutually_exclusive_group()
+    ua.add_argument("--user-agent", default=None, metavar="TEXT",
+                    help="the User-Agent of every http(s) request (default: datatrove's, HF-Research/1.0)")
+    ua.add_argument("--random-user-agent", action="store_true",
+                    help="a random browser User-Agent (fake-useragent), a new one for each task")
+    g.add_argument("--limit", type=int, default=-1, help="at most this many pages per task (datatrove's limit)")
+    g.add_argument("--items", metavar="TABLE",
+                   help="items' remote files (resources) instead of IMAGES: Parquet (a folder or one .parquet file) "
+                        "with --item-key and either --resource templates or one row per resource (--url-key, "
+                        "--kind-key, --name-key); pipelines/harvest.py fetches them as served")
+    g.add_argument("--resource", action="append", default=[], metavar="KIND=URL",
+                   help="--items: a resource of every item, its URL with {item} for the item id, e.g. "
+                        "marcxml=https://catalog.example.org/{item}/marcxml; repeatable")
+    g.add_argument("--url-key", default="url", help="--items without --resource: the resource URL column")
+    g.add_argument("--kind-key", default="kind", help="--items without --resource: the resource kind column")
+    g.add_argument("--name-key", default=None, help="--items without --resource: the copy's name column (default "
+                                                    "the URL's last segment)")
+    g.add_argument("--max-items", type=int, default=None, metavar="N",
+                   help="--items: only the first N items of the input for the whole run (a smoke test)")
+    g.add_argument("--http-policy", default=None, metavar="FILE",
+                   help="an HTTP policy file for every request over http(s) (--parquet, --items, --manifests, --pages) "
+                        "(YAML: rate_limits, max_retries, block_on, stop_on, max_pause, proxies: {file, per_worker, "
+                        "block_ttl, broken_after, broken_ttl}, ... for every host at the root, overrides per host "
+                        "under hosts:; docs/reference/http.md); the run's own options go over its root, a host's "
+                        "entry over both")
+    g.add_argument("--max-pages", type=int, default=None, metavar="N",
+                   help="--parquet, IMAGES: only the first N pages of the input for the whole run, divided into tasks "
+                        "as the whole input would be (a smoke test of the real setup)")
+    g.add_argument("--skip", type=int, default=0, help="skip this many pages at the start of each task")
+    g = ap.add_argument_group("sample (the same pages for every run setup: linecaster.data.sample)")
+    g.add_argument("--sample", type=int, default=None, metavar="N",
+                   help="only the first N pages of the sample order for the whole run, whatever --tasks: items "
+                        "ranked by sha256 of seed and item id, pages within each item by sha256 of seed, item and "
+                        "page id; with --sample-per-item K that is about N/K items; for IMAGES, --parquet, "
+                        "--manifests and --pages, chosen from their ids before any image is read; the sample goes to "
+                        "OUT/sample.parquet and the run record")
+    g.add_argument("--sample-per-item", type=int, default=None, metavar="K",
+                   help="at most the first K pages of each item (every item's first K pages without --sample)")
+    g.add_argument("--sample-items", type=int, default=None, metavar="M", help="only the first M items")
+    g.add_argument("--sample-seed", type=int, default=None, metavar="S",
+                   help="the seed of the sample order (default 0)")
+
+
+def uri_map(values: list[str]) -> dict[str, str]:
+    """``--uri-map PREFIX=REPLACEMENT`` options as ``PageRecordReader``'s ``uri_map`` (the first matching prefix
+    wins, in the order given)."""
+    out = {}
+    for v in values:
+        prefix, sep, repl = v.partition("=")
+        if not sep or not prefix:
+            raise PipelineConfigError(f"--uri-map needs PREFIX=REPLACEMENT, got {v!r}")
+        out[prefix] = repl
+    return out
+
+
+def rate_limits(values: list[str]) -> list[tuple[int, float]] | None:
+    """``["5/1", "200/60"]`` -> ``[(5, 1.0), (200, 60.0)]`` (``linecaster.net.http.HTTPConfig.rate_limits``)."""
+    out = []
+    for v in values:
+        n, sep, secs = v.partition("/")
+        try:
+            out.append((int(n), float(secs)))
+        except ValueError:
+            raise PipelineConfigError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}") from None
+        if not sep or out[-1][0] < 1 or out[-1][1] <= 0:
+            raise PipelineConfigError(f"--rate-limit needs REQUESTS/SECONDS, got {v!r}")
+    return out or None
+
+
+def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namespace:
+    inputs = [x for x in ("images", "parquet", "manifests", "pages", "page", "items") if getattr(a, x, None)]
+    if len(inputs) != 1:
+        ap.error("give one of IMAGES, --parquet, --manifests, --pages, --page and --items")
+    if getattr(a, "uri_map", None) and not a.pages:
+        ap.error("--uri-map rewrites the image URIs of page records: it needs --pages")
+    if a.items and not a.item_key:
+        ap.error("--items needs --item-key: the column with each row's item id")
+    a.templates = {}
+    for spec in a.resource:
+        kind, sep, url = spec.partition("=")
+        if not sep or not kind or "{item}" not in url:
+            ap.error(f"--resource needs KIND=URL with {{item}} in the URL, got {spec!r}")
+        a.templates[kind] = url
+    if (a.resource or a.max_items is not None) and not a.items:
+        ap.error("--resource and --max-items are for --items")
+    if a.max_items is not None and a.max_items < 1:
+        ap.error("--max-items needs at least 1")
+    if a.http_policy:
+        from linecaster.net.policy import HTTPPolicy
+
+        try:
+            HTTPPolicy(a.http_policy)
+        except PipelineConfigError as e:
+            ap.error(e.problems[0])
+    if getattr(a, "after", None) and not a.pages:
+        ap.error("--after starts from page records: give --pages DIR")
+    if getattr(a, "page", None) and (a.on != "local" or a.tasks not in (None, 1)):
+        ap.error("--page runs one image in this process: no --on, no --tasks")
+    if (a.parquet or a.pages) and (a.paths_file or a.item_from_parent):
+        ap.error("--paths-file and --item-from-parent are for IMAGES and --manifests; --parquet names items "
+                 "with --item-key")
+    if a.manifests and a.item_from_parent:
+        ap.error("--manifests: each manifest is an item (--item-id-pattern names it)")
+    if not a.manifests and (a.manifest_key or a.manifest_format or a.existing_ocr):
+        ap.error("--manifest-key, --manifest-format and --existing-ocr are for --manifests")
+    if a.manifests and a.item_key and not a.manifest_key:
+        ap.error("--manifests: --item-key names a column of item tables, so it needs --manifest-key")
+    if a.max_pages is not None and (a.max_pages < 1 or a.manifests or a.pages or getattr(a, "page", None)):
+        ap.error("--max-pages N (at least 1) is for --parquet and IMAGES, whose pages are known before they are read; "
+                 "--manifests: --tasks 1 with --limit")
+    problem = sample_problem(a)
+    if problem:
+        ap.error(problem)
+    if a.pages and (a.limit != -1 or a.skip or a.glob_pattern):
+        ap.error("--pages reads whole files of page records; --limit, --skip and --glob-pattern are for the other inputs")
+    try:
+        a.rate_limits = rate_limits(a.rate_limit)
+    except PipelineConfigError as e:
+        ap.error(e.problems[0])
+    if (a.tasks is not None and a.tasks < 1) or (a.workers is not None and a.workers < 1):
+        ap.error("--tasks and --workers need at least 1")
+    if a.tasks_per_job is not None and (a.tasks_per_job < 1 or a.gpus > 1):
+        ap.error("--tasks-per-job is for single-GPU Jobs (a multi-GPU Job runs one task per GPU)")
+    if a.on == "hf-jobs" and not a.namespace:
+        ap.error("--on hf-jobs needs --namespace: the Hugging Face user or organization the Jobs run under")
+    if a.backend is None:
+        a.backend = "in-process" if a.on == "local" and not a.endpoint else "served"
+    if getattr(a, "proxies", None):
+        from linecaster.net.http import read_proxies
+
+        try:
+            a.proxy_count = len(read_proxies(a.proxies))
+        except (OSError, ValueError) as e:
+            ap.error(f"--proxies: {e}")
+    for kv in a.env:
+        if "=" not in kv or kv.startswith("="):
+            ap.error(f"--env needs KEY=VALUE, got {kv!r}")
+    return a
+
+
+def sample_problem(a: argparse.Namespace) -> str | None:
+    """Why the sample options of ``a`` do not fit its input, or None."""
+    given = [f"--{k.replace('_', '-')}" for k in ("sample", "sample_per_item", "sample_items", "sample_seed")
+             if getattr(a, k, None) is not None]
+    if not given:
+        return None
+    if getattr(a, "sample", None) is None and getattr(a, "sample_per_item", None) is None and \
+            getattr(a, "sample_items", None) is None:
+        return "--sample-seed orders a sample: give --sample N, --sample-per-item K or --sample-items M"
+    for k in ("sample", "sample_per_item", "sample_items"):
+        if getattr(a, k, None) is not None and getattr(a, k) < 1:
+            return f"--{k.replace('_', '-')} needs at least 1"
+    if getattr(a, "page", None) or getattr(a, "items", None):
+        return f"{', '.join(given)}: a sample is of IMAGES, --parquet, --manifests or --pages"
+    if getattr(a, "max_pages", None) is not None:
+        return "--max-pages and --sample exclude each other: --sample N is the sample's first N pages"
+    return None
+
+
+def sample_rule(a: argparse.Namespace):
+    """The ``linecaster.data.sample.SampleRule`` of the sample options, or None without them."""
+    from linecaster.data.sample import SampleRule
+
+    limits = [getattr(a, k, None) for k in ("sample", "sample_items", "sample_per_item")]
+    if all(v is None for v in limits):
+        return None
+    seed = getattr(a, "sample_seed", None)
+    return SampleRule(pages=limits[0], items=limits[1], per_item=limits[2], seed=0 if seed is None else seed)
+
+
+def has_engines(a: argparse.Namespace) -> bool:
+    """Whether the pipeline runs engines (``main`` sets ``a.has_engines`` from the script's ``models``; unknown counts
+    as yes, which keeps one task and every task at once)."""
+    return getattr(a, "has_engines", True)
+
+
+def rate_note(a: argparse.Namespace) -> str | None:
+    """What a server sees from ``--rate-limit`` (per worker) and the workers running at once: ``rate limits per
+    worker: 150/60, 3/1 · 2 workers → up to 300/min at a server``; with ``--proxies`` per proxy and the proxies in use
+    (``rate limits per proxy: 150/60 · 100 proxies → up to 15,000/min at a server``; with fewer workers than proxies
+    times their count per worker, ``· 2 of 100 proxies in use (1 proxy per worker)``); and the HTTP policy
+    (``--http-policy``); None without either."""
+    hosts = None
+    if getattr(a, "http_policy", None):
+        from linecaster.net.policy import HTTPPolicy
+
+        hosts = "HTTP policy: " + HTTPPolicy(a.http_policy, http(a)).describe()
+    if not getattr(a, "rate_limits", None):
+        return hosts
+    limits = ", ".join(f"{n}/{s:g}" for n, s in a.rate_limits)
+    if count := getattr(a, "proxy_count", None):     # one worker per proxy at a time: the limits hold per proxy
+        from linecaster.net.proxies import DEFAULT_PER_WORKER, describe_per_worker
+
+        per_worker = _proxy_plan(a)[1].get(a.proxies, {}).get("per_worker", DEFAULT_PER_WORKER)
+        workers = min(a.workers or a.tasks or 1, a.tasks or 1) if a.workers or a.tasks else None
+        used = min(count, workers * per_worker) if workers and isinstance(per_worker, int) else count
+        proxies = f"{count:,} prox{'ies' if count != 1 else 'y'}"
+        if used < count:
+            proxies = f"{used:,} of {proxies} in use ({describe_per_worker(per_worker)})"
+        per_minute = min(n / s for n, s in a.rate_limits) * 60 * used
+        note = f"rate limits per proxy: {limits} · {proxies} → up to {per_minute:,.0f}/min at a server"
+        return note + (f" · {hosts}" if hosts else "")
+    workers = min(a.workers or a.tasks or 1, a.tasks or 1)
+    per_minute = min(n / s for n, s in a.rate_limits) * 60 * workers
+    note = (f"rate limits per worker: {limits} · {workers} worker{'s' if workers != 1 else ''} → up to "
+            f"{per_minute:,.0f}/min at a server")
+    return note + (f" · {hosts}" if hosts else "")
+
+
+def workers_note(a: argparse.Namespace) -> str | None:
+    """Why the run has the workers it has, when ``allocate`` chose them from the proxies (``250 proxies available →
+    250 workers, 1 proxy each``); None otherwise."""
+    return getattr(a, "workers_note", None)
+
+
+def run_notes(a: argparse.Namespace) -> list[str]:
+    """The lines a run states before it starts: ``workers_note`` and ``rate_note``, those it has."""
+    return [n for n in (workers_note(a), rate_note(a)) if n]
+
+
+def http(a: argparse.Namespace) -> dict:
+    """``linecaster.net.http.HTTPFetcher`` settings from the options: ``--rate-limit`` (each
+    worker's; with ``--proxies`` each proxy's), ``--user-agent`` or ``--random-user-agent``, ``--proxies`` and the
+    broker through which the workers share them (``--broker``; else ``default_broker``, ``OUT/logs/broker``, with
+    proxies or an HTTP policy, whose ``broker`` goes over it)."""
+    out = {"iiif_format": getattr(a, "iiif_format", None) or "jpg"}
+    if getattr(a, "proxies", None):
+        out["proxy_file"] = a.proxies
+    if getattr(a, "broker", None):
+        out["broker"] = a.broker
+    if (getattr(a, "proxies", None) or getattr(a, "http_policy", None)) and getattr(a, "out", None):
+        out["default_broker"] = f"{a.out.rstrip('/')}/logs/broker"
+        out["broker_run"] = a.out
+    if getattr(a, "user_agent", None):
+        out["user_agent"] = a.user_agent
+    if getattr(a, "random_user_agent", False):
+        out["use_fake_user_agent"] = True
+    if getattr(a, "rate_limits", None):
+        out["rate_limits"] = a.rate_limits
+    return out
+
+
+def _proxy_plan(a: argparse.Namespace) -> tuple[bool, dict[str, dict]]:
+    """How the run's requests go out, for ``allocate``: whether a host with rate limits goes without proxies (its
+    limits then hold per worker), and the proxy lists, file -> ``hosts`` (the hosts that use it; None: any host
+    without an entry), ``per_worker`` (its ``proxies: {per_worker}``), ``broker`` (the folder) and ``run`` (what the
+    heartbeats name as the run)."""
+    base = http(a)
+    if getattr(a, "http_policy", None):
+        from linecaster.net.policy import HTTPPolicy
+
+        policy = HTTPPolicy(a.http_policy, base)
+        entries = [(None, policy.settings(None)), *((h, policy.settings(h)) for h in policy.hosts)]
+    else:
+        entries = [(None, base)]
+    from linecaster.net.proxies import DEFAULT_PER_WORKER
+
+    direct, lists = False, {}
+    for host, s in entries:
+        if s.get("proxy_file"):
+            g = lists.setdefault(s["proxy_file"], {"hosts": set(),
+                                                   "per_worker": s.get("per_worker", DEFAULT_PER_WORKER),
+                                                   "broker": s.get("broker") or s.get("default_broker"),
+                                                   "run": s.get("broker_run")})
+            g["hosts"].add(host)
+        elif s.get("rate_limits"):
+            direct = True
+    return direct, lists
+
+
+def available_proxies(path: str, hosts: set, broker: str | None, run: str | None) -> dict:
+    """The proxies of the file ``path`` a run can use now, from one listing of the broker
+    (``linecaster.net.broker.survey_kind``): ``proxies`` (in the file), ``blocked`` (a live block or broken mark there
+    for one of ``hosts``, any host when None is among them), ``held`` (leased by a live worker of another run than
+    ``run``; the run's own earlier leases do not count against it), ``available`` (the rest). Without a broker yet
+    (a first launch), or one that cannot be read (a warning), all are available."""
+    from linecaster.net.broker import survey_kind
+    from linecaster.net.http import read_proxies
+    from linecaster.net.proxies import KIND, TURN, proxy_id
+
+    ids = {proxy_id(p) for p in read_proxies(path)}
+    survey = {"resources": {}, "runs": {}}
+    if broker:
+        try:
+            survey = survey_kind(broker, KIND)
+        except Exception as e:  # noqa: BLE001 - the workers are then counted from the file alone
+            from loguru import logger
+
+            logger.warning("broker {broker} not read for the workers: {error}; every proxy counts as available",
+                           broker=broker, error=e)
+    blocked = held = 0
+    for pid in ids:
+        r = survey["resources"].get(pid)
+        if r is None:
+            continue
+        if (any(not s.startswith(TURN) for s in r.marks) if None in hosts
+                else any(r.marked(h) is not None for h in hosts)):         # a hand-over of a turn is no block
+            blocked += 1
+        elif r.holder is not None and r.holder in survey["runs"] and survey["runs"][r.holder] != run:
+            held += 1
+    return {"proxies": len(ids), "blocked": blocked, "held": held, "available": len(ids) - blocked - held}
+
+
+def on_object_storage(path: str | None) -> bool:
+    """Whether ``path`` is on object storage: any fsspec protocol but a local one (``s3://``, ``gs://``, ``hf://``,
+    ``az://``, ...; not a plain path, ``file://``, ``local://`` or ``memory://``).
+
+    Args:
+        path: a folder, any fsspec path; None counts as local.
+    """
+    from fsspec.core import split_protocol
+
+    protocol = split_protocol(str(path or ""))[0]
+    return protocol not in (None, "file", "local", "memory")
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n:,} {word}{'s' if n != 1 else ''}"
+
+
+def _proxy_workers(a: argparse.Namespace, lists: dict[str, dict]) -> tuple[int, str]:
+    """The workers the proxy lists allow and why. Per list: one per available proxy divided by its
+    ``per_worker`` (``ceil(available / N)``), or, sharing them fairly (``share``), the available proxies and
+    at most one per CPU; the fewest over the lists, at least one. Then at most one per task and, with OUT on object
+    storage (``on_object_storage``), at most ``OBJECT_STORAGE_WORKERS``. The reason names the limits that decided."""
+    import math
+
+    from linecaster.net.proxies import SHARE, describe_per_worker
+
+    best, why, each, shared = None, "", "", False
+    for path, g in lists.items():
+        counts = available_proxies(path, g["hosts"], g["broker"], g["run"])
+        available = counts["available"]
+        left = [f"{counts[k]:,} {what}" for k, what in (("blocked", "blocked or broken"),
+                                                         ("held", "held by other runs")) if counts[k]]
+        reason = (f"{available:,} prox{'ies' if available != 1 else 'y'} available"
+                  + (f" ({counts['proxies']:,} in the list, {', '.join(left)})" if left else ""))
+        share = g["per_worker"] == SHARE
+        n = max(1, available if share else math.ceil(available / g["per_worker"]))
+        if best is None or n < best:
+            best, why, shared = n, reason, share
+            each = ("a fair share each" if share else "1 proxy each" if g["per_worker"] == 1
+                    else describe_per_worker(g["per_worker"]).replace("per worker", "each"))
+    caps = [(a.tasks, _plural(a.tasks, "task"))]
+    if shared:                                          # a fair share needs no worker per proxy: one per CPU at most
+        cpus = available_cpus()
+        caps.append((cpus, _plural(cpus, "CPU")))
+    if on_object_storage(getattr(a, "out", None)):
+        caps.append((OBJECT_STORAGE_WORKERS, "OUT on object storage"))
+    workers = min(best, *(n for n, _ in caps))
+    why += "".join(f", {text}" for n, text in caps if n == workers and n < best)
+    return workers, f"{why} → {_plural(workers, 'worker')}, {each}"
+
+
+def allocate(a: argparse.Namespace, pipeline: list) -> None:
+    """``--tasks`` and ``--workers`` where the command line leaves them open. A pipeline without engines: the task
+    count its reader suggests (``auto_tasks``, from the input; one if it has none), and as workers: with a proxy list
+    for every host that has rate limits, from the proxies available (``available_proxies``: the proxies in the file
+    less those blocked or broken for the run's hosts and those held by another run's live workers, from one listing
+    of the broker at launch): sharing them fairly (``proxies: {per_worker: share}``, the default) one per available
+    proxy and at most one per CPU; with ``per_worker`` 1 or N one per available proxy divided by N
+    (``ceil(available / N)``), never capped by the CPUs (the workers mostly wait on the network); either way at most
+    one per task and, with OUT on object storage, at most ``OBJECT_STORAGE_WORKERS``, the reason in
+    ``workers_note``. A host with rate limits and no proxy list: one worker (one task keeps them busy,
+    ``linecaster.net.http.prefetched``); one per CPU otherwise, and on Ray every task (Ray's reservations,
+    ``--cpus-per-task``, decide how many run at once, not the CPUs of the machine the driver runs on). A pipeline with engines: one task, every task at once;
+    on Ray ``RAY_TASKS_PER_GPU`` tasks per GPU of the cluster (at most the reader's ``auto_tasks``), so a task that
+    holds slow pages does not hold the run up: a worker that is done takes the next one. A pipeline whose tasks start
+    a VLM's server (``starts_vlm_server``) counts as one with engines, with one task per GPU on Ray (the server takes
+    minutes to start, once a task). ``--page``: one of each. The proxy rule holds for local and Ray runs only: on HF Jobs each worker is a Job, so its
+    count is never derived from a proxy list."""
+    if getattr(a, "page", None):
+        a.tasks, a.workers = 1, 1
+        return
+    vlm = starts_vlm_server(pipeline)
+    engines = has_engines(a) or vlm
+    if a.tasks is None:
+        reader = next((b for b in pipeline if hasattr(b, "auto_tasks")), None)
+        if engines and getattr(a, "on", "local") == "ray":
+            gpus = ray_gpus(a)
+            a.tasks = max(1, (1 if vlm else RAY_TASKS_PER_GPU) * gpus) if gpus else 1
+            if reader is not None and a.tasks > 1:
+                a.tasks = max(1, min(a.tasks, reader.auto_tasks()))
+        else:
+            a.tasks = reader.auto_tasks() if reader is not None and not engines else 1
+    if a.workers is None:
+        if engines:
+            a.workers = a.tasks
+            return
+        direct, lists = _proxy_plan(a)
+        if lists and not direct and getattr(a, "on", "local") in ("local", "ray"):   # not a Job per proxy on HF Jobs
+            a.workers, a.workers_note = _proxy_workers(a, lists)
+            return
+        if direct or getattr(a, "rate_limits", None) or _policy_rate_limited(a):
+            a.workers = 1
+        elif getattr(a, "on", "local") == "ray":     # the cluster's reservations bound it, not the driver's CPUs
+            a.workers = a.tasks
+        else:
+            a.workers = min(a.tasks, available_cpus())
+
+
+#: a pipeline with engines on Ray: tasks per GPU of the cluster, so the work is spread evenly however its pages differ
+RAY_TASKS_PER_GPU = 4
+
+
+def starts_vlm_server(pipeline: list) -> bool:
+    """Whether each task of the pipeline starts a VLM's server (``VLMServer``: vLLM or SGLang, minutes to
+    start): such a pipeline runs models, as one with engines, and on Ray gets one task per GPU, not
+    ``RAY_TASKS_PER_GPU``, so a GPU starts its server once."""
+    return any(type(b).__name__ == "VLMServer" for b in pipeline)
+
+
+def ray_gpus(a: argparse.Namespace) -> int:
+    """The GPUs of the Ray cluster at ``--address`` (joined here, as the launch joins it), 0 if it cannot be read."""
+    try:
+        connect_ray(a.address, getattr(a, "script_path", None), getattr(a, "worker_env", "script"))
+        import ray
+
+        return int(ray.cluster_resources().get("GPU", 0))
+    except Exception:  # noqa: BLE001 - the launch joins the cluster and says what is wrong
+        return 0
+
+
+def _policy_rate_limited(a: argparse.Namespace) -> bool:
+    if not getattr(a, "http_policy", None):
+        return False
+    from linecaster.net.policy import HTTPPolicy
+
+    return HTTPPolicy(a.http_policy).rate_limited()
+
+
+def reader(a: argparse.Namespace, manifest_folder: str | None = None, task_per_item: bool = False,
+           reuse_folder: str | None = None, read_images: bool = True, reuse_index: str | None = None,
+           read_metadata: bool | None = None):
+    """The reader for the input options. ``manifest_folder``: where ``ManifestReader`` saves the manifests it
+    reads (``pipelines/harvest.py``); ``task_per_item``: one item per task when the reader chooses the task count
+    (``--parquet`` with ``--item-key``, ``--manifests``; ``pipelines/harvest.py``); ``reuse_folder``: where the
+    pipeline writes its images, so a resumed run passes the ones already there on without a request. The sample
+    options give the reader its ``sample`` (``sample_rule``); with ``--manifests`` the manifests it reads go to
+    ``manifest_folder``, by default ``OUT/manifests``. ``reuse_index``: the index of earlier harvests' page images a
+    page-image reader reads copies from (``linecaster.components.readers.earlier``). Without ``read_images`` an image folder's pages carry only
+    their images' addresses and page records are read without their images (a component reads them itself).
+    ``read_metadata``: a Parquet table's other columns go into the pages' metadata; ``None``: when the images are
+    not read."""
+    from linecaster.components.readers.images import IMAGE_GLOB, ImageFolderReader, ImageParquetReader
+    from linecaster.components.readers.records import PageRecordReader
+
+    sample = sample_rule(a)
+
+    if getattr(a, "items", None):
+        from linecaster.components.readers.resources import ResourceReader
+
+        folder, glob = a.items, a.glob_pattern or "**/*.parquet"
+        if a.items.endswith(".parquet"):
+            parent, _, name = a.items.rpartition("/")
+            folder, glob = parent or ".", name
+        return ResourceReader(folder, item_key=a.item_key, templates=getattr(a, "templates", None) or None,
+                              url_key=a.url_key, kind_key=a.kind_key, name_key=a.name_key, http=http(a),
+                              http_policy=a.http_policy, reuse_folder=reuse_folder, max_items=a.max_items, glob_pattern=glob,
+                              limit=a.limit, skip=a.skip, reuse_from=getattr(a, "reuse_from", None) or None)
+    if getattr(a, "manifests", None):
+        from linecaster.components.readers.manifests import ManifestReader
+
+        src, folder, paths_file, glob = a.manifests, a.manifests, a.paths_file, a.glob_pattern
+        parent, _, name = src.rpartition("/")
+        if src.endswith((".txt", ".txt.gz")):
+            folder, paths_file = parent or ".", src
+        elif a.manifest_key and src.endswith(".parquet"):
+            folder, glob = parent or ".", name
+        if sample is not None and manifest_folder is None:      # the manifests the sample reads, for the tasks
+            manifest_folder = f"{a.out.rstrip('/')}/manifests"
+        return ManifestReader(folder, paths_file=paths_file, glob_pattern=glob, limit=a.limit, skip=a.skip,
+                              manifest_key=a.manifest_key, item_key=a.item_key if a.manifest_key else None,
+                              manifest_format=a.manifest_format, item_id_pattern=a.item_id_pattern,
+                              existing_ocr=a.existing_ocr, manifest_folder=manifest_folder, http=http(a),
+                              task_per_item=task_per_item, reuse_folder=reuse_folder,
+                              http_policy=getattr(a, "http_policy", None), sample=sample, reuse_index=reuse_index)
+    if getattr(a, "pages", None):
+        return PageRecordReader(a.pages, http=http(a), http_policy=getattr(a, "http_policy", None),
+                                uri_map=uri_map(getattr(a, "uri_map", None) or []), sample=sample,
+                                **({} if read_images else {"fetch_images": False}))
+    if getattr(a, "page", None):
+        folder, _, name = a.page.rstrip("/").rpartition("/")
+        return ImageFolderReader(folder or ".", glob_pattern=name, recursive=False)
+    if a.parquet:
+        folder, glob = a.parquet, a.glob_pattern or "**/*.parquet"
+        if a.parquet.endswith(".parquet"):                    # one file: its folder, the file by name
+            parent, _, name = a.parquet.rpartition("/")
+            folder, glob = parent or ".", name
+        return ImageParquetReader(folder, glob_pattern=glob, limit=a.limit,
+                                  skip=a.skip, id_key=a.id_key, image_key=a.image_key, item_key=a.item_key,
+                                  sequence_key=a.sequence_key, image_folder=a.image_folder, http=http(a),
+                                  max_pages=a.max_pages, task_per_item=task_per_item and bool(a.item_key),
+                                  reuse_folder=reuse_folder, http_policy=getattr(a, "http_policy", None),
+                                  sample=sample, reuse_index=reuse_index, read_images=read_images,
+                                  read_metadata=not read_images if read_metadata is None else read_metadata)
+    return ImageFolderReader(a.images, paths_file=a.paths_file, glob_pattern=a.glob_pattern or IMAGE_GLOB,
+                             item_from_parent=a.item_from_parent, limit=a.limit, skip=a.skip, max_pages=a.max_pages,
+                             sequence=a.item_from_parent and not a.paths_file, sample=sample,
+                             read_images=read_images)
+
+
+def engines(a: argparse.Namespace, models: list[dict], script: str, window: int = 32) -> tuple[dict, list]:
+    """Backends for the engine ``models`` by name, and the server component that goes last (none in-process or
+    with ``--endpoint``). Presets of built-in engines (``layout.single-region.v1``) are in-process either way. With
+    ``--endpoint`` the served engines need not be installed here: they run in the server's environment."""
+    from linecaster.backends import InProcess, Served
+    from linecaster.components.servers.serve import EngineServer
+    from linecaster.catalog.registry import in_process_only
+
+    installed = not getattr(a, "describe_only", False)
+    # built-in engines (the single-region layout) run in the pipeline's process with either backend
+    local = [m for m in models if a.backend == "in-process" or (m.get("preset") and not m.get("spec")
+                                                               and in_process_only(m["preset"]))]
+    backends = {}
+    for m in preset_models(local, installed=installed):
+        b = backends[m["name"]] = InProcess(m["spec"], **m.get("kwargs", {}))
+        b.preset, b.preset_sha256 = m.get("preset"), m.get("preset_sha256")
+        b.overrides = m.get("overrides")
+    # with --endpoint the engines run in the server's environment (one with kraken, say), not in this one
+    models = preset_models([m for m in models if m not in local], installed=installed and not a.endpoint, served=True)
+    if not models:
+        return backends, []
+    endpoint = a.endpoint or f"http://127.0.0.1:{ENGINE_PORT}/v1"
+    backends.update({m["name"]: Served(endpoint, model=m["name"], max_window=window, preset=m.get("preset"),
+                                       engine=m.get("spec")) for m in models})
+    if a.endpoint:
+        return backends, []
+    # on HF Jobs the script is not there: the Job's environment has the engines (``dependencies``)
+    return backends, [EngineServer(models, port=ENGINE_PORT, script=None if a.on == "hf-jobs" else script)]
+
+
+def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
+    """``--set STEP.OPTION=VALUE`` items as ``{step: {option: value}}``; values are read as YAML (``4`` is a
+    number, ``true`` a boolean, anything else a string)."""
+    from linecaster.catalog import yamlio
+
+    out: dict[str, dict] = {}
+    for item in items:
+        key, sep, value = item.partition("=")
+        step, dot, option = key.partition(".")
+        if not sep or not dot or not option:
+            raise PipelineConfigError(f"--set needs STEP.OPTION=VALUE, got {item!r}")
+        if step not in steps:
+            raise PipelineConfigError(f"--set {item!r}: no step {step!r} in this pipeline ({', '.join(steps)})")
+        out.setdefault(step, {})[option] = yamlio.load(value) if value else ""
+    return out
+
+
+def preset_models(models: list[dict], installed: bool = True, served: bool = False) -> list[dict]:
+    """Model dicts with a catalog ``preset`` (``id``) and no ``spec`` get the preset's
+    engine and options, and its id (``preset``) and hash (``preset_sha256``); the others stay as they
+    are. ``installed=False``: the engines need not be installed here (``describe``). ``served``: for a server,
+    which refuses the in-process-only engines."""
+    out = []
+    for m in models:
+        if m.get("preset") and not m.get("spec"):
+            from linecaster.catalog.registry import engine_spec
+
+            spec, kwargs, r = engine_spec(m["preset"], installed=installed, served=served)
+            m = {**m, "spec": spec, "kwargs": {**kwargs, **m.get("overrides", {})}, "preset": r.ref,
+                 "preset_sha256": r.sha256}
+        out.append(m)
+    return out
+
+
+def pages(a: argparse.Namespace):
+    from linecaster.components.writers.records import PageJsonlWriter
+
+    return PageJsonlWriter(f"{a.out.rstrip('/')}/pages", output_filename="${rank}.jsonl.gz",
+                           item_shards=getattr(a, "item_shards", None))
+
+
+from linecaster.serving import model_args  # noqa: E402 - one place builds linecaster serve's model arguments
+
+
+def serve(argv: list[str], options: Callable, models: Callable, pipeline_id: str | None = None,
+          slots: dict[str, str] | None = None) -> None:
+    """``linecaster serve`` in the pipeline's environment, with its models unless ``--model``/``--config``
+    names others. The pipeline's slots (``--layout``, ``--recognition``, ...) pick them; presets of built-in engines
+    (in the pipeline's process only) are left out."""
+    from linecaster.cli import main as cli
+
+    ap = argparse.ArgumentParser(add_help=False)
+    if pipeline_id:
+        ap.add_argument("--recipe")
+    options(ap)
+    a, rest = ap.parse_known_args(argv)
+    if pipeline_id:
+        apply_recipe(ap, a, pipeline_id, slots or {}, argv)
+    if not any(x in rest for x in ("--model", "--config", "-h", "--help")):
+        from linecaster.catalog.registry import in_process_only
+
+        hosted = [m for m in models(a) if not (m.get("preset") and in_process_only(m["preset"]))]
+        rest = model_args(hosted) + rest
+    cli(["serve", *rest])
+
+
+def executor_name(a: argparse.Namespace) -> str:
+    if getattr(a, "page", None):
+        return "run_pages"
+    ray = "RayGPUExecutor" if has_engines(a) or getattr(a, "gpu_tasks", False) else "RayExecutor"
+    return {"local": "LocalPipelineExecutor", "ray": ray}.get(a.on, "GPUJobsExecutor" if a.gpus > 1 else "JobsExecutor")
+
+
+def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None = None,
+           deps=None, image: str | None = None) -> dict:
+    """The run record of this launch (``linecaster.execution.provenance.run_record``) for the builder's plan ``p``:
+    its stages with their components, and ``pipeline_sha256``."""
+    from linecaster.execution.provenance import run_record
+
+    extra = {}
+    if a.on == "hf-jobs":
+        extra = {"image": image, "dependencies": deps.requirements if deps else None,
+                 "constraints": (deps.constraints or None) if deps else None,
+                 "overrides": (deps.overrides or None) if deps else None}
+    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note",
+                "sample_record", "script_name", "gpu_tasks", "run_id")
+    opts = {k: v for k, v in vars(a).items() if k not in internal}
+    if getattr(a, "sample_record", None):
+        extra["sample"] = a.sample_record
+    return run_record(opts, p, script=script, argv=sys.argv[1:] if argv is None else argv,
+                      executor=executor_name(a), extra=extra or None, recipe=getattr(a, "recipe_record", None),
+                      script_name=getattr(a, "script_name", None), run_id=getattr(a, "run_id", None))
+
+
+def previous_record(out: str) -> dict | None:
+    """The newest run record in ``out`` (``run.yaml`` or a later ``run-<time>.yaml``), or None."""
+    from datatrove.io import get_datafolder
+
+    from linecaster.catalog import yamlio
+
+    folder = get_datafolder(out)
+    if not folder.exists(RUN_RECORD):
+        return None
+    records = []
+    for name in [RUN_RECORD, *folder.glob("run-*.yaml")]:
+        with folder.open(name, "r") as f:
+            rec = yamlio.load(f.read()) or {}
+        records.append((str(rec.get("created", "")), name != RUN_RECORD, rec))
+    return max(records, key=lambda r: r[:2])[2]
+
+
+def resume_problems(out: str, rec: dict, new_pipeline: bool = False) -> list[str]:
+    """Why a run with the record ``rec`` cannot go into ``out``, where an earlier run left its record: another
+    ``--tasks`` (each task would read other input; never overridden), another sample (its ``sample.selected.sha256``;
+    never overridden) or another pipeline (``pipeline_sha256``; unless ``new_pipeline``). Empty: a new folder, or a
+    resume of the same pipeline."""
+    previous = previous_record(out)
+    if previous is None:
+        return []
+    problems = []
+    if previous.get("tasks") != rec.get("tasks"):
+        problems.append(f"{out} holds a run with --tasks {previous.get('tasks')}; a resume with --tasks "
+                        f"{rec.get('tasks')} would give each task other input. Resume with --tasks "
+                        f"{previous.get('tasks')}, or run into a new folder")
+    was, now = ((r.get("sample") or {}).get("selected", {}).get("sha256") for r in (previous, rec))
+    if was != now:
+        problems.append(f"{out} holds a run of another sample (sample.selected.sha256 {was or 'none: every page'}, "
+                        f"this one {now or 'none: every page'}): its finished tasks would hold other pages. Run "
+                        "into a new folder, or with the same sample options and input")
+    if previous.get("pipeline_sha256") != rec["pipeline_sha256"] and not new_pipeline:
+        was = previous.get("pipeline_sha256") or "none (a record from before pipelines were hashed)"
+        problems.append(f"{out} holds a run of another pipeline (pipeline_sha256 {was}, this one "
+                        f"{rec['pipeline_sha256']}): its finished tasks would be skipped and the folder would mix "
+                        f"two pipelines' outputs. Run into a new folder, or give --new-pipeline to resume into this "
+                        f"one knowingly (its record is kept next to the earlier one)")
+    return problems
+
+
+def write_record(out: str, rec: dict) -> str:
+    """Write ``rec`` as ``OUT/run.yaml`` (any fsspec folder, through datatrove's ``DataFolder``); when one is
+    there already (a resumed run), as ``OUT/run-<created>.yaml``. Returns the file name."""
+    from datatrove.io import get_datafolder
+
+    from linecaster.catalog import yamlio
+
+    folder = get_datafolder(out)
+    name = RUN_RECORD
+    if folder.exists(name):
+        name = f"run-{rec['created'].replace(':', '').replace('-', '')}.yaml"
+    with folder.open(name, "w") as f:
+        f.write(yamlio.dump(rec))
+    return name
+
+
+def plan(a: argparse.Namespace, pipeline: list, deps, image: str | None, stages: list | None = None) -> dict:
+    """What ``--dry-run`` prints besides the builder's description: where it runs, the servers, the pickled size."""
+    import dill
+
+    from linecaster.components.servers.serve import VLMServer, EngineServer
+    from linecaster.components.servers.service import VendorServer
+    from linecaster.serving import serve_command
+
+    servers = [serve_command(s.models, s.port, s.python, s.max_queue, s.script) if isinstance(s, EngineServer)
+               else s.launch_command(getattr(s, "python", None)) for s in pipeline
+               if isinstance(s, (EngineServer, VLMServer, VendorServer))]
+    pickled = [s.pipeline for s in stages] if stages else pipeline
+    return {"on": a.on, "tasks": a.tasks, "tasks_per_job": a.tasks_per_job, "backend": a.backend, "out": a.out,
+            "image": image,
+            "dependencies": deps.as_dict() if deps else None, "pipeline": [type(s).__name__ for s in pipeline],
+            "servers": servers,
+            "pickled_bytes": len(dill.dumps(pickled))}
+
+
+def build_plan(a: argparse.Namespace, pipeline: list):
+    """The builder's plan for the pipeline a script built, with the command line's partial run, taps and recipe."""
+    from linecaster.execution import builder
+
+    from linecaster.execution.console import Progress
+
+    recipe = getattr(a, "recipe_record", None)
+    return builder.build(pipeline, tasks=1 if getattr(a, "page", None) else (a.tasks or 1),
+                         observers=None if getattr(a, "page", None) else [Progress()],
+                         until=getattr(a, "until", None), after=getattr(a, "after", None),
+                         taps=dict(getattr(a, "tap_after", None) or []), run_folder=a.out.rstrip("/"),
+                         recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
+                         max_page_errors=getattr(a, "max_page_errors", None),
+                         image_decode=getattr(a, "image_decode", None),
+                         trace_sample=getattr(a, "trace_sample", None), run_id=getattr(a, "run_id", None))
+
+
+def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, script: str | None = None):
+    """One executor per stage, each depending on the one before (datatrove's ``depends=``); the last one runs
+    them all. One stage logs to ``OUT/logs``, several to ``OUT/logs/<stage>``."""
+    previous = None
+    many = len(p.stages) > 1
+    for stage in p.stages:
+        logs = f"{out}/logs/{stage.name}" if many else f"{out}/logs"
+        servers = any(type(b).__name__ in ("EngineServer", "VLMServer", "VendorServer") for b in stage.components)
+        if a.on == "local":
+            from linecaster.execution.local import LocalExecutor
+
+            workers = a.workers or stage.tasks
+            title = Path(getattr(a, "script_name", None) or script).stem if script else "run"
+            reader = next((b for b in stage.components if hasattr(b, "task_pages")), None)
+            previous = LocalExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
+                                     logging_dir=logs, depends=previous, out=out, reader=reader,
+                                     title=f"{title}/{stage.name}" if many else title, note=run_notes(a),
+                                     retry_failed=getattr(a, "retry_failed", False))
+        elif a.on == "ray":
+            if servers or (not many and (has_engines(a) or getattr(a, "gpu_tasks", False))):
+                from linecaster.execution.ray import RayGPUExecutor as Ray
+            else:                                    # a stage without models (an item stage, a harvest) needs no GPU
+                from linecaster.execution.ray import RayExecutor as Ray
+
+            previous = Ray(stage.pipeline, tasks=stage.tasks, workers=min(a.workers or stage.tasks, stage.tasks),
+                           cpus_per_task=a.cpus_per_task or 12, mem_per_cpu_gb=a.mem_per_cpu_gb,
+                           mem_per_task_gb=getattr(a, "mem_per_task_gb", None),
+                           check_fit=getattr(a, "fit_check", True), logging_dir=logs, depends=previous)
+        else:
+            from linecaster.execution.jobs import GPUJobsExecutor, JobsExecutor
+            from linecaster.execution.logs import JSON_ENV
+
+            run_id = out.rsplit("/", 1)[-1]
+            env = {"LINECASTER_RUN": run_id, JSON_ENV: "1", **dict(kv.split("=", 1) for kv in a.env)}
+            kw = dict(tasks=stage.tasks, workers=a.workers or -1, logging_dir=logs, flavor=a.flavor,
+                      namespace=a.namespace, dependencies=deps, timeout=a.timeout, python="3.12",
+                      job_name=f"linecaster-{run_id}" + (f"-{stage.name}" if many else ""),
+                      labels={"project": "linecaster"}, env=env, depends=previous)
+            if image or a.image:
+                kw["image"] = a.image or image
+            if a.gpus > 1 and servers:
+                previous = GPUJobsExecutor(stage.pipeline, gpus=a.gpus, **kw)
+            else:
+                previous = JobsExecutor(stage.pipeline, tasks_per_job=a.tasks_per_job or 1, **kw)
+    return previous
+
+
+def check_commit(a: argparse.Namespace, script: str | None) -> None:
+    """``--on hf-jobs`` needs ``--commit`` for linecaster's own scripts (``jobs.needs_commit``): their Jobs install
+    linecaster at that commit. A derivative's script outside the checkout that takes linecaster from a git tag,
+    branch or rev runs without one."""
+    if a.on != "hf-jobs":
+        return
+    if a.commit:
+        from linecaster.execution.jobs import resolve_commit
+
+        a.commit = resolve_commit(a.commit)
+        return
+    from linecaster.execution.jobs import needs_commit
+
+    if needs_commit(script):
+        raise PipelineConfigError(f"--on hf-jobs needs --commit (pushed): {script} is in the linecaster checkout, "
+                                  "and its Jobs install linecaster at that commit")
+
+
+def run(a: argparse.Namespace, pipeline: list, script: str, image: str | None = None, engines: bool = True,
+        argv: list[str] | None = None, after: Callable[[], None] | None = None) -> None:
+    """Build the plan of ``pipeline`` (``linecaster.execution.builder``), check it, write the run record and run its
+    stages one after another; with ``--dry-run`` print the plan and its graph instead; with ``--page`` run the one
+    page in this process. ``after`` runs here once every task is done (here or on Ray; not for HF Jobs, which this
+    process does not wait for): a pipeline's step over all its tasks' output (``pipelines/score.py``)."""
+    out = a.out.rstrip("/")
+    if not getattr(a, "run_id", None):           # this launch's id: in its record and on every annotator it adds
+        from linecaster.execution.provenance import new_run_id
+
+        a.run_id = new_run_id()
+    sample = sampled(a, pipeline)
+    allocate(a, pipeline)
+    p = build_plan(a, pipeline)
+    components = p.components
+    deps = None
+    if a.on == "hf-jobs":
+        from linecaster.execution.jobs import dependencies
+
+        deps = dependencies(a.commit, script, engines)
+    if a.dry_run:
+        rec = record(a, p, script, argv, deps, image or a.image)
+        print(json.dumps({**plan(a, components, deps, image or a.image, p.stages), "plan": p.describe(), "record": rec},
+                         indent=1))
+        print()
+        print(p.mermaid())
+        p.check()
+        problems = resume_problems(out, rec, getattr(a, "new_pipeline", False))
+        if problems:
+            raise PipelineConfigError(problems)
+        return
+    p.check()
+    rec = record(a, p, script, argv, deps, image or a.image)
+    problems = resume_problems(out, rec, getattr(a, "new_pipeline", False))
+    if problems:
+        raise PipelineConfigError(problems)
+    write_record(out, rec)
+    if sample is not None:
+        from linecaster.execution.sample import write_sample
+
+        write_sample(out, sample)
+    if getattr(a, "page", None):
+        from linecaster.execution.builder import run_plan
+
+        docs = run_plan(p)
+        print(json.dumps({"out": out, "pages": [d.id for d in docs]}))
+        return
+    if a.on != "local":
+        from loguru import logger
+
+        for note in run_notes(a):
+            logger.info(note)
+    if a.on == "ray":
+        connect_ray(a.address, script, getattr(a, "worker_env", "script"))
+    _executors(a, p, out, image, deps, script).run()
+    if a.on == "hf-jobs":
+        print(json.dumps({"out": out, "commit": a.commit, "image": a.image or image}))
+    elif after is not None:
+        after()
+
+
+def sampled(a: argparse.Namespace, pipeline: list):
+    """The sample of the pipeline's reader (``linecaster.data.sample``), computed once here, before the tasks: kept
+    on the reader, it travels with the pickled pipeline, so every task takes its share of the same sample; its
+    record goes into the run record (``a.sample_record``). None without a sample. ``--dry-run`` saves nothing
+    (no manifest copies)."""
+    from linecaster.execution.sample import sample_reader
+
+    reader = sample_reader(pipeline)
+    if reader is None:
+        return None
+    sample = reader.sampled(save=not getattr(a, "dry_run", False))
+    a.sample_record = sample.record()
+    if len(sample.selected) < (reader.sample.pages or 0):
+        from loguru import logger
+
+        logger.warning("the sample holds {got} pages of the {asked} asked for: the input has no more within the rule",
+                       got=len(sample.selected), asked=reader.sample.pages)
+    return sample
+
+
+def sample(argv: list[str]) -> None:
+    """``linecaster sample [IMAGES] OUT ...``: the sample of an input without a run. Writes ``OUT/sample.parquet``
+    (with ``--manifests`` also the manifests it read, ``OUT/manifests``), as a run with the same input and sample
+    options would, and prints its record."""
+    ap = argparse.ArgumentParser(prog="linecaster sample", description=sample.__doc__.split("\n\n")[0])
+    ap.add_argument("images", nargs="?", help="folder of page images (any fsspec path), or --parquet, --manifests or "
+                                              "--pages")
+    ap.add_argument("out", help="output folder (any fsspec path): OUT/sample.parquet")
+    input_options(ap)
+    ap.set_defaults(on="local", tasks=None, workers=None, tasks_per_job=None, gpus=1, namespace=None, backend=None,
+                    endpoint=None, env=[])
+    a = check(ap, ap.parse_args(argv))
+    if sample_rule(a) is None:
+        ap.error("give --sample N, --sample-per-item K or --sample-items M")
+    from linecaster.execution.sample import write_sample
+
+    found = reader(a).sampled()
+    path = write_sample(a.out.rstrip("/"), found)
+    print(json.dumps({**found.record(), "path": path}, indent=1))
+
+
+def server_env(a: argparse.Namespace) -> str:
+    """``--server-env``: as given, ``auto`` by default (the server here when it is the preset's release, else
+    uv's)."""
+    return getattr(a, "server_env", None) or "auto"
+
+
+def code_root(script: str) -> Path:
+    """The folder a job uploads for its workers: the nearest folder above the script with a ``pyproject.toml`` (a
+    linecaster checkout, for its own scripts, whose sources point into it), else the script's own folder."""
+    path = Path(script).resolve()
+    for d in path.parents:
+        if (d / "pyproject.toml").exists():
+            return d
+    return path.parent
+
+
+def worker_env(script: str | None, worker: str = "script") -> dict:
+    """The runtime environment of a job's Ray workers. ``script``: the job's code (``code_root``) as Ray's
+    ``working_dir``, and each worker started as ``uv run --locked <script> python ...`` there: the script's own
+    locked environment, built on the node by uv the first time and reused (the script runs its ``python``
+    pass-through, ``main``). ``node`` (or no script): nothing, the workers run the Python the node's Ray runs."""
+    if worker != "script" or not script:
+        return {}
+    import shlex
+
+    root = code_root(script)
+    rel = Path(script).resolve().relative_to(root).as_posix()
+    return {"working_dir": str(root), "py_executable": f"uv run --quiet --locked {shlex.quote(rel)} python",
+            "excludes": [".venv/", ".git/", "**/__pycache__/"], "env_vars": {CODE_ROOT_ENV: str(root)}}
+
+
+#: where a Ray job's code was on its driver: a worker finds the same files in Ray's working directory (``here``)
+CODE_ROOT_ENV = "LINECASTER_CODE_ROOT"
+
+
+def here(path: str | None) -> str | None:
+    """``path`` on this machine: a path under the job's code on its driver (``CODE_ROOT_ENV``, set for a Ray job's
+    workers by ``worker_env``) is the same file in the worker's working directory (Ray's copy of that code, the
+    worker's current folder); any other path, or one that exists here, as it is."""
+    root = os.environ.get(CODE_ROOT_ENV)
+    if not path or not root or os.path.exists(path):
+        return path
+    try:
+        rel = Path(path).relative_to(root)
+    except ValueError:
+        return path
+    local = Path.cwd() / rel
+    return str(local) if local.exists() else path
+
+
+def connect_ray(address: str, script: str | None = None, worker: str = "script") -> None:
+    """Joins the Ray cluster at ``address`` (``--address``: ``auto``, the cluster on this machine or ``RAY_ADDRESS``;
+    ``host:6379``; ``ray://host:10001``), unless this process has joined one already, with the workers'
+    environment (``worker_env``). Ray's own ``uv run`` support is off (``RAY_UV``): it would start the workers with
+    ``uv run`` in the driver's folder, where a uv project replaces the script's environment."""
+    os.environ.setdefault(RAY_UV, "0")
+    import ray
+
+    if not ray.is_initialized():
+        ray.init(address=address, runtime_env=worker_env(script, worker) or None)
+
+
+def _given(ap: argparse.ArgumentParser, argv: list[str], dest: str) -> bool:
+    """Whether the command line gives option ``dest`` itself (a value equal to the default counts too)."""
+    flags = [f for act in ap._actions if act.dest == dest for f in act.option_strings]
+    return any(arg == f or arg.startswith(f + "=") for arg in argv for f in flags)
+
+
+def apply_recipe(ap: argparse.ArgumentParser, a: argparse.Namespace, pipeline_id: str, slots: dict[str, str],
+                 argv: list[str] | None = None, c=None) -> None:
+    """Fill ``a`` from the recipe ``a.recipe`` (its id in the catalog ``c``): each slot's preset and each option,
+    unless the command line gives its own; what it gives instead is recorded as an override (``a.recipe_record``:
+    the recipe, its hash and the overrides, for the run record)."""
+    if not getattr(a, "recipe", None):
+        return
+    from linecaster.catalog.registry import catalog, entry_id
+
+    argv = sys.argv[1:] if argv is None else argv
+    c = catalog() if c is None else c
+    ref = entry_id(a.recipe)
+    if ref not in c.recipes:
+        raise CatalogError(f"unknown recipe {a.recipe!r}; known: {sorted(c.recipes)}")
+    pipeline = c.recipes[ref][1].pipeline
+    if pipeline != pipeline_id:                  # before resolving: its presets may need other engines
+        raise PipelineConfigError(f"recipe {ref} is for the pipeline {pipeline}, not {pipeline_id}")
+    r = c.resolve_recipe(ref)
+    overrides = {}
+    for slot, p in r.content["presets"].items():
+        dest = slots[slot]
+        given = getattr(a, dest)
+        if given is None:
+            setattr(a, dest, p["ref"])
+        elif given != p["ref"]:
+            overrides[slot] = given
+    for name, value in r.content.get("options", {}).items():
+        if not hasattr(a, name):
+            raise PipelineConfigError(f"recipe {r.ref}: the pipeline {pipeline_id} has no option {name!r}")
+        if not _given(ap, argv, name):
+            setattr(a, name, value)
+        elif getattr(a, name) != value:
+            overrides[name] = getattr(a, name)
+    a.recipe_record = {"ref": r.ref, "pipeline": pipeline_id, "sha256": r.sha256,
+                       **({"overrides": overrides} if overrides else {})}
+
+
+def parse(argv: list[str], description: str | None, options: Callable, pipeline_id: str | None = None,
+          slots: dict[str, str] | None = None, c=None) -> argparse.Namespace:
+    """A pipeline's command line parsed: the shared options and the script's, the recipe applied (from catalog
+    ``c``, default the installed one), checked."""
+    ap = parser(description)
+    g = ap.add_argument_group("pipeline")
+    if pipeline_id:
+        g.add_argument("--recipe", help="a catalog recipe (id) filling the slots and options the "
+                                        "command line leaves open")
+    options(g)
+    a = ap.parse_args(argv)
+    if pipeline_id:
+        apply_recipe(ap, a, pipeline_id, slots or {}, argv, c)
+    return check(ap, a)
+
+
+def describe(shape, argv: list[str], c=None, script: str | None = None):
+    """The builder's plan of the pipeline shape ``shape`` (a module of ``linecaster.templates``, or anything with its
+    ``options``, ``models``, ``pipeline``, ``PIPELINE`` and ``SLOTS``) with the command line ``argv``, built in this
+    process without its engines (the describe mode: presets name their engines without importing them, nothing is
+    loaded or launched). ``c``: the catalog (default the installed one); ``script``: the pipeline script the components
+    are told about (servers would start it; default the checkout's script of the same name, if there is one)."""
+    pipeline_id = getattr(shape, "PIPELINE", None)
+    a = parse(list(argv), shape.__doc__, shape.options, pipeline_id, getattr(shape, "SLOTS", None), c)
+    a.describe_only = True
+    a.has_engines = bool(shape.models(a))
+    if script is None:
+        from linecaster.catalog import code
+
+        found = code.script_of(shape)
+        script = str(found) if found is not None else None
+    built = shape.pipeline(a, script)
+    pipeline = built[0] if isinstance(built, tuple) else built
+    return build_plan(a, pipeline)
+
+
+def describe_recipe(ref: str, c=None) -> dict:
+    """A recipe's expanded pipeline: its pipeline shape (by the recipe's pipeline id,
+    ``linecaster.templates``) described with ``--recipe REF`` on placeholder folders (``describe``), in-process, one
+    task: ``{"pipeline": the functional components (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
+    catalog the recipe is in (default the installed one)."""
+    from linecaster.core import model
+    from linecaster.catalog.registry import active, catalog
+    from linecaster.templates import shape
+    from linecaster.execution import provenance
+
+    c = c if c is not None else catalog()
+    pipeline_id = c.resolve_recipe(ref).content["pipeline"]
+    try:
+        found = shape(pipeline_id)
+    except PipelineConfigError as e:
+        raise CatalogError(f"recipe {ref}: {e}") from e
+    model._preset_produces.cache_clear()
+    try:
+        with active(c):
+            p = describe(found, ["IMAGES", "OUT", "--recipe", ref], c)
+    finally:
+        model._preset_produces.cache_clear()
+    p.check()
+    return {"pipeline": provenance.functional_pipeline(p), "pipeline_sha256": provenance.pipeline_sha256(p)}
+
+
+def recipe(script: str, recipe_id: str) -> None:
+    """A recipe script's body (``recipes/<id>.py``): runs the catalog recipe ``recipe_id`` through its pipeline shape
+    (the recipe's ``pipeline:``, ``linecaster.templates``) with ``main``, ``--recipe`` set to it. The command line is
+    the shape's; slots on top (recorded as overrides) may be given, another recipe may not. The script itself holds only its environment (the engine packages its presets
+    need) and this call.
+
+    Example:
+        from linecaster.execution import run
+
+        if __name__ == "__main__":
+            run.recipe(__file__, "squiddle")
+    """
+    from linecaster.catalog.registry import catalog, entry_id
+    from linecaster.templates import shape as pipeline_shape
+
+    c = catalog()
+    if recipe_id not in c.recipes:                # a command line's end, as main's: nothing launched
+        print(CatalogError(f"{script}: no recipe {recipe_id!r} in the catalog (known: {', '.join(sorted(c.recipes))})"),
+              file=sys.stderr)
+        sys.exit(2)
+    shape = pipeline_shape(c.recipes[recipe_id][1].pipeline)
+
+    def options(ap):
+        shape.options(ap)
+        ap.set_defaults(recipe=recipe_id)        # run adds --recipe to the same parser before these options
+        ap.set_defaults(script_name=f"recipes/{recipe_id}.py")   # the record's name for a copy run from the URL
+
+    def build(a, path: str):
+        if entry_id(a.recipe) != recipe_id:
+            raise PipelineConfigError(f"{Path(script).name} runs the recipe {recipe_id}, not {a.recipe}")
+        return shape.pipeline(a, path)
+
+    description = (f"The recipe {recipe_id} (the catalog's recipe, through the pipeline {shape.PIPELINE}).\n\n"
+                   + (shape.__doc__ or ""))
+    main(script, description, options, shape.models, build, shape.PIPELINE, shape.SLOTS)
+
+
+def main(script: str, description: str | None, options: Callable, models: Callable, build: Callable,
+         pipeline_id: str | None = None, slots: dict[str, str] | None = None) -> None:
+    """Gives a pipeline script its command line: a run on any executor, ``serve`` for its models, ``ray`` for Ray's.
+
+    ``ray ...`` runs Ray's own command line in the script's environment; ``serve ...`` starts ``linecaster serve``
+    with the script's models; anything else is a run: the options are parsed (a recipe given with ``--recipe``
+    fills the slots), ``build`` makes the components, and the run is checked, recorded (``OUT/run.yaml``) and launched on
+    ``--on local|ray|hf-jobs`` (see the module docstring). A ``LinecasterError`` ends the command with its exit
+    code (2: nothing was launched), every problem listed.
+
+    Args:
+        script: the pipeline script's path (its ``__file__``): the run record names it, servers and Jobs run it.
+        description: the command line's help text, usually the script's docstring.
+        options: ``options(ap)`` adds the script's own options to the ``argparse`` parser.
+        models: ``models(a)`` returns the engines the parsed options ask for, as dicts for ``linecaster serve``
+            (``{"name", "preset"}`` or ``{"name", "spec", "kwargs"}``).
+        build: ``build(a, script)`` returns the components, or ``(components, {"image": ..., "engines": False})`` (the
+            Jobs' container image; whether a Job installs the script's engine packages or linecaster alone).
+        pipeline_id: the script's pipeline id (``PIPELINE``, e.g. ``transcribe_modular.v1``), which recipes name.
+        slots: slot -> option name (``SLOTS``): the options a recipe fills with its presets.
+
+    Example:
+        from linecaster.execution import run
+
+        PIPELINE = "bind.v1"
+        SLOTS = {"paragraphs": "paragraphs", "document": "document"}
+
+        if __name__ == "__main__":
+            run.main(__file__, __doc__, options, models, pipeline, PIPELINE, SLOTS)
+    """
+    argv = sys.argv[1:]
+    if argv[:1] == ["ray"]:
+        os.environ.setdefault(RAY_UV, "0")
+        from ray.scripts.scripts import main as ray_cli
+
+        sys.argv = ["ray", *argv[1:]]
+        sys.exit(ray_cli())
+    if argv[:1] == ["python"]:              # a Ray worker in this script's environment (worker_env)
+        os.execv(sys.executable, [sys.executable, *argv[1:]])
+    try:
+        if argv[:1] == ["serve"]:
+            return serve(argv[1:], options, models, pipeline_id, slots)
+        a = parse(argv, description, options, pipeline_id, slots)
+        a.script_path = str(Path(script).resolve())
+        check_commit(a, script)
+        a.has_engines = bool(models(a))
+        built = build(a, str(Path(script).resolve()))
+        pipeline, extra = built if isinstance(built, tuple) else (built, {})
+        run(a, pipeline, str(Path(script).resolve()), argv=argv, **extra)
+    except LinecasterError as e:            # the command line's exit code (2: nothing launched); every problem listed
+        print(e, file=sys.stderr)
+        sys.exit(exit_code(e))
+    except KeyboardInterrupt:               # Ctrl-C: the executor has said what stopped and what runs again
+        interrupted()
+
+
+def interrupted() -> None:
+    """Ends this process by SIGINT, after a Ctrl-C the run's executor has handled (its summary, its unfinished tasks,
+    its workers ended): no traceback, and the exit status a shell reads as killed by Ctrl-C (130, ``-2`` for a parent
+    process), so a shell loop around the command stops. A second Ctrl-C from here on ends it at once. A run started by
+    ``uv run`` still ends with exit code 130 and does not stop a shell loop: uv maps a child's signal to an exit code
+    (astral-sh/uv#11886); ``trap 'exit 130' INT`` in the loop stops it."""
+    import signal
+
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.flush()
+        except Exception:  # noqa: BLE001 - a closed stream: nothing left to say
+            pass
+    if hasattr(signal, "SIGKILL"):          # POSIX: the signal itself
+        os.kill(os.getpid(), signal.SIGINT)
+    sys.exit(130)                           # elsewhere, or if the signal did not end it

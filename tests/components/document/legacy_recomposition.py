@@ -1,4 +1,4 @@
-"""linecaster.text.recomposition as it was at 531a422, the reference of
+"""linecaster.engines.paragraphs.rules as it was at 531a422, the reference of
 ``test_recomposition_parity.py``; unchanged below this line.
 
 Recomposition: running text from the visual rows of a region (the reading transcription).
@@ -277,7 +277,7 @@ def continues(prev: Paragraph, first_row: Row, m: Margins, rtl: bool = False) ->
 class Rules:
     """The decisions at a row end that depend on the characters around it: ``resolve_mark`` and ``separator``,
     this module's Unicode rules. ``reflow_rows`` takes another object with the same two methods, e.g. an engine
-    that routes each decision to a strategy by script (``linecaster.engines.recomposition``)."""
+    that routes each decision to a strategy by script (``linecaster.engines.paragraphs.engine``)."""
 
     resolve_mark = staticmethod(resolve_mark)
     separator = staticmethod(separator)

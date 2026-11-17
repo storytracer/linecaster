@@ -189,7 +189,7 @@ def test_the_evidence_format_stays_for_derivatives():
 def test_a_recipe_fills_a_pipeline(tmp_path):
     import argparse
 
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     make(tmp_path)
     make_recipe(tmp_path)
@@ -215,7 +215,7 @@ def test_the_index_records_a_recipes_expanded_pipeline(tmp_path):
     """The index records each recipe's pipeline, built from its pipeline shape without the engines; ``verify``
     builds it again: a drift is a stale index, a pipeline that cannot be built a problem."""
     from linecaster.catalog import registry
-    from linecaster.runtime import provenance, run
+    from linecaster.execution import provenance, run
 
     make(tmp_path)
     make_recipe(tmp_path)
@@ -230,7 +230,7 @@ def test_the_index_records_a_recipes_expanded_pipeline(tmp_path):
     assert yamlio.read(tmp_path / "catalog.index")["recipes"]["r"] == {
         "sha256": c.resolve_recipe("r").sha256, "pipeline_sha256": built["pipeline_sha256"]}
     # what the shape builds into other folders is the same pipeline (in this process: the catalog put in place)
-    from linecaster.pipelines import transcribe_vlm
+    from linecaster.templates import transcribe_vlm
 
     with registry.active(c):
         plan = run.describe(transcribe_vlm, ["IN", "ELSEWHERE", "--recipe", "r"], c)
@@ -336,7 +336,7 @@ def test_describing_a_recipe_imports_no_engine():
     import sys
 
     check = ("import json, sys\n"
-             "from linecaster.runtime.run import describe_recipe\n"
+             "from linecaster.execution.run import describe_recipe\n"
              "d = describe_recipe('squiddle')\n"
              "heavy = ('linecaster_kraken', 'linecaster_paddlex', 'linecaster_tesseract', 'kraken', 'torch', "
              "'onnxruntime', 'paddlex')\n"

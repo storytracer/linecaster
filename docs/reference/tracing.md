@@ -27,7 +27,7 @@ An image folder's file is one page: its reading is the page's, not a task span.
 | `linecaster.component` | the page | one per component, from the boundary before it to the one after it: for a served component it includes the time the page waited in the window |
 | `linecaster.request.prepare` | the served component's span | building the request (image encoding), in saturate's prepare threads |
 | `linecaster.request` | the served component's span | from the built request to its result: the wait for a window slot, the HTTP call, retries; `tokens.prompt`, `tokens.completion`, `finish_reason` |
-| `linecaster.serve.decode`, `linecaster.serve.queue`, `linecaster.serve.model` | the request | in `linecaster serve`: the image decoded and the transcription read, the wait for the model's worker, the model call (`lines`, `regions`, `words` of its result) |
+| `linecaster.serving.decode`, `linecaster.serving.queue`, `linecaster.serving.model` | the request | in `linecaster serve`: the image decoded and the transcription read, the wait for the model's worker, the model call (`lines`, `regions`, `words` of its result) |
 
 A page's spans are children of its context explicitly, never of "the current span": pages are interleaved in the
 stream. A page that leaves the stage's components through a binder ends its trace there; the items get their own. A

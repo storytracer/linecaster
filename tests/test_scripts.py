@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from linecaster.runtime.jobs import _name, dependencies, script_metadata
+from linecaster.execution.jobs import _name, dependencies, script_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = sorted(p for p in [*ROOT.glob("*.py"), *(q for d in ("pipelines", "recipes", "tools", "tests") for q in (ROOT / d).rglob("*.py"))]
@@ -37,13 +37,13 @@ def test_every_pipeline_script_has_its_id():
 
 def test_every_pipeline_script_runs_its_shape():
     """A pipeline script is an environment and a command line: it imports the pipeline shape of its own name
-    (``linecaster.pipelines.<name>``) and defines nothing itself."""
+    (``linecaster.templates.<name>``) and defines nothing itself."""
     import ast
 
     for script in sorted((ROOT / "pipelines").glob("*.py")):
         tree = ast.parse(script.read_text(encoding="utf-8"))
         shapes = [(a.name, a.asname) for n in tree.body if isinstance(n, ast.ImportFrom)
-                  and n.module == "linecaster.pipelines" for a in n.names]
+                  and n.module == "linecaster.templates" for a in n.names]
         assert shapes == [(script.stem, "shape")], script.name
         assert not [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef, ast.Assign))], script.name
 
@@ -255,7 +255,7 @@ def test_jobs_resolve_the_locks_versions(script):
 
 
 def test_serve_command_for_a_pipeline():
-    from linecaster.serve import serve_command
+    from linecaster.serving import serve_command
 
     cmd = serve_command([{"name": "layout", "spec": "x:Y"}], 8101, script="pipelines/transcribe_modular.py")
     assert cmd[:6] == ["uv", "run", "--quiet", "--script", "pipelines/transcribe_modular.py", "serve"]

@@ -12,5 +12,5 @@ penalties.
 - Serve flags: `--max-model-len 16384 --max-num-batched-tokens 16384`, no prefix caching, no multimodal
   processor cache, one image and no video per prompt; no `--reasoning-parser` (linecaster's choice, where the card
   has one: the completion stays in `content`), no `--trust-remote-code`.
-- The completion is stored verbatim; `linecaster.adapters.qwen35.unwrap_fence` removes a Markdown fence around it.
+- The completion is stored verbatim; `linecaster.engines.chat.qwen35.unwrap_fence` removes a Markdown fence around it.
 - Memory: 18.0 GiB of bf16 weights; `--gpu-memory-utilization` is the deployment's choice.

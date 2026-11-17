@@ -60,7 +60,7 @@ class EngineServer(Contracted, PipelineStep):
         """Start the server and wait until it answers (idempotent; stopped when the task's pages are through)."""
         if self._server is not None:
             return
-        from linecaster.serve import engine
+        from linecaster.serving import engine
 
         env = self._observers.environment() if self._observers is not None else {}
         server = engine(self.models, self.port, self.python, self.boot_timeout, self.max_queue, self.script, env)
@@ -112,7 +112,7 @@ class VLMServer(Contracted, PipelineStep):
     written.
 
     Args:
-        spec: the chat preset's adapter (``linecaster.adapters.chat_model``) or the preset's ref (``id``).
+        spec: the chat preset's adapter (``linecaster.engines.chat.chat_model``) or the preset's ref (``id``).
         port: the port the server listens on; ``Chat`` without an endpoint asks on 8000.
         host: the address the server binds to; default loopback only.
         gpu_memory_utilization: the share of GPU memory the server may take (for SGLang ``--mem-fraction-static``);
@@ -145,7 +145,7 @@ class VLMServer(Contracted, PipelineStep):
         if server_env not in ("path", "uv", "auto"):
             raise PipelineConfigError(f"VLMServer: server_env {server_env!r} (path, uv or auto)")
         if isinstance(spec, str):
-            from linecaster.adapters import chat_model
+            from linecaster.engines.chat import chat_model
 
             spec = chat_model(spec)
         self.spec, self.port, self.host = spec, port, host

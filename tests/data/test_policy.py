@@ -81,8 +81,8 @@ def test_page_layers_described_renders_descriptions_after_their_region():
     from linecaster.catalog.registry import rendering_policy
     from linecaster.document import to_markdown
     from linecaster.document.builder import build_document
-    from linecaster.scoring.elements import elements
-    from linecaster.scoring.render import text
+    from linecaster.evaluation.elements import elements
+    from linecaster.evaluation.render import text
 
     t, described = _described(), rendering_policy("page-layers-described")
     assert text(t, "full") == "Before the figure.\nAfter the figure."              # by default, in the metadata

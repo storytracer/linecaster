@@ -125,7 +125,7 @@ def test_single_region_layout_runs_in_process_only():
     from linecaster.backends import InProcess
     from linecaster.catalog.registry import engine_spec
     from linecaster.errors import CatalogError
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     with pytest.raises(CatalogError, match="in the pipeline's process only"):
         engine_spec("single-region", served=True)              # linecaster serve refuses it

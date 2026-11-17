@@ -1,6 +1,6 @@
 """Parquet tables are divided over tasks by rows, not files (``linecaster.components.readers.tables``): equal shards over
 all files and row groups in order, so one file works with any number of tasks; the readers suggest a task count from
-their input (``auto_tasks``); ``linecaster.runtime.run.allocate`` chooses ``--tasks`` and ``--workers`` where the
+their input (``auto_tasks``); ``linecaster.execution.run.allocate`` chooses ``--tasks`` and ``--workers`` where the
 command line leaves them open; ``--rate-limit`` holds per worker, and the run states what a server sees."""
 import argparse
 
@@ -78,7 +78,7 @@ def test_read_file_still_reads_one_whole_file(tmp_path):
 
 
 def options(argv, has_engines):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(argv))
@@ -87,7 +87,7 @@ def options(argv, has_engines):
 
 
 def test_a_pipeline_without_engines_gets_its_readers_task_count_and_one_worker_with_rate_limits(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     data = write_pages(tmp_path / "data", [2500], row_group_size=1000)
     a = options(["--parquet", data, "OUT", "--item-key", "book", "--sequence-key", "page",
@@ -100,7 +100,7 @@ def test_a_pipeline_without_engines_gets_its_readers_task_count_and_one_worker_w
 
 
 def test_without_rate_limits_a_pipeline_without_engines_runs_a_worker_per_cpu(tmp_path, monkeypatch):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     monkeypatch.setattr(run, "available_cpus", lambda: 2)
     data = write_pages(tmp_path / "data", [2500], row_group_size=1000)
@@ -110,7 +110,7 @@ def test_without_rate_limits_a_pipeline_without_engines_runs_a_worker_per_cpu(tm
 
 
 def test_a_pipeline_with_engines_keeps_one_task_and_every_task_at_once(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     data = write_pages(tmp_path / "data", [2500], row_group_size=1000)
     a = options(["--parquet", data, "OUT", "--rate-limit", "10/1"], has_engines=True)
@@ -124,7 +124,7 @@ def test_a_pipeline_with_engines_keeps_one_task_and_every_task_at_once(tmp_path)
 
 
 def test_given_tasks_and_workers_stay_and_the_rate_limits_hold_per_worker(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     data = write_pages(tmp_path / "data", [10], row_group_size=10)
     a = options(["--parquet", data, "OUT", "--tasks", "8", "--workers", "2", "--rate-limit", "150/60"],
@@ -137,7 +137,7 @@ def test_given_tasks_and_workers_stay_and_the_rate_limits_hold_per_worker(tmp_pa
 
 def test_user_agent_options_reach_the_readers_http_settings(tmp_path):
     from linecaster.net.http import HTTP_DEFAULTS
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     data = write_pages(tmp_path / "data", [2], row_group_size=2)
     plain = run.reader(options(["--parquet", data, "OUT"], has_engines=False))._opener.http
@@ -152,7 +152,7 @@ def test_user_agent_options_reach_the_readers_http_settings(tmp_path):
 
 
 def test_tasks_and_workers_must_be_positive():
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     for flag in ("--tasks", "--workers"):
@@ -161,7 +161,7 @@ def test_tasks_and_workers_must_be_positive():
 
 
 def test_page_mode_is_one_task():
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     a = argparse.Namespace(page="x.png", tasks=None, workers=None)
     run.allocate(a, [])
@@ -169,7 +169,7 @@ def test_page_mode_is_one_task():
 
 
 def test_parquet_may_name_one_file(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     data = write_pages(tmp_path / "data", [3, 2], row_group_size=2)
     a = options(["--parquet", f"{data}/part-1.parquet", "OUT", "--item-key", "book", "--sequence-key", "page"],
@@ -190,7 +190,7 @@ def test_first_rows_cuts_the_layout_as_if_the_input_ended_there():
 
 
 def test_max_pages_runs_the_first_pages_in_automatic_tasks(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     data = write_pages(tmp_path / "data", [1500, 1500], row_group_size=700)
     a = options(["--parquet", data, "OUT", "--item-key", "book", "--sequence-key", "page", "--max-pages", "2500",
@@ -214,7 +214,7 @@ def test_max_pages_takes_the_first_image_files(tmp_path):
 
 
 def test_max_pages_is_for_inputs_whose_pages_are_known_before_reading():
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     for argv in (["--manifests", "m.txt", "OUT", "--max-pages", "5"], ["--parquet", "d", "OUT", "--max-pages", "0"]):
@@ -277,7 +277,7 @@ def test_task_per_item_gives_each_item_a_task_of_its_own(tmp_path):
 
 
 def test_harvest_runs_one_item_per_task_and_other_pipelines_do_not(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     data = write_books(tmp_path / "data", [[3, 4], [2]], row_group_size=2)
     a = options(["--parquet", data, "OUT", "--item-key", "book", "--sequence-key", "page", "--rate-limit", "10/1"],
@@ -291,7 +291,7 @@ def test_harvest_runs_one_item_per_task_and_other_pipelines_do_not(tmp_path):
 def test_a_pipeline_with_engines_on_ray_gets_several_tasks_per_gpu(monkeypatch, tmp_path):
     """On Ray a pipeline with engines is split into RAY_TASKS_PER_GPU tasks per GPU of the cluster (at most what the
     reader can split the input into), so a task with slow pages does not hold the run up; locally it stays one task."""
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     monkeypatch.setattr(run, "ray_gpus", lambda a: 8)
     for n, on, want in ((1000, "ray", 32), (10, "ray", 10), (1000, "local", 1)):
@@ -314,7 +314,7 @@ def test_a_pipeline_that_starts_a_vlm_server_gets_one_task_per_gpu(monkeypatch):
     per GPU and all at once, not a task per input file capped by the launching machine's CPUs; locally one task (two
     servers would take the same port)."""
     from linecaster.components.servers.serve import VLMServer
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     monkeypatch.setattr(run, "ray_gpus", lambda a: 6)
     monkeypatch.setattr(run, "available_cpus", lambda: 4)

@@ -9,7 +9,7 @@ omnidocbench``); linecaster runs none of OmniDocBench's code:
   line a formula fills (``display_formula``) is its own ``equation_isolated``, splitting its paragraph; an inline
   formula stays in the text as the ground truth writes it (``$…$``), as OmniDocBench's own ground truth has it. The
   harness reads no boxes (``poly`` is left out). Only the ground truth's data tables are tables to the harness
-  (``tables="data"``, ``linecaster.scoring.tables``): a contents list or a layout table is its text.
+  (``tables="data"``, ``linecaster.evaluation.tables``): a contents list or a layout table is its text.
 * ``prediction_markdown``: a run's page as the Markdown OmniDocBench's models write: blocks in reading order, a
   heading ``#`` at its level, a table as HTML, a formula region ``$$…$$`` and so a line a formula fills (as in
   ``truth_page``: the same rule on both sides); furniture written as it is (the harness
@@ -29,7 +29,7 @@ points, Thai vowels), punctuation and spaces are not compared, and nothing is pu
 ``strategy`` makes both sides alike); predicted text that matches no ground-truth element, and predicted tables that
 match no ground-truth table, are not counted; captions and footnotes are matched but not scored; its "overall" needs
 its formula metric CDM (TeX Live) and pages with tables and formulas. It runs on Python before 3.12, in an
-environment of its own. linecaster's own scorer (``linecaster.scoring``) is the measure for scripts with marks."""
+environment of its own. linecaster's own scorer (``linecaster.evaluation``) is the measure for scripts with marks."""
 from __future__ import annotations
 
 from typing import Any
@@ -37,7 +37,7 @@ from typing import Any
 from linecaster.data.policy import DEFAULT_POLICY, RenderingPolicy
 from linecaster.data.transcription import Table, Transcription
 # the traversal the scorer's elements share: both views cut a page alike
-from linecaster.scoring.elements import SKIP, display_formula, reading_blocks, table_text  # noqa: F401
+from linecaster.evaluation.elements import SKIP, display_formula, reading_blocks, table_text  # noqa: F401
 
 #: linecaster content roles -> OmniDocBench's ``category_type`` (other roles: ``text_block``)
 CATEGORIES = {
@@ -74,9 +74,9 @@ def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT
                attributes: dict[str, Any] | None = None, tables: str = "data") -> dict:
     """The ground truth ``t`` of page ``page_id`` as an entry of OmniDocBench's ground-truth JSON (module docstring);
     ``attributes`` its ``page_attribute`` (the groups the harness reports by). ``tables``: which of its tables are
-    tables to the harness: ``data`` (``linecaster.scoring.tables.table_kind``: printed as tables; a contents list
+    tables to the harness: ``data`` (``linecaster.evaluation.tables.table_kind``: printed as tables; a contents list
     or layout table is its text, ``text_block``, so its words are still scored) or ``all``."""
-    from linecaster.scoring.tables import table_kind
+    from linecaster.evaluation.tables import table_kind
 
     dets: list[dict] = []
 
@@ -117,7 +117,7 @@ def truth_page(page_id: str, t: Transcription, policy: RenderingPolicy = DEFAULT
 def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAULT_POLICY, tables: str = "data") -> str:
     """A run's page ``t`` as Markdown (module docstring); an empty string for a page the run lacks. ``tables``: as
     ``truth_page``'s, so that both sides write a table alike."""
-    from linecaster.scoring.tables import table_kind
+    from linecaster.evaluation.tables import table_kind
 
     if t is None:
         return ""
@@ -157,9 +157,9 @@ def prediction_markdown(t: Transcription | None, policy: RenderingPolicy = DEFAU
 
 
 def page_attributes(gt: Transcription) -> dict[str, str]:
-    """A ground-truth page's slices (``linecaster.scoring.slices``) as OmniDocBench page attributes (``yes``/``no``),
+    """A ground-truth page's slices (``linecaster.evaluation.slices``) as OmniDocBench page attributes (``yes``/``no``),
     by which its evaluation groups its page results."""
-    from linecaster.scoring.slices import page_slices
+    from linecaster.evaluation.slices import page_slices
 
     sl = page_slices(gt)
     return {k: "yes" if k in sl else "no" for k in ("tables", "formulas")}

@@ -12,12 +12,12 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from linecaster.adapters import chat_model
+from linecaster.engines.chat import chat_model
 from linecaster.backends import Chat
 from linecaster.core.page import new_page_document, page_of
 from linecaster.components.recognition.page_recognizer import PageRecognizer, RegionRecognizer
 from linecaster.errors import PipelineConfigError
-from linecaster.runtime import provenance, run
+from linecaster.execution import provenance, run
 from linecaster.testing import fake_chat_server
 from linecaster.testing.chat import completion
 
@@ -273,7 +273,7 @@ def _images(folder: Path) -> str:
 
 
 def _run(*argv):
-    from linecaster.pipelines import transcribe_vlm as shape
+    from linecaster.templates import transcribe_vlm as shape
 
     a = run.parse(list(argv), shape.__doc__, shape.options, shape.PIPELINE, shape.SLOTS)
     pipeline, _ = shape.pipeline(a, __file__)
@@ -299,7 +299,7 @@ def _stage_component(out: str, name: str) -> dict:
 
 
 def test_transcribe_vlm_sets_the_options_and_records_them(tmp_path: Path):
-    from linecaster.pipelines import transcribe_vlm as shape
+    from linecaster.templates import transcribe_vlm as shape
 
     images = _images(tmp_path / "images")
     with fake_chat_server(answer, models=[{"id": MODEL, "max_model_len": 18000}]) as server:
@@ -489,7 +489,7 @@ def test_repair_only_continues_with_the_later_caps():
 
 
 def test_lightonocr_3_0_8b_escalates_to_twice_and_three_times_its_cap():
-    from linecaster.adapters import chat_model as model
+    from linecaster.engines.chat import chat_model as model
 
     three = model("lightonocr-3-0.8b")
     assert three.sampling["max_tokens"] == 4096 and three.repair_caps == (8192, 12288)

@@ -31,7 +31,7 @@ def test_a_document_names_its_producer_and_its_format_is_checked():
 def test_scores_name_their_writer(tmp_path):
     import pyarrow.parquet as pq
 
-    from linecaster.scoring.run import write_scores
+    from linecaster.evaluation.run import write_scores
 
     path = write_scores([{"page": "p", "cer": 0.1}], tmp_path / "scores.parquet")
     assert pq.read_schema(path).metadata[b"linecaster"].decode() == producer()

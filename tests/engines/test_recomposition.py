@@ -230,7 +230,7 @@ def test_text_only_transcriptions_make_one_paragraph_per_region():
 def test_removed_regions_are_left_out_and_a_later_recomposition_makes_the_paragraphs_anew():
     """A region a status puts nowhere is not there for the recomposition; a second call adds its own paragraphs (the
     page's latest), the first call's stay."""
-    from linecaster.text.recomposition import paragraphs
+    from linecaster.engines.paragraphs.rules import paragraphs
 
     a = column("text_0", ["The nest is built of dead", "grasses and bents, and the"])
     b = column("text_2", ["lining of finer stuff."], order=2, y=400)

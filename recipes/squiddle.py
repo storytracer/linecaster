@@ -18,7 +18,7 @@
 # ///
 """The recipe ``squiddle`` (its presets and editions are the catalog's): this script gives it its environment.
 ``--help`` lists the options; ``uv run recipes/squiddle.py IMAGES OUT``."""
-from linecaster.runtime import run
+from linecaster.execution import run
 
 if __name__ == "__main__":
     run.recipe(__file__, "squiddle")

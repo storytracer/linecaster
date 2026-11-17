@@ -266,8 +266,8 @@ def test_an_image_folder_read_without_its_files_gives_addresses(tmp_path):
 
 
 def test_the_convert_pipeline_takes_one_worker_per_gpu(monkeypatch, tmp_path):
-    from linecaster.pipelines import convert
-    from linecaster.runtime import run
+    from linecaster.templates import convert
+    from linecaster.execution import run
 
     monkeypatch.setattr(accel, "cuda_devices", lambda: 4)
     monkeypatch.setattr(accel, "gpu_available", lambda: True)
@@ -328,8 +328,8 @@ def test_on_ray_the_convert_tasks_reserve_a_gpu_and_its_share_of_the_cpus(monkey
     """Ray hides the GPUs from a task that reserved none: where GPUs decode, each task reserves one
     (``RayGPUExecutor``) and the CPUs divided by the GPUs; without GPUs, or with ``accel=cpu``, CPU tasks, one worker
     per CPU (Pillow's JPEG 2000 decoder holds the GIL)."""
-    from linecaster.pipelines import convert
-    from linecaster.runtime import cpus, run
+    from linecaster.templates import convert
+    from linecaster.execution import cpus, run
 
     monkeypatch.setattr(cpus, "available_cpus", lambda: 124)
     argv = [str(tmp_path), str(tmp_path / "out"), "--preset", "webp-lossy-q80", "--on", "ray"]

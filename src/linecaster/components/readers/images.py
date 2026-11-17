@@ -296,7 +296,7 @@ class ImageParquetReader(Sampled, Contracted, ParquetReader):
     The rows of all files, in order, are divided over the tasks in equal shards, read by row group
     (``linecaster.components.readers.tables``), so any table works with any number of tasks; an item's pages can land in
     two tasks where a shard ends. ``auto_tasks`` is the task count for shards of about ``PAGES_PER_TASK`` pages, which
-    ``linecaster.runtime.run`` uses for a pipeline without engines. Each row adds ``image`` and ``metadata`` (the page
+    ``linecaster.execution.run`` uses for a pipeline without engines. Each row adds ``image`` and ``metadata`` (the page
     record). The image column holds the image
     as Hugging Face's ``Image`` feature stores it (``{"bytes", "path"}``: the bytes when present, else the path), as
     plain bytes, or as a path: absolute (any fsspec URI or an ``http(s)://`` URL) or relative to

@@ -9,7 +9,7 @@ import json
 import pytest
 from PIL import Image
 
-from linecaster.adapters import chat_model, text_transcription
+from linecaster.engines.chat import chat_model, text_transcription
 from linecaster.backends import Chat, InProcess
 from linecaster.core.page import new_page_document, page_of
 from linecaster.components.recognition.page_recognizer import PageRecognizer, RegionRecognizer
@@ -234,7 +234,7 @@ def test_minicpm_speculative_args_pin_the_draft():
 
 
 def test_job_dependencies_without_kraken():
-    from linecaster.runtime.jobs import ROOT, dependencies
+    from linecaster.execution.jobs import ROOT, dependencies
 
     vlm = dependencies("abc123", ROOT / "pipelines/transcribe_vlm.py")
     deps = vlm.requirements + vlm.constraints
@@ -262,7 +262,7 @@ def test_region_recognizer_declares_the_lines_it_replaces():
     from linecaster.components.lines import LineDetector
     from linecaster.components.readers import ImageFolderReader
     from linecaster.components.recognition.page_recognizer import RegionRecognizer
-    from linecaster.runtime.builder import build
+    from linecaster.execution.builder import build
 
     c = RegionRecognizer("minicpm-ocr-1.0").contract()
     assert {str(p) for p in c.replaces} == {"ocr_new:lines", "ocr_new:text"}

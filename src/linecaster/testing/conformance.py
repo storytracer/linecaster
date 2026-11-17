@@ -689,7 +689,7 @@ def check_component(component, docs=None, *, run: bool = True) -> list:
 
     from linecaster.core.contract import Contract, Part
     from linecaster.core.page import ERRORS_KEY, PageComponent
-    from linecaster.runtime.builder import run_pages
+    from linecaster.execution.builder import run_pages
 
     problems: list[str] = []
     label = f"{type(component).__name__}"

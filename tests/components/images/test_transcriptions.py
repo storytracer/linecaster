@@ -110,7 +110,7 @@ def test_a_file_that_cannot_be_read_is_the_pages_error():
 def test_the_builder_puts_an_importer_after_a_reader_that_brings_the_file(tmp_path):
     from linecaster.components.readers import ManifestReader
     from linecaster.components.writers import PageJsonlWriter
-    from linecaster.runtime.builder import build
+    from linecaster.execution.builder import build
 
     def components(p):
         return [type(b).__name__ for b in p.components]

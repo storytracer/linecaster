@@ -19,11 +19,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serial
 from linecaster.data.page import PAGE_SCHEMA, Page
 from linecaster.data.policy import RenderingPolicy
 from linecaster.document.model import SCHEMA as DOCUMENT_SCHEMA, Document
-from linecaster.markup.model import ConventionsDoc
+from linecaster.conventions.model import ConventionsDoc
 from linecaster.catalog.vocabulary import VocabularyDoc
-from linecaster.scoring.benchmark import Benchmark
+from linecaster.evaluation.benchmark import Benchmark
 from linecaster.errors import CatalogError
-from linecaster.runtime.record import RunRecord
+from linecaster.execution.record import RunRecord
 
 #: what a step does; a VLM that reads whole pages is ``recognition`` with ``unit: page``. The first five run models,
 #: the others rules (their engines are built in, ``linecaster.engines``, or come with an engine package); ``import``
@@ -34,7 +34,7 @@ STEPS = ("layout", "lines", "recognition", "tables", "formulas", "image", "hiera
 #: the steps whose engines are rules (strategies), in the pipeline's process only
 RULE_STEPS = ("image", "hierarchy", "paragraphs", "document", "import")
 #: OCR-D functional-model steps, for METS agents (``ocrd-tool.json`` ``steps``); steps without one are
-#: post-processing (``linecaster.runtime.provenance.OCRD_FALLBACK_STEP``)
+#: post-processing (``linecaster.execution.provenance.OCRD_FALLBACK_STEP``)
 OCRD_STEPS = {
     "layout": "layout/segmentation/region",
     "lines": "layout/segmentation/line",
@@ -395,7 +395,7 @@ class Rule(_Doc):
     keep: Keep | None = Field(None, description="only these characters; every run of others one space")
     whitespace: Literal["collapse"] | None = Field(None, description="every run of whitespace one space, trimmed")
     latex: Literal["text"] | None = Field(None, description="each LaTeX formula as the characters it prints "
-                                                       "(linecaster.text.latex), for comparison")
+                                                       "(linecaster.normalization.latex), for comparison")
     edits: list[Literal["corrected", "expanded", "regularized"]] | None = Field(
         None, description="the source's own edits of these kinds, applied (a document's edit spans)")
     divided_words: Literal["source"] | None = Field(
@@ -513,7 +513,7 @@ class EvidenceRun(_Doc):
 
 class EvidenceBenchmark(_Doc):
     ref: str = Field(description="the benchmark edition: id@edition")
-    sha256: str = Field(description="the benchmark's hash (linecaster.scoring.benchmark.Benchmark.sha256)")
+    sha256: str = Field(description="the benchmark's hash (linecaster.evaluation.benchmark.Benchmark.sha256)")
 
 
 class EvidenceScoring(_Doc):
@@ -597,9 +597,9 @@ class Named(_Doc):
 class Words(_Doc):
     """How the word metrics (recall, over-extraction, role words) cut a text into words."""
 
-    tokenizer: Literal["whitespace", "uax29", "characters"] = Field("whitespace", description="linecaster.scoring."
+    tokenizer: Literal["whitespace", "uax29", "characters"] = Field("whitespace", description="linecaster.evaluation."
                                                                                                "tokens")
-    version: int = Field(1, description="the version of the word metrics' rules (linecaster.scoring.WORDS_VERSION): "
+    version: int = Field(1, description="the version of the word metrics' rules (linecaster.evaluation.WORDS_VERSION): "
                                         "1 dropped combining marks, 2 keeps them in their words")
 
 
@@ -614,18 +614,18 @@ class EvidenceScoring3(_Doc):
                                                   "(records from before 0.11): whitespace, version 1")
     elements: EvidenceElements | None = Field(None, description="how elements were matched, when the element "
                                                                "metrics were scored")
-    scorer: str = Field(description="the linecaster that scored (linecaster.scoring.scorer())")
+    scorer: str = Field(description="the linecaster that scored (linecaster.evaluation.scorer())")
 
 
 class EvidenceElements(_Doc):
-    """How the element metrics matched elements (``linecaster.scoring.matching``)."""
+    """How the element metrics matched elements (``linecaster.evaluation.matching``)."""
 
-    version: int = Field(description="the version of the element scorer's rules (linecaster.scoring.ELEMENTS_VERSION)")
+    version: int = Field(description="the version of the element scorer's rules (linecaster.evaluation.ELEMENTS_VERSION)")
     lane: Named = Field(description="the lane elements were matched by")
 
 
 class EvidenceStratum(_Doc):
-    """The rates of a run on one stratum (``linecaster.scoring.strata``): elements or pages with one value."""
+    """The rates of a run on one stratum (``linecaster.evaluation.strata``): elements or pages with one value."""
 
     pages: int = Field(description="the pages with elements in it (page strata: its pages)")
     elements: int = Field(0, description="the ground truth's and output's elements in it (page strata: 0)")
@@ -635,7 +635,7 @@ class EvidenceStratum(_Doc):
 
 
 class EvidenceSlice(_Doc):
-    """The rates of a run on one slice of a benchmark's pages (``linecaster.scoring.slices``)."""
+    """The rates of a run on one slice of a benchmark's pages (``linecaster.evaluation.slices``)."""
 
     definition: str = Field(description="what puts a page in the slice")
     pages: int = Field(description="the benchmark's pages in it")
@@ -662,10 +662,10 @@ class Evidence3(_Doc):
     scoring: EvidenceScoring3 | None = None
     metrics: dict[str, Metric]
     slices: dict[str, EvidenceSlice] = Field(default_factory=dict, description="the rates on slices of the pages: "
-                                             "those with tables, formulas, neither (linecaster.scoring.slices)")
+                                             "those with tables, formulas, neither (linecaster.evaluation.slices)")
     strata: dict[str, dict[str, EvidenceStratum]] = Field(default_factory=dict, description="the rates by stratum: "
                                                           "dimension (pages:<dimension> for page rates) -> value -> "
-                                                          "rates (linecaster.scoring.strata)")
+                                                          "rates (linecaster.evaluation.strata)")
     counts: dict[str, int] = Field(default_factory=dict, description="pages scored, missing, failed, ...")
     date: dt.date
     hardware: EvidenceHardware | None = None
@@ -705,9 +705,9 @@ class Evidence3(_Doc):
 
 
 def upgrade_evidence_2(data: dict) -> dict:
-    """An ``evidence/2`` record as ``evidence/3``: lanes by their strategy (``linecaster.scoring.lanes.LEGACY``),
+    """An ``evidence/2`` record as ``evidence/3``: lanes by their strategy (``linecaster.evaluation.lanes.LEGACY``),
     the unit ``codepoint``, the output ``literal``, no hashes (it is comparable to no record written since)."""
-    from linecaster.scoring.lanes import LEGACY
+    from linecaster.evaluation.lanes import LEGACY
 
     out = {k: v for k, v in data.items() if k != "schema"}
     out["schema"] = "linecaster.evidence/3"

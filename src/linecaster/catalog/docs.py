@@ -144,14 +144,14 @@ def engine_page(c: Catalog, e: code.Engine, out: Path, links: Links) -> str:
 
 
 def pipeline_page(c: Catalog, pl: code.Pipeline, out: Path, links: Links) -> str:
-    shape = f"linecaster.pipelines.{pl.shape.stem}"
+    shape = f"linecaster.templates.{pl.shape.stem}"
     lines = [f"# {pl.id}", "", f"*Pipeline · [`{pl.source.name}`]({links.to(pl.source, out / 'pipelines')}) · "
                                f"shape [`{shape}`]({links.to(pl.shape, out / 'pipelines')})*", "", _md(pl.doc), ""]
     if pl.slots:
         lines += ["## Slots", "", "Each slot takes a preset of that step; a recipe fills them all.", "",
                   *_table(("Slot", "Option"), [(slot, f"`--{opt}`") for slot, opt in pl.slots.items()])]
     if pl.options:
-        lines += ["## Options", "", "Besides the options every pipeline shares (`linecaster.runtime.run`).", "",
+        lines += ["## Options", "", "Besides the options every pipeline shares (`linecaster.execution.run`).", "",
                   *_table(("Option", "Values", "Default", "Description"),
                           [(f"`{o.name}`", o.type, f"`{o.default}`" if o.default not in ("", "None") else "",
                             o.description) for o in pl.options])]

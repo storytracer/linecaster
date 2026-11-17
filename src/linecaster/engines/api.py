@@ -30,9 +30,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 from linecaster.data.transcription import Transcription
 
 from linecaster.formats.html import HtmlConverter, HtmlReading
-from linecaster.markup.anchors import SourceMap
-from linecaster.markup.model import ConventionsDoc
-from linecaster.markup.resolve import ResolvedConventions, resolve as resolve_conventions
+from linecaster.conventions.anchors import SourceMap
+from linecaster.conventions.model import ConventionsDoc
+from linecaster.conventions.resolve import ResolvedConventions, resolve as resolve_conventions
 from linecaster.engines.importers import Importer
 
 if TYPE_CHECKING:

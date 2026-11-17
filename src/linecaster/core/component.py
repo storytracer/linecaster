@@ -11,7 +11,7 @@
   for components the builder adjusts after construction (a reader's ``provides``).
 * ``operational``: the parameters that change only where things are or how the work is run, not what a run writes
   (``OPERATIONAL`` plus a class's own); the run record's ``pipeline_sha256`` leaves them out
-  (``linecaster.runtime.provenance``, ``docs/reference/pipelines.md``), and ``unhashed_defaults``, parameters added
+  (``linecaster.execution.provenance``, ``docs/reference/pipelines.md``), and ``unhashed_defaults``, parameters added
   later, while they have the default that keeps the old behavior.
 """
 from __future__ import annotations
@@ -111,7 +111,7 @@ def _capturing(init):
 class Component:
     """The base of every linecaster component (through ``Contracted``) and of composites."""
 
-    #: the observers the builder installed (``linecaster.runtime.observers.Observers``); None: none
+    #: the observers the builder installed (``linecaster.execution.observers.Observers``); None: none
     _observers = None
     #: parameters ``to_dict()`` reads from the same-named attribute (the builder may change them after construction)
     live_params: tuple[str, ...] = ()

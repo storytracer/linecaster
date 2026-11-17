@@ -107,7 +107,7 @@ class ManifestReader(Sampled, Contracted, BaseDiskReader):
       tasks in equal shards (``linecaster.components.readers.tables``), so one table works with any number of tasks.
 
     ``auto_tasks`` is the task count for about ``ITEMS_PER_TASK`` items per task, or one item per task with
-    ``task_per_item`` (``pipelines/harvest.py``), which ``linecaster.runtime.run`` uses for a pipeline without engines.
+    ``task_per_item`` (``pipelines/harvest.py``), which ``linecaster.execution.run`` uses for a pipeline without engines.
 
     A manifest is one entry, so an item's pages stay in one task (``whole_items``). An entry that is a IIIF
     Collection stands for its manifests, each an item named by its own link (a table's ``item_key`` does not apply

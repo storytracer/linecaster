@@ -1,8 +1,8 @@
 # Pipelines: contracts and the builder
 
 A pipeline is a list of components (datatrove `PipelineStep`s) and composites. Before it runs, the builder
-(`linecaster.runtime.builder`) checks the components' contracts, expands the composites, and cuts the pipeline into
-stages. Every pipeline script goes through it (`linecaster.runtime.run`). Terms are the [glossary](glossary.md)'s.
+(`linecaster.execution.builder`) checks the components' contracts, expands the composites, and cuts the pipeline into
+stages. Every pipeline script goes through it (`linecaster.execution.run`). Terms are the [glossary](glossary.md)'s.
 
 ## Contracts
 
@@ -200,7 +200,7 @@ a run would when there are problems; a run with problems exits with code 2 befor
 
 ## Observers
 
-`linecaster.runtime.observers.Observer` has `on_task_start(rank, world_size)`, `on_warm_up(component, seconds)`,
+`linecaster.execution.observers.Observer` has `on_task_start(rank, world_size)`, `on_warm_up(component, seconds)`,
 `on_enter(component, doc)`, `on_exit(component, doc, error=None)`, `on_unit(component, doc, event, **attributes)` (from stream
 components' `notify`: `prepare` and `request` in saturate's prepare threads, `request` with a `carrier` dict for the
 trace context, `done` with `error`, tokens and `finish_reason`; `region` for a request per region),
@@ -263,7 +263,7 @@ measured `seconds` never include loading. An error in a warm-up fails the task (
 
 ## The run record
 
-`OUT/run.yaml` (schema `linecaster.run-record/2`, the pydantic model `linecaster.runtime.record.RunRecord`, JSON
+`OUT/run.yaml` (schema `linecaster.run-record/2`, the pydantic model `linecaster.execution.record.RunRecord`, JSON
 Schema `catalog/schemas/run-record-2.json`) records the script, the recipe, the command line, the options, where it
 ran and the software, and:
 
@@ -310,10 +310,10 @@ task would read other input), and so is another sample (the record's `sample.sel
 The same hash, tasks and sample: a resume, as datatrove's completion markers make it.
 `--dry-run` reports the same problems.
 
-**Describe mode.** `linecaster.runtime.run.describe(shape, argv)` builds a pipeline shape's plan in the current
+**Describe mode.** `linecaster.execution.run.describe(shape, argv)` builds a pipeline shape's plan in the current
 process without its engines: its options parsed, presets resolved without checking that their engines are
 installed, nothing loaded or started. `describe_recipe(ref)` describes a recipe that way (the shape of the
-recipe's pipeline id, `linecaster.pipelines.shape(id)`, with `--recipe REF` and placeholder folders): what
+recipe's pipeline id, `linecaster.templates.shape(id)`, with `--recipe REF` and placeholder folders): what
 `linecaster catalog index` records as the recipe's `pipeline_sha256` and `verify` compares ([catalog](catalog.md)).
 
 ## Samples
@@ -372,7 +372,7 @@ copies instead of fetching them again, and so does a resume when it computes the
 cannot be read, or a IIIF Collection entry, stops the launch: the sample would depend on it. `--max-pages` and a
 sample exclude each other; `--limit` and `--skip` still count per task, over the task's share.
 
-The launch computes the sample once, before the tasks (`linecaster.runtime.run.sampled`); it travels with the pickled
+The launch computes the sample once, before the tasks (`linecaster.execution.run.sampled`); it travels with the pickled
 pipeline, and each task takes its share. It is recorded in the run record's `sample` section:
 
 | Field | Holds |
@@ -383,7 +383,7 @@ pipeline, and each task takes its share. It is recorded in the run record's `sam
 | `selected` | `items`, `pages`, `sha256`: of the sample's lines `item_id<TAB>page_id` in sample order, each with a newline |
 | `file` | `sample.parquet` |
 
-`OUT/sample.parquet` (`linecaster.runtime.sample`) holds one row per sample page in sample order: `rank` (1-based: a
+`OUT/sample.parquet` (`linecaster.execution.sample`) holds one row per sample page in sample order: `rank` (1-based: a
 sample of N is `rank <= N`), `item_id`, `page_id`, `item_rank`, `page_rank`, `item_hash`, `page_hash` (unsigned 64
 bit) and `item_pages` (the item's pages in the listing), with the record's section in the file's metadata
 (`linecaster.sample`). The same sample gives the same rows and metadata, and with the same pyarrow the same bytes;
@@ -394,7 +394,7 @@ refused.
 
 ## Tasks, workers and rate limits
 
-`--tasks` and `--workers` are chosen when the command line leaves them open (`linecaster.runtime.run.allocate`):
+`--tasks` and `--workers` are chosen when the command line leaves them open (`linecaster.execution.run.allocate`):
 
 | Pipeline | `--tasks` | `--workers` |
 |---|---|---|
@@ -404,16 +404,16 @@ refused.
 | without engines, without `--rate-limit` | the reader's `auto_tasks`, else 1 | one per CPU, at most the tasks |
 
 The available proxies are counted once at launch from one listing of the broker
-(`linecaster.runtime.run.available_proxies`): those in the file, less those with a live block or broken mark for the
+(`linecaster.execution.run.available_proxies`): those in the file, less those with a live block or broken mark for the
 run's hosts (any host when the hosts are not named in an HTTP policy) and those leased by live workers of other runs
 (the run's own earlier leases count as available); on a first launch, without a broker yet, all of them. Sharing
 the proxies fairly, a few workers use them all, so their count stops at the CPUs; with one proxy per worker (or up to
 N) using them all takes a worker per proxy (per N), and the workers mostly wait on the network, so their count is not
 capped by the CPUs. With OUT on object storage (any fsspec protocol but a local one: `s3://`, `gs://`, `hf://`,
-`az://`, ...) the count stops at `linecaster.runtime.run.OBJECT_STORAGE_WORKERS` (64) in both modes: in one setup,
+`az://`, ...) the count stops at `linecaster.execution.run.OBJECT_STORAGE_WORKERS` (64) in both modes: in one setup,
 250 workers writing to S3-compatible object storage hung in their listings of `OUT/images` and fetched less than 64
 did, which ran cleanly; an observation from that setup, not a guarantee for others. The run states the count and why
-(`linecaster.runtime.run.workers_note`, e.g. `250 proxies available, OUT on object storage → 64 workers, a fair
+(`linecaster.execution.run.workers_note`, e.g. `250 proxies available, OUT on object storage → 64 workers, a fair
 share each`, or `250 proxies available → 250 workers, 1 proxy each`). `--workers` overrides it (each worker is a
 process with its own memory).
 
@@ -431,7 +431,7 @@ fetching it from the source (`linecaster.components.readers.existing`); only pag
 it then on its IO loop): one that times out or fails is a warning and a stat (`reuse_listing_timeouts`,
 `reuse_listing_errors`), and the item's pages are fetched again, their files overwritten. Such a record is complete and says `image.extra.reused`; the console counts it as done but not in
 the rate. On a restart the console's size starts with the finished tasks' `media_size` from datatrove's stats files
-(`linecaster.runtime.local.size_before`, read in the background). Parquet tables are
+(`linecaster.execution.local.size_before`, read in the background). Parquet tables are
 divided over the tasks by rows in equal shards, not by files, so a table never needs splitting for a task count.
 `--max-pages N` (`--parquet`, IMAGES; the readers' `max_pages`) reads the input as if it ended after its first N
 pages, in the same automatic tasks: a smoke test of the real setup. `--limit` counts per task, as in datatrove. The
@@ -439,7 +439,7 @@ same pages for every setup and input order: a [sample](#samples).
 
 `--rate-limit` holds per worker: each worker process has one fetcher with its limits (`HTTPFetcher.shared`), so a
 server sees the workers running at once times the limits; the run states it before it starts
-(`linecaster.runtime.run.rate_note`, e.g. `rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a
+(`linecaster.execution.run.rate_note`, e.g. `rate limits per worker: 150/60, 3/1 · 1 worker → up to 150/min at a
 server`). One worker keeps any rate limit busy: a reader's requests ahead grow while none waits for the limits
 (`linecaster.net.http.prefetched`, at most `MAX_AHEAD`), and the fetcher, with its limits and the window it has
 grown to, is shared by the tasks a worker runs one after the other (`HTTPFetcher.shared`). With `--proxies` the
@@ -497,14 +497,14 @@ retried like a server error, unless the host's policy makes it a block or a stop
 local task that fails is logged and the others go on (`LocalExecutor`); it runs again on the next launch. An error
 that is not the pages' (`NOT_THE_PAGES`) or `FAILED_IN_A_ROW` failed tasks in a row in one worker stop the run.
 `--retry-failed` runs the finished tasks that left rejects again; `kill -USR1 <pid>` dumps every thread's stack.
-On Ray (`linecaster.runtime.ray.RayExecutor`) the same error stops the run through a marker in the logging folder
+On Ray (`linecaster.execution.ray.RayExecutor`) the same error stops the run through a marker in the logging folder
 (`stopped.json`): every task after it ends before its pipeline starts, so none sends a request into the component that
 stopped the first, and the launch fails with that task's error; a launch that left tasks unfinished fails too, so the
 Ray job does not end as succeeded. A new launch removes the marker. Before it submits a task, a Ray launch checks
 that a live node has what a task reserves (`--cpus-per-task`; `--mem-per-task-gb`, else `--mem-per-cpu-gb` per CPU;
 one GPU for a stage with models) and stops with a `PipelineConfigError` if none has, where Ray would keep the tasks
 waiting without an error; `--no-fit-check` leaves the check out, for a cluster that adds nodes on demand. A task sizes
-the native thread pools to the CPUs it may use (`linecaster.runtime.cpus`: its Ray CPUs, else the cgroup's CPU quota),
+the native thread pools to the CPUs it may use (`linecaster.execution.cpus`: its Ray CPUs, else the cgroup's CPU quota),
 and so do the worker counts a launch derives "one per CPU".
 
 **Resources.** `pipelines/harvest.py --items TABLE --item-key COL` fetches items' remote files other than page images
@@ -534,11 +534,11 @@ both presents itself as one client to every host. `--user-agent` or an HTTP poli
 
 ## The console
 
-A local run (`--on local`, `linecaster.runtime.local.LocalExecutor`) shows on the terminal: one line naming the
+A local run (`--on local`, `linecaster.execution.local.LocalExecutor`) shows on the terminal: one line naming the
 pipeline (its components, without the builder's boundaries; pages, tasks and workers; what an earlier launch finished), a
 live progress line (pages done of the total, rate over the last five minutes, size, failed pages, the task, the time
 left) pinned to the terminal's top row, with everything else scrolling below it (a scroll region, `Pinned`), a line per finished task and a summary, in human units
-(`linecaster.runtime.console`). The `Progress` observer, which the runtime puts on every stage, counts the pages
+(`linecaster.execution.console`). The `Progress` observer, which the runtime puts on every stage, counts the pages
 that leave the pipeline; with several workers each worker process reports its counts to the console about every
 second. Off a terminal the progress is a log line every 30 s instead.
 datatrove's own console output (its pipeline listing and stats component per task, the merged stats) goes only to the
@@ -547,7 +547,7 @@ lists the completion markers once instead of looking them up task by task.
 
 ## Secrets
 
-`linecaster.runtime.secrets.EnvVar("NAME")` names an environment variable; the value is read in the task
+`linecaster.execution.secrets.EnvVar("NAME")` names an environment variable; the value is read in the task
 (`resolve()`), never stored: an `EnvVar` pickles by name, `to_dict()` writes `{"env": "NAME"}`.
 `Served(endpoint, model, api_key=EnvVar("NAME"), headers={"X-Team": "ocr", "X-Token": EnvVar("TOKEN")})` (and
 `Chat(preset, endpoint, api_key=..., headers=...)` alike) sends `Authorization: Bearer <key>` and the headers with
@@ -556,15 +556,15 @@ a key given as text is refused. A missing variable fails the component's warm-up
 
 ## Pipeline shapes
 
-A pipeline script's code is a pipeline shape in `linecaster.pipelines` (`harvest`, `convert`, `transcribe_modular`,
+A pipeline script's code is a pipeline shape in `linecaster.templates` (`harvest`, `convert`, `transcribe_modular`,
 `transcribe_vlm`, `transcribe_page`, `bind`, `import_transcriptions`, `score`): its docstring (the help text), `options(ap)`, `models(a)`,
-`pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.pipelines.shapes()` lists them by
+`pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.templates.shapes()` lists them by
 pipeline id and `shape(id)` finds one; importing one imports no engine. The script in `pipelines/` is its PEP 723
 component, a docstring and the call that runs the shape:
 
 ```python
-from linecaster.pipelines import transcribe_modular as shape
-from linecaster.runtime import run
+from linecaster.templates import transcribe_modular as shape
+from linecaster.execution import run
 
 if __name__ == "__main__":
     run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)
@@ -640,7 +640,7 @@ record name. `--commit` is required for linecaster's own scripts; a derivative's
 checkout that takes linecaster from a git tag, branch or rev runs without it (`jobs.needs_commit`), since its Jobs
 install what its sources name.
 
-`linecaster.runtime.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
+`linecaster.execution.jobs.dependencies(commit, script=None, engines=True)` spells out what a Job installs from a
 pipeline script, linecaster's or a derivative's, as `Dependencies`:
 
 - `requirements`: the script's dependencies with their sources as PEP 508 URLs (`url` as it is; `git` with its

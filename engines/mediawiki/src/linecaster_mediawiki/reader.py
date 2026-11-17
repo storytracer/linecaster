@@ -4,7 +4,7 @@ The revision's parsed text (``PageSource.parsed``) is expanded and parsed by wik
 context (templates, parser functions and Lua modules from the wiki's pages), built into HTML (``HtmlBuilder``) and
 read by linecaster's HTML importer under the wiki's conventions. Every line and region is then anchored in the
 revision: the parsed text is described as verbatim pieces and, for each template call standing in it, the call's
-own expansion, which stands for the call's span as a whole (``linecaster.markup.anchors``).
+own expansion, which stands for the call's span as a whole (``linecaster.conventions.anchors``).
 """
 from __future__ import annotations
 

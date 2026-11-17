@@ -1,4 +1,4 @@
-"""The broker (``linecaster.broker``): leases claimed, renewed and released; two claims at once decided by listing;
+"""The broker (``linecaster.net.broker``): leases claimed, renewed and released; two claims at once decided by listing;
 leases and heartbeats that expire without a renew; marks per scope that expire and are deleted by whoever sees them;
 the fair share; worker slots that outlive processes, their leases inherited by the slot's next process. Time passes
 for the storage by moving the files' modification times back (``age``), or for a broker by its clock."""
@@ -8,8 +8,8 @@ import time
 
 import pytest
 
-from linecaster import broker as brokers
-from linecaster.broker import EVERY_SCOPE, LEASE_TTL, Broker
+from linecaster.net import broker as brokers
+from linecaster.net.broker import EVERY_SCOPE, LEASE_TTL, Broker
 
 
 @pytest.fixture(autouse=True)
@@ -232,7 +232,7 @@ def test_without_a_worker_index_the_search_starts_at_a_random_slot(tmp_path, mon
     import random
 
     monkeypatch.setattr(brokers, "_WORKER_INDEX", [None])
-    monkeypatch.setattr("linecaster.runtime.cpus.available_cpus", lambda: 64)
+    monkeypatch.setattr("linecaster.execution.cpus.available_cpus", lambda: 64)
     random.seed(7)
     started = start_together(tmp_path, 8, lambda i: None)
     assert len({b.worker for b in started}) == 8
@@ -279,7 +279,7 @@ def test_a_claim_race_lost_is_settled_at_the_renew_without_a_warning(tmp_path):
 
 
 def test_survey_kind_names_holders_their_runs_and_the_marks(tmp_path):
-    from linecaster.broker import survey_kind
+    from linecaster.net.broker import survey_kind
 
     assert survey_kind(str(tmp_path / "none"), "proxies") == {"resources": {}, "runs": {}}   # no broker yet
     mine, other = Broker(str(tmp_path), machine="m", run="OUT"), Broker(str(tmp_path), machine="n", run="OTHER")

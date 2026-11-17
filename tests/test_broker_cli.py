@@ -1,4 +1,4 @@
-"""The broker's folder as a whole (``linecaster.broker.survey_all``, ``clean``, ``purge``) and ``linecaster broker``:
+"""The broker's folder as a whole (``linecaster.net.broker.survey_all``, ``clean``, ``purge``) and ``linecaster broker``:
 what a status counts as live, stale, held, free, blocked and broken; what ``clean`` removes by default (only what has
 expired), with ``leases`` (every heartbeat and lease: the cleanup after a hard kill) and with ``marks``; ``purge``
 (everything of the layout); the confirmation, refused without a terminal. A killed process is a broker that is
@@ -10,7 +10,7 @@ import time
 import pytest
 
 from linecaster import cli
-from linecaster.broker import LEASE_TTL, Broker, clean, purge, survey_all
+from linecaster.net.broker import LEASE_TTL, Broker, clean, purge, survey_all
 from linecaster.errors import LinecasterError
 
 from test_broker import age, one_worker  # noqa: F401 - the fixture, autouse

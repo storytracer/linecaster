@@ -178,7 +178,7 @@ def _torch(requirement: str) -> bool:
 
 
 def test_jobs_dependencies():
-    from linecaster.runtime import jobs
+    from linecaster.execution import jobs
 
     deps = jobs.dependencies("abc123", jobs.ROOT / "pipelines/transcribe_modular.py").requirements
     # the script's extras but Ray, which a Job leaves out: nvImageCodec decodes the pages on the Job's GPU

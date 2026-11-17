@@ -166,7 +166,7 @@ written as is its strategy's.
 
 ### Normalization (`normalizations/<id>.yaml`)
 
-One concern, one rule (`linecaster.text.normalize` for the rules on characters, `linecaster.document.strategy` for
+One concern, one rule (`linecaster.normalization.rules` for the rules on characters, `linecaster.document.strategy` for
 those on a document's structure). A normalization is applied when a text is written or compared, never stored in a
 record.
 
@@ -185,7 +185,7 @@ The catalog ships the normalizations of the strategies below and of the lanes: `
 traditions `arabic-tatweel`, `arabic-marks`, `arabic-letters`, `persian-arabic-letters` (Persian and Urdu),
 `hebrew-points`, `greek-monotonic`, `cyrillic-prereform` (Russian), `japanese-iteration-marks` and
 `romanian-comma-below` (Romanian). For comparing international typography (Omni Parse Bench's comparison fold,
-Apache-2.0) it ships `typography` (quotes, primes, the minus sign and other dash-likes, spaces, arrows, the fraction
+Apache-2.0) it ships `hierarchy` (quotes, primes, the minus sign and other dash-likes, spaces, arrows, the fraction
 slash, the ellipsis, a decimal middle dot), `cjk-punctuation` (CJK and full-width punctuation as ASCII), `checkboxes`
 (as ☒ and ☐), `footnote-markers` (`[1]`, `[^a]` as their label), `bullets` (a bullet glyph starting a line),
 `leaders` (runs of dots, dashes, underscores), `superscript-digits` (set apart after a digit) and `line-end-hyphens`
@@ -249,7 +249,7 @@ by id and hash. linecaster provides the format and the tooling to produce them:
   (`ocr_original`, `ground_truth`, ...) of the page record, next to `ocr_new`; the writers turn page records into
   datasets (JSON Lines or Parquet page records, ALTO, PAGE-XML, hOCR, text).
 
-- **Scoring** (`linecaster.scoring`, the [evaluation](evaluation.md)): ground truths imported as transcriptions,
+- **Scoring** (`linecaster.evaluation`, the [evaluation](evaluation.md)): ground truths imported as transcriptions,
   rendered under the same rendering policy as the output they are compared with, compared through lanes
   (comparison strategies), scored per page into score records (`linecaster.score/1`) and aggregated into one
   evidence record, which names the run, the benchmark (`linecaster.benchmark/2`), the policy, the scorer (the
@@ -292,8 +292,8 @@ A recipe names a pipeline id, presets and options; what runs is the pipeline its
 in-process, one task) and records its `pipeline_sha256`, the hash a run record of that recipe names; `verify` builds
 it again, so a component, a parameter or a default that changed in code shows in the index.
 
-Building it needs no engine: the **describe mode** (`linecaster.runtime.run.describe`) builds the recipe's pipeline
-shape (`linecaster.pipelines`) in the current process, and components and backends import no engine before
+Building it needs no engine: the **describe mode** (`linecaster.execution.run.describe`) builds the recipe's pipeline
+shape (`linecaster.templates`) in the current process, and components and backends import no engine before
 `warm_up()`; a preset whose engine is not installed names the engine's class from the repository's engine packages
 (`catalog.code`). So `verify` runs in the core environment, and its hash is the one a run of the pipeline script
 with its engines records.
@@ -301,7 +301,7 @@ with its engines records.
 ### Conventions (`conventions/<format>/<id>.yaml`)
 
 What one public source's markup or export means (a wiki's templates and classes, a TEI customization, a
-repository's PAGE-XML profile), declaratively, in the format `linecaster.conventions` (`linecaster.markup`). Its
+repository's PAGE-XML profile), declaratively, in the format `linecaster.conventions` (`linecaster.conventions`). Its
 Markdown sidecar is required, with the headings `## Source`, `## How the markup works`, `## Not in the rules` and
 `## Open questions`: what the rules cannot say neatly.
 
@@ -311,7 +311,7 @@ Markdown sidecar is required, with the headings `## Source`, `## How the markup 
 | `format` | the format whose importer applies it (`html`, `xml`, `json`, `text`, ...); its folder |
 | `extends` | the parent entry, by id: the entry starts from the parent's resolved rules |
 | `description`, `source` | what it is for and what it was written against (prose, not functional) |
-| `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.markup.decisions`: `remove` with a reason, `invisible`, `unwrap`, `component` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `continues`, `runs_on`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
+| `rules` | each: `id`; `match` (`kind: tree` with a CSS selector and the conditions `text`, `style`, `inside`, `not_inside`; `kind: json` with a JSONPath, RFC 9535; `kind: text` with a regular expression); `decision` and its `params` (`linecaster.conventions.decisions`: `remove` with a reason, `invisible`, `unwrap`, `component` with a role, `cell`, `picture`, `caption`, `note`, `edit`, `language`, `format`, `break`, `continues`, `runs_on`, `describe`); `by` (`people`, who marked it in the source, or `rule`); `before`/`after` a rule id; `why`, `decided`, `open` |
 | `disable` | a parent's rule id → why this source does not use it |
 | `transcription` | the normalizations the source's transcription already embodies (normalization ids: `long-s` when it writes ſ as s); a child's list replaces its parent's. Importers copy it into `Source.normalized`; scoring warns where a lane does not apply one ([evaluation](evaluation.md#conventions)) |
 
@@ -356,7 +356,7 @@ layout and the rule-based engines. It declares
 `capabilities`, and takes the pin as `weights` (and `submodel_weights`), fetched and checked by
 `linecaster.catalog.fetch`. Engine packages carry code only; their presets and models are in this catalog.
 
-`chat.v1`'s `Options` (`linecaster.adapters.ChatAdapter.Options`) are what a run may set over a chat preset's
+`chat.v1`'s `Options` (`linecaster.engines.chat.ChatAdapter.Options`) are what a run may set over a chat preset's
 settings (`Chat(..., overrides=...)`, `--set recognition.<option>=<value>`): `max_tokens`, `temperature` and
 `top_p` over `settings.sampling`, `repair_max_tokens` and `repair_temperature` over `settings.repair` (the
 [repair pass](glossary.md); off unless `repair_max_tokens` is above 0, which must then be larger than `max_tokens`;

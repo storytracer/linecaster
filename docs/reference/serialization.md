@@ -89,7 +89,7 @@ size).
    written. Other tools' provenance is read too (ALTO `Processing` and `OCRProcessing`: the description as the step,
    the software's name and version as model and revision, other settings as `raw`; OCR-D PAGE steps: `name` as the
    step, `value` as the model, their parameters as settings; hOCR `ocr-system`: one recognition step). METS agents
-   per step: `linecaster.runtime.provenance.mets_agents`.
+   per step: `linecaster.execution.provenance.mets_agents`.
 4. **Writing order.** Regions are written by their rank in the reading order (regions it leaves out after the
    others, in list order), each region's lines by rank. A line without a region goes before
    the first region whose first line comes after it; consecutive ones share one block. Readers

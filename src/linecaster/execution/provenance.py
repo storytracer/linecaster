@@ -1,0 +1,502 @@
+"""Provenance: what produced a transcription, for METS, and what a run resolved, for ``OUT/run.yaml``.
+
+* ``mets_agent(m)`` turns one step (an ``Annotator`` of kind model or rule) into an OCR-D-style METS ``agent`` (an lxml element, for a
+  derivative's METS output): ``TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER"``, ``OTHERROLE`` the OCR-D
+  functional step (``linecaster.catalog.schema.OCRD_STEPS``), ``name`` linecaster with its release and the
+  model, a ``note`` with OCR-D's ``ocrd:option="parameter"`` for the settings (JSON) and one ``note`` per
+  identifying field (``lc:option="preset"``, ``preset_sha256``, ``revision``, ...). ``from_mets_agent`` reads
+  it back.
+* ``step_entries(models)``: the steps as plain dicts, the shape the run record and the page files share.
+* ``run_record(...)``: the run record a pipeline writes before it launches (``linecaster.execution.run.run``): its run
+  id (``new_run_id``, which every annotator the run adds names), script, recipe, command line, options, executor, the
+  pipeline (every stage's components as ``to_dict()`` with their contracts), its ``pipeline_sha256``
+  (``functional_pipeline``: the functional parameters only), software and the launching machine's hardware
+  (``hardware``, best effort).
+
+Import-light: lxml and the standard library (datatrove only for the components it inspects, lazily).
+"""
+from __future__ import annotations
+
+import datetime as dt
+import hashlib
+import json
+import os
+import platform
+import re
+import subprocess
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+from lxml import etree
+
+from linecaster.data.transcription import Annotator
+from linecaster.formats import _provenance as P
+
+RUN_SCHEMA = "linecaster.run-record/2"
+METS = "http://www.loc.gov/METS/"
+OCRD = "https://ocr-d.de"
+LC = "https://github.com/storytracer/linecaster"
+#: OCR-D step for linecaster steps OCRD_STEPS does not name (unicode, typography, ...: post-processing)
+OCRD_FALLBACK_STEP = "recognition/post-correction"
+#: packages the run record names besides linecaster (the engines' packages are added from the pipeline)
+KEY_PACKAGES = ("datatrove", "saturate")
+
+
+# ------------------------------------------------------------------------------------------------ software
+
+def version() -> str:
+    """linecaster's release."""
+    return P.version()
+
+
+@lru_cache(maxsize=1)
+def commit() -> dict[str, Any] | None:
+    """The linecaster commit this process runs: from the installation's PEP 610 ``direct_url.json`` (installed
+    from git), else from the source checkout it is imported from (``dirty: true`` with uncommitted changes to
+    tracked files). None when neither says."""
+    from importlib.metadata import PackageNotFoundError, distribution
+
+    try:
+        raw = distribution("linecaster").read_text("direct_url.json")
+    except PackageNotFoundError:
+        raw = None
+    if raw:
+        try:
+            vcs = json.loads(raw).get("vcs_info") or {}
+        except ValueError:
+            vcs = {}
+        if vcs.get("commit_id"):
+            return {"commit": vcs["commit_id"]}
+    return git_state(Path(__file__).resolve().parent)
+
+
+def git_state(folder: str | Path) -> dict[str, Any] | None:
+    """``{"commit": sha}`` (plus ``"dirty": True``) of the git checkout ``folder`` is in, or None."""
+    def git(*args: str) -> str | None:
+        try:
+            r = subprocess.run(["git", "-C", str(folder), *args], capture_output=True, text=True, timeout=10,
+                               check=False)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return r.stdout.strip() if r.returncode == 0 else None
+
+    sha = git("rev-parse", "HEAD")
+    if not sha:
+        return None
+    out: dict[str, Any] = {"commit": sha}
+    if git("status", "--porcelain", "--untracked-files=no"):
+        out["dirty"] = True
+    return out
+
+
+def package_versions(names) -> dict[str, str]:
+    """Installed versions of the distributions ``names`` (those not installed are left out)."""
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as dist_version
+
+    out = {}
+    for n in names:
+        try:
+            out[n] = dist_version(n)
+        except PackageNotFoundError:
+            pass
+    return out
+
+
+def software(extra_packages=()) -> dict[str, Any]:
+    """linecaster's release and commit, Python, and the key packages' versions."""
+    out: dict[str, Any] = {"linecaster": version()}
+    state = commit()
+    if state:
+        out.update(state)
+    out["python"] = platform.python_version()
+    names = list(dict.fromkeys([*KEY_PACKAGES, *extra_packages]))
+    out["packages"] = package_versions(names)
+    return out
+
+
+# ------------------------------------------------------------------------------------------------ steps
+
+def step_entry(m: Annotator) -> dict[str, Any]:
+    """One step as the page files record it: step, name, revision, preset, preset hash, backend, settings."""
+    return P.record(m)
+
+
+def step_entries(models: list[Annotator]) -> list[dict[str, Any]]:
+    """The steps of ``models`` (the annotators of kind model and rule, in order) as plain dicts."""
+    return [step_entry(m) for m in P.written(models)]
+
+
+def ocrd_step(step: str) -> str:
+    """The OCR-D functional step of a linecaster step."""
+    from linecaster.catalog.schema import OCRD_STEPS
+
+    return OCRD_STEPS.get(step, OCRD_FALLBACK_STEP)
+
+
+def mets_agent(m: Annotator) -> etree._Element:
+    """An OCR-D-style METS ``agent`` for one step (namespaces ``mets``, ``ocrd`` and ``lc`` declared on it)::
+
+        <mets:agent TYPE="OTHER" OTHERTYPE="SOFTWARE" ROLE="OTHER" OTHERROLE="recognition/text-recognition">
+          <mets:name>linecaster 0.4.0 kraken-ppocrv6-medium@0123abcd</mets:name>
+          <mets:note ocrd:option="parameter">{"batch_size":8}</mets:note>
+          <mets:note lc:option="step">recognition</mets:note>
+          <mets:note lc:option="preset">kraken-ppocrv6-medium</mets:note>
+          ...
+        </mets:agent>
+    """
+    agent = etree.Element(f"{{{METS}}}agent", nsmap={"mets": METS, "ocrd": OCRD, "lc": LC})
+    for k, v in (("TYPE", "OTHER"), ("OTHERTYPE", "SOFTWARE"), ("ROLE", "OTHER"), ("OTHERROLE", ocrd_step(m.step))):
+        agent.set(k, v)
+    etree.SubElement(agent, f"{{{METS}}}name").text = (
+        f"{P.software()} {m.name}" + (f"@{m.revision}" if m.revision else ""))
+    if m.settings:
+        note = etree.SubElement(agent, f"{{{METS}}}note")
+        note.set(f"{{{OCRD}}}option", "parameter")
+        note.text = P.dumps(m.settings)
+    for k, v in step_entry(m).items():
+        if k == "settings":
+            continue
+        note = etree.SubElement(agent, f"{{{METS}}}note")
+        note.set(f"{{{LC}}}option", k)
+        note.text = v
+    return agent
+
+
+def mets_agents(models: list[Annotator]) -> list[etree._Element]:
+    """The agents of the steps of ``models`` (the annotators of kind model and rule, in order)."""
+    return [mets_agent(m) for m in P.written(models)]
+
+
+def from_mets_agent(agent: etree._Element) -> Annotator:
+    """The step a ``mets_agent`` describes."""
+    rec: dict[str, Any] = {}
+    for note in agent.iter(f"{{{METS}}}note"):
+        if note.get(f"{{{OCRD}}}option") == "parameter":
+            rec["settings"] = json.loads(note.text or "{}")
+        elif note.get(f"{{{LC}}}option") in P.RECORD_KEYS:
+            rec[note.get(f"{{{LC}}}option")] = note.text or ""
+    return P.from_record(rec)
+
+
+# ------------------------------------------------------------------------------------------------ run record
+
+def pipeline_section(plan) -> list[dict[str, Any]]:
+    """The run record's ``pipeline``: per stage its name, tasks and components in order, each component as its
+    ``to_dict()`` with its contract (``Plan.describe()``'s stages)."""
+    return plan.describe()["stages"] if plan is not None else []
+
+
+def _served_models(components: list) -> dict[str, dict]:
+    """Model name -> the model dict of the ``EngineServer`` components (name, spec, kwargs, preset, preset_sha256)."""
+    out = {}
+    for b in components:
+        if type(b).__name__ == "EngineServer":
+            for m in getattr(b, "models", []):
+                out[m["name"]] = m
+    return out
+
+
+def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any]:
+    """What a model component's backend contributes to the pipeline's hash: the engine, its options and the preset
+    with its hash, wherever the engine runs (in-process, or the server model a served backend names);
+    for a server this run does not start, what the backend knows (engine, preset, else the served model's name);
+    for a chat backend its adapter, preset and hash, model and revision, the options set over the preset
+    (``overrides``: the sampling, the repair pass) and, while it is on, the repetition detection (on by default)."""
+    from linecaster.core.component import ENGINE_OPERATIONAL, plain
+
+    if backend.get("backend") == "in-process":       # where the engine's service is (an endpoint) does not count
+        options = {k: v for k, v in (backend.get("options") or {}).items() if k not in ENGINE_OPERATIONAL}
+        out = {"engine": backend.get("engine"), "options": options,
+               "preset": backend.get("preset"), "preset_sha256": backend.get("preset_sha256")}
+    elif backend.get("backend") == "chat":         # the adapter, the preset and options over it, not the server
+        out = {k: backend.get(k) for k in ("adapter", "preset", "preset_sha256", "model", "revision", "overrides")}
+        if backend.get("repetition_detection"):
+            out["repetition_detection"] = backend["repetition_detection"]
+    elif (m := served.get(backend.get("model"))) is not None:
+        out = {"engine": m.get("spec"), "options": plain(m.get("kwargs") or {}), "preset": m.get("preset"),
+               "preset_sha256": m.get("preset_sha256")}
+    else:
+        out = {"engine": backend.get("engine"), "preset": backend.get("preset")}
+        if not any(out.values()):
+            out["model"] = backend.get("model")
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def _functional_value(value, served: dict[str, dict]):
+    if isinstance(value, dict) and "backend" in value and isinstance(value.get("backend"), str):
+        return _functional_backend(value, served)
+    return value
+
+
+def functional_component(component, served: dict[str, dict] | None = None) -> dict[str, Any] | None:
+    """What a component contributes to the pipeline's hash: its class and its functional parameters (every parameter
+    but its ``operational_params()`` and those of its ``unhashed_defaults`` at their default; backends by their
+    engine, options and preset, ``_functional_backend``), its condition and group. Server components contribute nothing (their models count through the components they serve)."""
+    from linecaster.core.contract import contract_of
+    from linecaster.execution.builder import component_dict
+
+    if contract_of(component).kind == "server":
+        return None
+    d = component_dict(component)
+    out: dict[str, Any] = {"component": d["component"], "class": d["class"]}
+    operational = component.operational_params() if hasattr(component, "operational_params") else frozenset()
+    neutral = getattr(component, "unhashed_defaults", None) or {}
+    params = {k: _functional_value(v, served or {}) for k, v in (d.get("params") or {}).items()
+              if k not in operational and not (k in neutral and v == neutral[k])}
+    if params:
+        out["params"] = params
+    when = getattr(component, "when", None)
+    if when is not None:
+        out["when"] = when.describe()
+        if getattr(component, "group", None) is not None:
+            out["group"] = component.group
+    return out
+
+
+def functional_pipeline(plan) -> list[dict[str, Any]]:
+    """The pipeline as its hash covers it: every stage's components in order (``functional_component``)."""
+    components = plan.components if plan is not None else []
+    served = _served_models(components)
+    return [f for b in components if (f := functional_component(b, served)) is not None]
+
+
+def pipeline_sha256(plan) -> str:
+    """The hash of the pipeline's functional parameters (``functional_pipeline``), canonical JSON: the same for a
+    resumed run, a run on another executor or backend, or into another folder; different when a component, a preset, an
+    engine option or any other functional parameter changes."""
+    from linecaster.catalog.registry import canonical_sha256
+
+    return canonical_sha256(functional_pipeline(plan))
+
+
+def engine_packages(plan) -> list[str]:
+    """The distributions that provide the pipeline's engine classes (``linecaster-kraken``, ...), where
+    installed here. Editable installs do not map their modules, so the module name with ``-`` for ``_`` is
+    the fallback (``package_versions`` leaves out what is not installed)."""
+    from importlib.metadata import packages_distributions
+
+    components = plan.components if plan is not None else []
+    specs = [m.get("spec") for m in _served_models(components).values()]
+    for b in components:
+        backend = getattr(b, "backend", None)
+        specs.append(getattr(backend, "spec", None) if not getattr(backend, "served", True) else
+                     getattr(backend, "engine", None))
+    modules = {s.split(":", 1)[0].split(".", 1)[0] for s in specs if isinstance(s, str)}
+    dists = packages_distributions()
+    return sorted({d for mod in modules for d in dists.get(mod) or [mod.replace("_", "-")]})
+
+
+def redact_argv(argv: list[str]) -> list[str]:
+    """The command line without the values of ``--env KEY=VALUE`` (they may hold credentials)."""
+    out, after_env = [], False
+    for x in argv:
+        if after_env and "=" in x:
+            x = x.split("=", 1)[0] + "=<redacted>"
+        elif x.startswith("--env="):
+            x = "--env=" + x[len("--env="):].split("=", 1)[0] + "=<redacted>"
+        after_env = x == "--env"
+        out.append(x)
+    return out
+
+
+def _plain(v: Any) -> Any:
+    """Options as YAML-friendly values (paths and other objects as text)."""
+    if isinstance(v, dict):
+        return {str(k): _plain(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_plain(x) for x in v]
+    if v is None or isinstance(v, (bool, int, float, str)):
+        return v
+    return str(v)
+
+
+def script_entry(script: str | None, name: str | None = None) -> dict[str, Any] | None:
+    """The pipeline script: its path in its git checkout (else ``name``, else its file name) and the sha256 of the
+    file. A recipe script run from its URL is uv's temporary copy, so its ``name`` is ``recipes/<id>.py``."""
+    if not script:
+        return None
+    path = Path(script)
+    out: dict[str, Any] = {"path": name or path.name}
+    try:
+        top = subprocess.run(["git", "-C", str(path.resolve().parent), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, timeout=10, check=False)
+        if top.returncode == 0 and top.stdout.strip():
+            out["path"] = path.resolve().relative_to(Path(top.stdout.strip()).resolve()).as_posix()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    try:
+        out["sha256"] = "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        pass
+    return out
+
+
+def new_run_id() -> str:
+    """A new run id: 32 hex digits (a uuid4's), unique for every launch (``RunRecord.run_id``'s default)."""
+    from linecaster.execution.record import _run_id
+
+    return _run_id()
+
+
+def _command(*args: str, timeout: float = 10.0) -> str | None:
+    """What a command printed, or None when it is missing, fails or takes too long."""
+    try:
+        r = subprocess.run(list(args), capture_output=True, text=True, timeout=timeout, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def _cpu_name() -> str | None:
+    try:
+        for line in Path("/proc/cpuinfo").read_text(errors="replace").splitlines():
+            key, _, value = line.partition(":")
+            if key.strip() in ("model name", "Model", "Hardware") and value.strip():
+                return value.strip()
+    except OSError:
+        pass
+    return platform.processor() or None
+
+
+@lru_cache(maxsize=1)
+def hardware() -> dict[str, Any]:
+    """The machine this process runs on, best effort and never failing: its GPUs (``gpu``: their names,
+    ``gpu_count``, ``driver``, ``cuda``: from ``nvidia-smi`` where it is installed), ``cpu`` (the processor's name
+    and core count) and ``machine`` (the architecture, e.g. ``aarch64``). What cannot be found is left out."""
+    out: dict[str, Any] = {}
+    try:
+        gpus = _command("nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader")
+        if gpus:
+            rows = [[x.strip() for x in line.split(",")] for line in gpus.splitlines() if line.strip()]
+            out["gpu"] = [r[0] for r in rows]
+            out["gpu_count"] = len(rows)
+            if rows and len(rows[0]) > 1 and rows[0][1]:
+                out["driver"] = rows[0][1]
+            header = _command("nvidia-smi") or ""
+            m = re.search(r"CUDA Version:\s*([0-9.]+)", header)
+            if m:
+                out["cuda"] = m.group(1)
+        cpu, cores = _cpu_name(), os.cpu_count()
+        if cpu or cores:
+            out["cpu"] = " ".join(x for x in (cpu, f"({cores} cores)" if cores else None) if x)
+        if platform.machine():
+            out["machine"] = platform.machine()
+    except Exception:  # noqa: BLE001 - best effort: a record without hardware rather than no record
+        pass
+    return out
+
+
+#: the component parameters that name a catalog entry, and its kind
+CATALOG_KEYS = {"preset": "preset", "policy": "policy", "conventions": "conventions", "recipe": "recipe",
+                "strategy": "strategy"}
+
+
+def catalog_entries(pipeline: list[dict], recipe: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Every catalog entry the recorded ``pipeline`` names (a component parameter ``preset``, ``policy``, ``conventions``,
+    ``recipe`` or ``strategy``, or the strategies of a writer's ``texts``, ``<strategy>:<format>``, at any depth) and
+    the run's ``recipe``: kind, id, hash and functional content, as the catalog in place has them (a strategy: its
+    normalizations, each with its hash; ``literal`` none). A name the catalog does not know (a test's fake) is left
+    out."""
+    from linecaster.catalog.registry import catalog, entry_id
+    from linecaster.errors import CatalogError
+
+    found: dict[tuple[str, str], None] = {}
+
+    def walk(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k in CATALOG_KEYS and isinstance(v, str) and v:
+                    found[(CATALOG_KEYS[k], v if k == "strategy" else entry_id(v, CATALOG_KEYS[k]))] = None
+                elif k == "texts" and isinstance(v, (list, tuple)):
+                    for spec in v:
+                        name = spec.rpartition(":")[0] if isinstance(spec, str) else spec[0] if spec else ""
+                        if name:
+                            found[("strategy", name)] = None
+                else:
+                    walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+
+    walk(pipeline)
+    if recipe and recipe.get("ref"):
+        found[("recipe", entry_id(recipe["ref"]))] = None
+    c, out = catalog(), []
+    for kind, eid in sorted(found):
+        try:
+            if kind == "preset":
+                r = c.resolve(eid)
+                content, sha = r.content, r.sha256
+            elif kind == "recipe":
+                r = c.resolve_recipe(eid)
+                content, sha = r.content, r.sha256
+            elif kind == "policy":
+                content = c.policy_functional(c.policies[eid][1])
+                sha = canonical(content)
+            elif kind == "strategy":
+                r = c.strategy(eid)
+                content, sha = r.content, r.sha256
+            else:
+                for e in eid.split(">"):                       # a resolved chain names every entry of it
+                    content = c.conventions_functional(c.conventions_doc(e))
+                    out.append({"kind": kind, "id": e, "sha256": canonical(content), "settings": content})
+                continue
+        except (CatalogError, KeyError):
+            continue
+        out.append({"kind": kind, "id": eid, "sha256": sha, "settings": content})
+    unique = {(e["kind"], e["id"]): e for e in out}
+    return [unique[k] for k in sorted(unique)]
+
+
+def canonical(content: Any) -> str:
+    from linecaster.catalog.registry import canonical_sha256
+
+    return canonical_sha256(content)
+
+
+def run_record(options: dict[str, Any], plan=None, *, script: str | None = None, argv: list[str] | None = None,
+               executor: str | None = None, extra: dict[str, Any] | None = None,
+               created: dt.datetime | None = None, recipe: dict[str, Any] | None = None,
+               script_name: str | None = None, run_id: str | None = None) -> dict[str, Any]:
+    """The run record (schema ``linecaster.run-record/2``, ``linecaster.execution.record.RunRecord``): the run id
+    (``run_id``, default a new one: ``new_run_id``), the time, the pipeline script, the recipe (its id, hash, what the command line changed in it), the command line (``--env``
+    values redacted) and the parsed options, where it runs (``on``, executor, tasks, workers), the pipeline of the
+    builder's ``plan`` (per stage its components as dicts, in order, with their contracts) and its ``pipeline_sha256``,
+    ``extra`` (the Jobs' image and dependencies), the software (linecaster release and commit, Python, key
+    packages, engine packages) and the launching machine's ``hardware``; ``script_name`` names the script outside a
+    git checkout (``script_entry``). Validated against ``RunRecord``."""
+    from linecaster.execution.record import RunRecord
+
+    opts = _plain(dict(options))
+    if opts.get("env"):
+        opts["env"] = [kv.split("=", 1)[0] + "=<redacted>" for kv in opts["env"]]
+    when = (created or dt.datetime.now(dt.UTC)).astimezone(dt.UTC)
+    rec: dict[str, Any] = {"schema": RUN_SCHEMA, "run_id": run_id or new_run_id(),
+                           "created": when.strftime("%Y-%m-%dT%H:%M:%SZ")}
+    entry = script_entry(script, script_name)
+    if entry:
+        rec["script"] = entry
+    if recipe:
+        rec["recipe"] = recipe
+    if argv is not None:
+        rec["argv"] = redact_argv(list(argv))
+    if "on" in opts:
+        rec["on"] = opts.pop("on")
+    if executor:
+        rec["executor"] = executor
+    for k in ("tasks", "workers"):
+        if k in opts:
+            rec[k] = opts.pop(k)
+    rec["options"] = opts           # the rest of the parsed options
+    rec["pipeline"] = pipeline_section(plan)
+    if used := catalog_entries(rec["pipeline"], recipe):
+        rec["catalog"] = used
+    rec["pipeline_sha256"] = pipeline_sha256(plan)
+    if extra:
+        rec.update(_plain({k: v for k, v in extra.items() if v is not None}))
+    rec["software"] = software(engine_packages(plan))
+    if found := hardware():
+        rec["hardware"] = found
+    return RunRecord.model_validate(rec).model_dump(mode="json", by_alias=True, exclude_none=True)

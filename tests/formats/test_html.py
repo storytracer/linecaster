@@ -4,7 +4,7 @@ from lxml import html
 
 from linecaster.data import Annotator, Source, Transcription
 from linecaster.formats.html import HtmlConverter
-from linecaster.markup import ConventionsDoc, resolve
+from linecaster.conventions import ConventionsDoc, resolve
 
 PAGE = """<html><head><style>.caps { text-transform: uppercase }</style></head><body>
 <header role="doc-pageheader"><div class="rh"><span class="cell">12</span><span class="cell">THE TITLE</span>

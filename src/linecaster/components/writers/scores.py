@@ -1,7 +1,7 @@
 """``ScoreWriter``: the score records ``PageScorer`` put on each page, one gzipped JSON Lines file per task:
 ``<folder>/records/<rank:05d>.jsonl.gz`` (one line per text and lane of each page) and
 ``<folder>/pages/<rank:05d>.jsonl.gz`` (one line per page: its summary), which
-``linecaster.scoring.run.aggregate`` puts together. A rerun of a task writes its files again."""
+``linecaster.evaluation.run.aggregate`` puts together. A rerun of a task writes its files again."""
 from __future__ import annotations
 
 import json

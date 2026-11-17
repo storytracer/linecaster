@@ -10,7 +10,7 @@
           "type": "string"
         },
         "sha256": {
-          "description": "the benchmark's hash (linecaster.scoring.benchmark.Benchmark.sha256)",
+          "description": "the benchmark's hash (linecaster.evaluation.benchmark.Benchmark.sha256)",
           "title": "Sha256",
           "type": "string"
         }

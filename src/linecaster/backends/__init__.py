@@ -13,7 +13,7 @@ The same class serves both backends:
 
 The third backend is for VLMs: ``Chat("dots-ocr", endpoint="http://127.0.0.1:8000/v1")`` reads pages (or regions)
 with a chat preset's model behind an OpenAI-compatible server (vLLM, SGLang, a hosted endpoint), through saturate
-as well; the preset's adapter (``linecaster.adapters``) builds the requests and parses the completions.
+as well; the preset's adapter (``linecaster.engines.chat``) builds the requests and parses the completions.
 """
 from linecaster.backends.chat import Chat
 from linecaster.backends.in_process import EngineModel, InProcess, resolve

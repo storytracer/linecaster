@@ -32,8 +32,8 @@ from typing import Any
 from linecaster.errors import CatalogError
 from linecaster.catalog import yamlio
 from linecaster.engines.importers import IMPORTERS
-from linecaster.markup.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
-from linecaster.markup.resolve import ConventionsError, ResolvedConventions, resolve
+from linecaster.conventions.model import SCHEMA as SCHEMA_CONVENTIONS, ConventionsDoc
+from linecaster.conventions.resolve import ConventionsError, ResolvedConventions, resolve
 from linecaster.catalog.schema import (SCHEMA_DIR, ModelDoc, NormalizationDoc, PolicyDoc, PresetDoc, RecipeDoc, StrategyDoc,
                      json_schemas, schema_file)
 from linecaster.catalog.vocabulary import VocabularyDoc
@@ -377,7 +377,7 @@ class Catalog:
         return self.conventions_entries[cid][1]
 
     def conventions(self, ref: str) -> ResolvedConventions:
-        """The conventions entry ``ref`` with its chain resolved (``linecaster.markup.resolve``)."""
+        """The conventions entry ``ref`` with its chain resolved (``linecaster.conventions.resolve``)."""
         try:
             return resolve(entry_id(ref), self.conventions_doc)
         except ConventionsError as e:
@@ -498,9 +498,9 @@ class Catalog:
 
     def recipe_pipeline(self, ref: str) -> dict:
         """The expanded pipeline of recipe ``ref``, built from its pipeline script in this process without
-        the engines (``linecaster.runtime.run.describe_recipe``): ``{"pipeline": [...], "pipeline_sha256": ...}``."""
+        the engines (``linecaster.execution.run.describe_recipe``): ``{"pipeline": [...], "pipeline_sha256": ...}``."""
         from linecaster.errors import LinecasterError
-        from linecaster.runtime.run import describe_recipe
+        from linecaster.execution.run import describe_recipe
 
         try:
             return describe_recipe(ref, self)
@@ -787,7 +787,7 @@ class ResolvedNormalization:
 
     @property
     def text_rule(self) -> bool:
-        """Whether it acts on characters (``linecaster.text.normalize``), not on a document's structure."""
+        """Whether it acts on characters (``linecaster.normalization.rules``), not on a document's structure."""
         from linecaster.catalog.schema import TEXT_RULES
 
         return next(iter(self.rule)) in TEXT_RULES
@@ -817,7 +817,7 @@ class ResolvedStrategy:
     def text(self, s: str) -> str:
         """``s`` through the strategy's normalizations (character rules only: a structure rule acts on documents,
         ``linecaster.document.strategy``)."""
-        from linecaster.text.normalize import apply
+        from linecaster.normalization.rules import apply
 
         return apply(s or "", [n.rule for n in self.normalizations])
 
@@ -869,7 +869,7 @@ def active(c: Catalog):
 #: engines linecaster itself provides: the chat presets' (behind an OpenAI-compatible server only), the rule-based
 #: steps' and the single-region layout (``linecaster.engines``: in the pipeline's process only)
 BUILTIN_ENGINES = {
-    "chat.v1": "linecaster.adapters:ChatAdapter",
+    "chat.v1": "linecaster.engines.chat:ChatAdapter",
     "image.convert.v1": "linecaster.engines:ImageConvertEngine",
     "image.webp-lossless.v1": "linecaster.engines:WebpLosslessImageEngine",
     "layout.single-region.v1": "linecaster.engines:SingleRegionLayoutEngine",
@@ -940,7 +940,7 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
     options, plus ``weights`` (model, source, revision and files of the model pin) for a preset with a model (and
     ``submodel_weights`` by role), plus ``strategies`` (script -> engine, options, preset and hash) for a
     by-script preset. Engines with weights fetch exactly that pin. A chat preset (``chat.v1``) is a
-    ``CatalogError``: it runs behind a server (``linecaster.adapters.chat_model``); so is a preset whose engine is
+    ``CatalogError``: it runs behind a server (``linecaster.engines.chat.chat_model``); so is a preset whose engine is
     not installed, unless ``installed=False`` (the error names the engine package that provides it and the pipeline
     scripts that install it).
 
@@ -962,7 +962,7 @@ def engine_spec(ref: str, installed: bool = True, served: bool = False) -> tuple
     r = catalog().resolve(ref)
     known = engine_ids()
     if r.engine in SERVED_ONLY:
-        raise CatalogError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.adapters.chat_model")
+        raise CatalogError(f"preset {r.ref} ({r.engine}) runs behind a server: use linecaster.engines.chat.chat_model")
     if served and r.engine in IN_PROCESS_ONLY:
         raise CatalogError(f"preset {r.ref} ({r.engine}) is built in and runs in the pipeline's process only; "
                            "linecaster serve hosts models")

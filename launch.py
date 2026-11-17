@@ -19,7 +19,7 @@ runs in and starts that pipeline's script, in the script's own environment.
     uv run launch.py squiddle --help                   # the pipeline's options
 
 A recipe runs its own script, ``recipes/<id>.py``, which brings exactly the engine packages its presets need; a page
-preset runs the pipeline script of its kind. Everything after the name goes to the script (``linecaster.runtime.run``),
+preset runs the pipeline script of its kind. Everything after the name goes to the script (``linecaster.execution.run``),
 ``serve`` and ``ray`` too. Your own combinations: the pipeline scripts in ``pipelines/``.
 """
 import os

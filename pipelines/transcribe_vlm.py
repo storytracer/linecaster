@@ -13,9 +13,9 @@
 # linecaster-paddlex = { path = "../engines/paddlex", editable = true }
 # ///
 """The VLM pipeline (``transcribe_vlm.v1``): its components, options and slots are the pipeline shape
-``linecaster.pipelines.transcribe_vlm``; this script gives it its environment. ``--help`` lists the options."""
-from linecaster.pipelines import transcribe_vlm as shape
-from linecaster.runtime import run
+``linecaster.templates.transcribe_vlm``; this script gives it its environment. ``--help`` lists the options."""
+from linecaster.templates import transcribe_vlm as shape
+from linecaster.execution import run
 
 if __name__ == "__main__":
     run.main(__file__, shape.__doc__, shape.options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)

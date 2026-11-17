@@ -19,7 +19,7 @@ from linecaster.components.layout import LayoutDetector
 from linecaster.components.lines import LineAssigner, LineDetector
 from linecaster.components.recognition import LineRecognizer
 from linecaster.document import strategy
-from linecaster.runtime.builder import run_pages
+from linecaster.execution.builder import run_pages
 from linecaster.testing import sample_documents
 from linecaster.testing.samples import SAMPLE_TRANSCRIPTION
 

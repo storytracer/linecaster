@@ -5,16 +5,16 @@ layout, pure Python and in-process only, registered in ``linecaster.catalog.regi
 ``linecaster.text``, ``linecaster.images`` and ``linecaster.formats`` (the engines are thin). Import-light, like
 the data model: no datatrove, saturate, blocks or runtime."""
 from linecaster.engines.base import RuleEngine, ScriptDispatch, Strategy
-from linecaster.engines.composition import LinkedDocumentEngine
+from linecaster.engines.document import LinkedDocumentEngine
 from linecaster.engines.image import ImageConvertEngine, WebpLosslessImageEngine
 from linecaster.engines.importers import (
     AltoImporter, AutoImporter, DoclingImporter, HocrImporter, HtmlImporter, IiifImporter, Importer,
     OmniDocBenchImporter, PageXmlImporter, TeiImporter, TextImporter,
 )
 from linecaster.engines.layout import SingleRegionLayoutEngine
-from linecaster.engines.recomposition import ByScriptParagraphsEngine, UnicodeParagraphsEngine
+from linecaster.engines.paragraphs.engine import ByScriptParagraphsEngine, UnicodeParagraphsEngine
 from linecaster.engines.tagging import ChatTaggingEngine, GeometryTaggingEngine
-from linecaster.engines.typography import RatiosHierarchyEngine
+from linecaster.engines.hierarchy.engine import RatiosHierarchyEngine
 
 __all__ = [
     "AltoImporter", "AutoImporter", "DoclingImporter", "HocrImporter", "HtmlImporter", "IiifImporter", "Importer",

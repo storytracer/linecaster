@@ -17,7 +17,7 @@ import time
 
 import pytest
 
-from linecaster.broker import EVERY_SCOPE, FORMAT, Broker, clean, survey_all
+from linecaster.net.broker import EVERY_SCOPE, FORMAT, Broker, clean, survey_all
 from linecaster.net.proxies import KIND, ProxyPool, proxy_id
 
 HOST = "images.library.test"

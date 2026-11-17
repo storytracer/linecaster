@@ -13,7 +13,7 @@ import numpy as np
 
 from linecaster.data.policy import DEFAULT_POLICY
 from linecaster.data.transcription import Transcription
-from linecaster.text.typography import line_bbox, zone_bbox
+from linecaster.engines.hierarchy.rules import line_bbox, zone_bbox
 
 COLORS = {
     "text": (30, 100, 230), "section_header": (220, 40, 40), "title": (220, 40, 40),

@@ -10,7 +10,7 @@
           "type": "string"
         },
         "sha256": {
-          "description": "the benchmark's hash (linecaster.scoring.benchmark.Benchmark.sha256)",
+          "description": "the benchmark's hash (linecaster.evaluation.benchmark.Benchmark.sha256)",
           "title": "Sha256",
           "type": "string"
         }
@@ -24,10 +24,10 @@
     },
     "EvidenceElements": {
       "additionalProperties": false,
-      "description": "How the element metrics matched elements (``linecaster.scoring.matching``).",
+      "description": "How the element metrics matched elements (``linecaster.evaluation.matching``).",
       "properties": {
         "version": {
-          "description": "the version of the element scorer's rules (linecaster.scoring.ELEMENTS_VERSION)",
+          "description": "the version of the element scorer's rules (linecaster.evaluation.ELEMENTS_VERSION)",
           "title": "Version",
           "type": "integer"
         },
@@ -231,7 +231,7 @@
           "description": "how elements were matched, when the element metrics were scored"
         },
         "scorer": {
-          "description": "the linecaster that scored (linecaster.scoring.scorer())",
+          "description": "the linecaster that scored (linecaster.evaluation.scorer())",
           "title": "Scorer",
           "type": "string"
         }
@@ -248,7 +248,7 @@
     },
     "EvidenceSlice": {
       "additionalProperties": false,
-      "description": "The rates of a run on one slice of a benchmark's pages (``linecaster.scoring.slices``).",
+      "description": "The rates of a run on one slice of a benchmark's pages (``linecaster.evaluation.slices``).",
       "properties": {
         "definition": {
           "description": "what puts a page in the slice",
@@ -278,7 +278,7 @@
     },
     "EvidenceStratum": {
       "additionalProperties": false,
-      "description": "The rates of a run on one stratum (``linecaster.scoring.strata``): elements or pages with one value.",
+      "description": "The rates of a run on one stratum (``linecaster.evaluation.strata``): elements or pages with one value.",
       "properties": {
         "pages": {
           "description": "the pages with elements in it (page strata: its pages)",
@@ -397,7 +397,7 @@
       "properties": {
         "tokenizer": {
           "default": "whitespace",
-          "description": "linecaster.scoring.tokens",
+          "description": "linecaster.evaluation.tokens",
           "enum": [
             "whitespace",
             "uax29",
@@ -408,7 +408,7 @@
         },
         "version": {
           "default": 1,
-          "description": "the version of the word metrics' rules (linecaster.scoring.WORDS_VERSION): 1 dropped combining marks, 2 keeps them in their words",
+          "description": "the version of the word metrics' rules (linecaster.evaluation.WORDS_VERSION): 1 dropped combining marks, 2 keeps them in their words",
           "title": "Version",
           "type": "integer"
         }
@@ -544,7 +544,7 @@
       "additionalProperties": {
         "$ref": "#/$defs/EvidenceSlice"
       },
-      "description": "the rates on slices of the pages: those with tables, formulas, neither (linecaster.scoring.slices)",
+      "description": "the rates on slices of the pages: those with tables, formulas, neither (linecaster.evaluation.slices)",
       "title": "Slices",
       "type": "object"
     },
@@ -555,7 +555,7 @@
         },
         "type": "object"
       },
-      "description": "the rates by stratum: dimension (pages:<dimension> for page rates) -> value -> rates (linecaster.scoring.strata)",
+      "description": "the rates by stratum: dimension (pages:<dimension> for page rates) -> value -> rates (linecaster.evaluation.strata)",
       "title": "Strata",
       "type": "object"
     },

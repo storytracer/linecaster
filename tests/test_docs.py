@@ -39,7 +39,7 @@ def _own_pipeline_snippet() -> str:
 def test_the_readme_pipeline_builds_and_checks(tmp_path, monkeypatch):
     """The snippet as written, up to the executor: its ``run()`` builds the plan and checks it instead (no engine
     loads before a component's warm-up, so none is needed)."""
-    from linecaster.runtime.builder import build
+    from linecaster.execution.builder import build
 
     plans = []
 

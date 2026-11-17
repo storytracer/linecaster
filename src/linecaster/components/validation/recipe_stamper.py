@@ -1,5 +1,5 @@
 """``RecipeStamper``: the recipe a run followed, on every step of every page (``Annotator.recipe``).
-The builder (``build(..., recipe=...)``, which ``linecaster.runtime.run.main`` calls for ``--recipe``) puts it before
+The builder (``build(..., recipe=...)``, which ``linecaster.execution.run.main`` calls for ``--recipe``) puts it before
 the first writer, so the page records and every ALTO, PAGE-XML and hOCR file name the recipe and its hash
 next to each preset. Before an item writer it stamps the pages of each item record.
 """

@@ -89,7 +89,7 @@ def test_model_components_take_their_parts_from_the_preset_or_the_engine():
 
 def test_served_backends_carry_the_preset(monkeypatch):
     import linecaster.catalog.registry as registry
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     class R:
         ref, sha256 = "pp-doclayoutv3", "sha256:" + "0" * 64
@@ -104,7 +104,7 @@ def test_served_backends_carry_the_preset(monkeypatch):
 
 
 def test_chat_recognizers():
-    from linecaster.adapters import chat_model
+    from linecaster.engines.chat import chat_model
     from linecaster.components.recognition import PageRecognizer, RegionRecognizer
 
     from linecaster.backends import Chat
@@ -238,9 +238,9 @@ def test_the_two_shapes():
 
 def _one_of_each(tmp_path) -> list:
     """One component of every class in ``linecaster.components``, with what its constructor needs."""
-    from linecaster.adapters import chat_model
+    from linecaster.engines.chat import chat_model
     from linecaster.backends import Chat
-    from linecaster.runtime.secrets import EnvVar
+    from linecaster.execution.secrets import EnvVar
 
     served = Served("https://api.example.org/v1", model="m", api_key=EnvVar("LC_TEST_KEY"), headers={"X-Team": "ocr"})
     needs = {
@@ -281,9 +281,9 @@ def test_every_component_family_goes_into_the_run_record_as_built(tmp_path, monk
 
     from linecaster.components.composites import ModularTranscriber
     from linecaster.catalog import yamlio
-    from linecaster.runtime import provenance
-    from linecaster.runtime.builder import build
-    from linecaster.runtime.record import RunRecord
+    from linecaster.execution import provenance
+    from linecaster.execution.builder import build
+    from linecaster.execution.record import RunRecord
 
     monkeypatch.setenv("LC_TEST_KEY", "s3cret-value")
     components = _one_of_each(tmp_path)

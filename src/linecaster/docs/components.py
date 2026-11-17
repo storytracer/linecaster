@@ -141,7 +141,7 @@ def positions(components: list[ComponentDoc]) -> dict[str, tuple[list[str], list
 
 
 def used_in(repo: Path | None) -> dict[str, list[code.Pipeline | Path]]:
-    """Component name -> the pipelines whose shapes (``linecaster.pipelines``) construct it (a call of the name), found
+    """Component name -> the pipelines whose shapes (``linecaster.templates``) construct it (a call of the name), found
     with ``ast``."""
     out: dict[str, list] = {}
     for pl in sorted(code.pipelines(repo).values(), key=lambda pl: pl.shape.name):

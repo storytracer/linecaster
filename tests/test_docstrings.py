@@ -18,7 +18,7 @@ from linecaster.docs.components import FAMILIES
 
 ENGINES = "linecaster.engines"
 BACKENDS = ("linecaster.backends:InProcess", "linecaster.backends:Served", "linecaster.backends:Chat")
-FUNCTIONS = ("linecaster.runtime.builder:build", "linecaster.runtime.builder:run_pages", "linecaster.runtime.run:main")
+FUNCTIONS = ("linecaster.execution.builder:build", "linecaster.execution.builder:run_pages", "linecaster.execution.run:main")
 CATALOG = ("linecaster.catalog:catalog", "linecaster.catalog:engine_class", "linecaster.catalog:engine_ids",
            "linecaster.catalog:engine_spec")
 SERIALIZERS = tuple(f"linecaster.formats:{n}" for n in importlib.import_module("linecaster.formats").__all__)

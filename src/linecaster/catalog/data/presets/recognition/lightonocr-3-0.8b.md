@@ -10,7 +10,7 @@ sampling, repair, serve flags).
   grounding writes about 25 % more tokens than transcription; a different cap waits for a measurement).
 - The completion: a placeholder `![label](x1,y1,x2,y2)` before each block, its box in 0-1000 page coordinates, then
   its content (Markdown; tables HTML). linecaster makes one region per block (adapter `lighton-ocr-3-grounding`,
-  `linecaster.adapters.lighton_grounding`), the boxes scaled to the page image read, in the order emitted:
+  `linecaster.engines.chat.lighton_grounding`), the boxes scaled to the page image read, in the order emitted:
   each block's content role: `header`, `footer` and `page_number` are `header`, `footer` and `page_number` (a page
   number's Docling label is `page_header` in the top 15 % of the page and `page_footer` below, as PP-DocLayout's
   page numbers); `aside_text` is `marginalia` (body text under the default policy); `title` is `heading` at the

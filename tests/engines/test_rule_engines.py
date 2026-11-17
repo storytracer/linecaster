@@ -1,7 +1,7 @@
 """The built-in engines of the rule-based steps (``linecaster.engines``): registered in-process only under their
 ids, described by the docs, options with today's constants as defaults, every option in effect, and the decisions
 the recomposition records. (The recomposition and composition against the legacy builder:
-``tests/blocks/composition/test_recomposition_parity.py``.)"""
+``tests/components/document/test_recomposition_parity.py``.)"""
 import inspect
 import io
 
@@ -62,8 +62,8 @@ def test_options_default_to_todays_constants():
     from linecaster.engines import (LinkedDocumentEngine, RatiosHierarchyEngine, UnicodeParagraphsEngine,
                                     WebpLosslessImageEngine)
     from linecaster.images.convert import to_working_webp
-    from linecaster.text import recomposition as R
-    from linecaster.text import typography as T
+    from linecaster.engines.paragraphs import rules as R
+    from linecaster.engines.hierarchy import rules as T
 
     o = RatiosHierarchyEngine.Options()
     assert (o.page_number_min_conf, o.demote, o.split, o.max_headline_rows) == (
@@ -113,7 +113,7 @@ def _typography_page():
 
 def test_typography_is_the_retyper_and_records_its_step():
     from linecaster.engines import RatiosHierarchyEngine
-    from linecaster.text.typography import retype
+    from linecaster.engines.hierarchy.rules import retype
 
     want, got = _typography_page(), _typography_page()
     n = len(want.annotators)

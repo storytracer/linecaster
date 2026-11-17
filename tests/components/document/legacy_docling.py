@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 from linecaster.data.geometry import BBox, bbox_of
 from linecaster.data.transcription import Transcription
-from linecaster.text.recomposition import Row
+from linecaster.engines.paragraphs.rules import Row
 
 TEXT_LABELS = {
     "text": "text", "paragraph": "text", "title": "title", "section_header": "section_header",

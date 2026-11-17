@@ -10,8 +10,8 @@ from linecaster.errors import CatalogError, LinecasterError, PageError, Pipeline
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "linecaster"
 #: where an error becomes an exit code: the ``linecaster`` command and a pipeline script's ``main``
-COMMAND_LINE = {("cli.py", None), ("runtime/run.py", "main"), ("runtime/run.py", "recipe"),
-                ("runtime/run.py", "interrupted")}          # main's end after a Ctrl-C
+COMMAND_LINE = {("cli.py", None), ("execution/run.py", "main"), ("execution/run.py", "recipe"),
+                ("execution/run.py", "interrupted")}          # main's end after a Ctrl-C
 
 
 def test_the_hierarchy():
@@ -67,7 +67,7 @@ def test_the_rule_finds_an_exit():
 def test_library_errors_are_linecaster_errors(tmp_path):
     from linecaster.components.readers.images import ImageFolderReader
     from linecaster.catalog.registry import catalog
-    from linecaster.runtime import jobs, run
+    from linecaster.execution import jobs, run
 
     with pytest.raises(CatalogError):
         catalog().preset("no-such-preset")

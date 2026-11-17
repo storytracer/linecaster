@@ -32,7 +32,7 @@ Two optional parts of the rule, which leave every selection without them as it w
   every page of an item is on the same side, an added item moves no other, and another seed gives other splits.
   ``split`` names the one a sample takes (``split_of`` says where any item is);
 * **strata** (``stratify``): a value per page the caller supplies (a mapping of page ids, or a function of the item
-  and page ids: the language a ground truth records, ``linecaster.scoring.truth.page_values``), and each value's
+  and page ids: the language a ground truth records, ``linecaster.evaluation.truth.page_values``), and each value's
   pages, its stratum, sampled apart by steps 2 to 4: ``per_stratum`` pages of each stratum, or ``pages`` (N) shared in
   proportion to the strata's pages in the listing (largest remainders, ties by the stratum's value), or neither (the
   rule's ``items`` and ``per_item`` in each stratum). The strata's pages together, in the order of the hashes above.
@@ -307,7 +307,7 @@ class Sample:
         return {(s.item_id, s.page_id) for s in self.selected}
 
     def record(self) -> dict:
-        """The run record's ``sample`` section (``linecaster.runtime.record.SampleRecord``)."""
+        """The run record's ``sample`` section (``linecaster.execution.record.SampleRecord``)."""
         extra = {"split_hash": SPLIT_HASH} if self.rule.splits is not None else {}
         return {"rule": RULE, "hash": HASH, **extra, **self.rule.to_dict(), "listing": dict(self.listing),
                 "selected": {"items": len({s.item_id for s in self.selected}), "pages": len(self.selected),

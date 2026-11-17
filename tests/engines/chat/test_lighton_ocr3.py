@@ -1,0 +1,118 @@
+"""The LightOnOCR-3 specs (4B and 0.8B): request body, serve flags and parse, after the model card."""
+from __future__ import annotations
+
+import base64
+import io
+
+import pytest
+from PIL import Image
+
+from linecaster.engines.chat import chat_model
+from linecaster.components.servers.serve import VLMServer
+from linecaster.data.transcription import Transcription
+
+REVISIONS = {"lightonai/LightOnOCR-3-4B": "b71010f095dc3735de7ee6b9969bff8f8f50b39a",
+             "lightonai/LightOnOCR-3-0.8B": "36d8636925327c671bd8e479c517a004f7566bd9"}
+#: each model's plain-mode preset (the card's transcription call; the bare preset runs grounding mode)
+PLAIN = {"lightonai/LightOnOCR-3-4B": "lightonocr-3-4b-plain", "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b-plain"}
+
+
+def image(w: int, h: int, fmt: str = "WEBP", mode: str = "L") -> bytes:
+    buf = io.BytesIO()
+    Image.new(mode, (w, h), 200).save(buf, format=fmt)
+    return buf.getvalue()
+
+
+def sent_png(body: dict) -> bytes:
+    url = body["messages"][0]["content"][0]["image_url"]["url"]
+    assert url.startswith("data:image/png;base64,")
+    return base64.b64decode(url.split(",", 1)[1])
+
+
+def reference_encode_png(data: bytes) -> bytes:
+    """The reference implementation's ``encode_png``, verbatim apart from the input handling."""
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    img.thumbnail((2048, 2048))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@pytest.mark.parametrize("model", list(REVISIONS))
+def test_registry_and_revisions(model):
+    spec = chat_model(model)
+    # a model's Hugging Face id is its bare preset: grounding mode, linecaster's default for LightOnOCR-3
+    assert spec.adapter == "lighton-ocr-3-grounding" and spec.preset == {
+        "lightonai/LightOnOCR-3-4B": "lightonocr-3-4b", "lightonai/LightOnOCR-3-0.8B": "lightonocr-3-0.8b"}[model]
+    assert spec.model == model and spec.revision == REVISIONS[model]
+
+
+@pytest.mark.parametrize("size, expected", [
+    ((3000, 4000), (1536, 2048)),    # portrait, downscaled
+    ((4000, 3000), (2048, 1536)),    # landscape
+    ((700, 1000), (700, 1000)),      # smaller than 2048: NOT upscaled (thumbnail)
+    ((2048, 1000), (2048, 1000)),    # already at the target: untouched
+])
+def test_request_thumbnails_to_2048(size, expected):
+    im = Image.open(io.BytesIO(sent_png(chat_model("lightonocr-3-4b-plain").request(image(*size)))))
+    assert im.format == "PNG" and im.mode == "RGB" and im.size == expected
+
+
+@pytest.mark.parametrize("fmt, mode", [("JPEG", "RGB"), ("WEBP", "L"), ("PNG", "RGBA")])
+def test_request_image_bytes_equal_the_reference(fmt, mode):
+    data = image(2600, 3900, fmt, mode)
+    sent, reference = sent_png(chat_model("lightonocr-3-0.8b-plain").request(data)), reference_encode_png(data)
+    with Image.open(io.BytesIO(sent)) as a, Image.open(io.BytesIO(reference)) as b:   # zlib's level differs, the
+        assert a.size == b.size and a.mode == b.mode and a.tobytes() == b.tobytes()  # pixels are the reference's
+
+
+@pytest.mark.parametrize("model", list(REVISIONS))
+def test_request_body_is_the_reference(model):
+    body = chat_model(PLAIN[model]).request(image(800, 1200, "JPEG"))
+    assert set(body) == {"model", "messages", "max_tokens", "temperature", "top_p", "chat_template_kwargs"}
+    assert body["model"] == model
+    assert len(body["messages"]) == 1 and body["messages"][0]["role"] == "user"
+    content = body["messages"][0]["content"]
+    assert len(content) == 1 and content[0]["type"] == "image_url"      # image only, no text part
+    assert (body["max_tokens"], body["temperature"], body["top_p"]) == (4096, 0.2, 0.9)
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+@pytest.mark.parametrize("model", list(REVISIONS))
+def test_serve_args_match_the_card(model):
+    args = chat_model(model).vllm_args(0.8)
+    assert args[:2] == ["--revision", REVISIONS[model]]
+    context = {"lightonai/LightOnOCR-3-4B": "16384", "lightonai/LightOnOCR-3-0.8B": "18000"}[model]
+    for flag in (["--max-model-len", context],
+                 ["--default-chat-template-kwargs", '{"enable_thinking": false}'],
+                 ["--limit-mm-per-prompt", '{"image": 1, "video": 0}'],
+                 ["--mm-processor-cache-gb", "0"], ["--gpu-memory-utilization", "0.8"]):
+        i = args.index(flag[0])
+        assert args[i:i + 2] == flag
+    assert "--no-enable-prefix-caching" in args and "--trust-remote-code" not in args
+    assert "--served-model-name" not in args
+    cmd = VLMServer(chat_model(model), port=8123).command()
+    assert cmd[:3] == ["vllm", "serve", model]
+
+
+def test_the_08b_serves_its_context():
+    new = chat_model("lightonocr-3-0.8b-plain")
+    assert new.preset == "lightonocr-3-0.8b-plain"
+    assert new.flag("--max-model-len") == "18000" and new.served_context() == 18000
+    assert new.repair_temperature == 0.1
+    # a 2048-px page: at most 64 x 64 image tokens, and the margin for the text
+    assert new.max_prompt_tokens() == 4096 + 64
+
+
+def test_parse_keeps_the_completion_verbatim():
+    raw = "\n# THE HAWFINCH\n\nnest itself  \n"
+    body = {"choices": [{"message": {"role": "assistant", "content": raw}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 3100, "completion_tokens": 9}}
+    t = chat_model("lightonocr-3-0.8b-plain").parse(body, backend="served x")
+    assert t.outputs[0].content == raw and t.text == raw                       # not even a strip
+    m = t.annotators[0]
+    assert (m.name, m.revision) == ("lightonai/LightOnOCR-3-0.8B", REVISIONS["lightonai/LightOnOCR-3-0.8B"])
+    assert m.measurements == {"prompt_tokens": 3100, "completion_tokens": 9, "finish_reason": "stop"}
+    assert m.settings["image"]["longest_side_px"] == 2048 and m.settings["prompt"] is None
+    assert m.settings["chat_template_kwargs"] == {"enable_thinking": False}
+    assert Transcription.model_validate_json(t.model_dump_json()) == t

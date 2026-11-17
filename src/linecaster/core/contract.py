@@ -1,5 +1,5 @@
 """Component contracts: what one call of a component processes (its unit) and what it reads, adds, replaces and removes in
-the record. The builder (``linecaster.runtime.builder``) checks a pipeline's contracts before it runs and derives its
+the record. The builder (``linecaster.execution.builder``) checks a pipeline's contracts before it runs and derives its
 graph from them (``docs/reference/pipelines.md``).
 
 A part is a name of the ``PARTS`` vocabulary (``linecaster.catalog.schema``) and the transcription it belongs to

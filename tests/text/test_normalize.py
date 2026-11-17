@@ -1,4 +1,4 @@
-"""Normalizations and strategies (catalog kinds, linecaster.text.normalize): each rule on hand-made cases, the lanes
+"""Normalizations and strategies (catalog kinds, linecaster.normalization.rules): each rule on hand-made cases, the lanes
 rebuilt from normalizations giving the old lanes' output, latin-historic giving the old normalization table's."""
 import random
 
@@ -6,8 +6,8 @@ import pytest
 
 from linecaster.catalog.registry import catalog
 from linecaster.errors import CatalogError
-from linecaster.text.latex import latex_text
-from linecaster.text.normalize import StructureRule, apply_rule
+from linecaster.normalization.latex import latex_text
+from linecaster.normalization.rules import StructureRule, apply_rule
 
 # ---- the lanes as linecaster 0.9 computed them (frozen here: the reference the strategies must match) ----
 import re  # noqa: E402

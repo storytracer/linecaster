@@ -256,7 +256,7 @@ SlurmPipelineExecutor(
 
 Every component declares what it reads and adds, so a pipeline is checked before it starts: a recognizer without
 lines fails at once, with every problem listed. Put the script in `pipelines/` with the `# /// script` component of
-`pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.runtime.run.main` to get
+`pipelines/transcribe_modular.py` (it brings the engines) and build it with `linecaster.execution.run.main` to get
 the pipelines' command line on every machine. The [pipelines reference](docs/reference/pipelines.md) covers
 backends, partial runs (`--until`, `--after`) and the builder.
 

@@ -312,7 +312,7 @@ def test_image_bytes_of_a_page_without_image_media_is_a_page_error():
 def test_uri_map_option_reaches_the_page_records_reader(tmp_path):
     """``--uri-map PREFIX=REPLACEMENT`` (repeatable) gives ``--pages`` its ``uri_map``: images that moved since the
     records were written; a malformed value, or the option without ``--pages``, is refused."""
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(["--pages", str(tmp_path), "OUT", "--uri-map", "/old/images=/new/images",

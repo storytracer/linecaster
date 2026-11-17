@@ -257,7 +257,7 @@ def test_http_image_paths_in_parquet(server, tmp_path):
 
 
 def test_run_options(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(["--manifests", f"{tmp_path}/m.txt", "OUT", "--rate-limit", "5/1",

@@ -11,9 +11,9 @@ from linecaster.core.page import page_of
 from linecaster.components.recognition.page_recognizer import PageRecognizer
 from linecaster.components.servers.service import VendorServer
 from linecaster.errors import PipelineConfigError, ServerError
-from linecaster.pipelines import transcribe_page
-from linecaster.runtime import run
-from linecaster.runtime.provenance import functional_component
+from linecaster.templates import transcribe_page
+from linecaster.execution import run
+from linecaster.execution.provenance import functional_component
 from linecaster.testing import check_engine, fake_service, sample_documents
 from linecaster.testing.fakes import FakePageEngine
 

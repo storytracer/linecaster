@@ -22,7 +22,7 @@ def _page(blocks: list[tuple[str, list[str]]]) -> Transcription:
 
 
 def _grid() -> Table:
-    """A data table (``linecaster.scoring.tables``): a heading over two columns, then two rows of text."""
+    """A data table (``linecaster.evaluation.tables``): a heading over two columns, then two rows of text."""
     cells = [Cell(start_row=0, end_row=1, start_col=0, end_col=2, text="Officers & offices", column_header=True),
              Cell(start_row=1, end_row=2, start_col=0, end_col=1, text="Sarah C. Mink"),
              Cell(start_row=1, end_row=2, start_col=1, end_col=2, text="President"),

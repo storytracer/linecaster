@@ -156,7 +156,7 @@ def summarize(spans: list[dict], by: str = "component", slowest: int = 10) -> di
                 g["request"].append(c["seconds"])
                 for sc in children[(c["trace"], c["span"])]:
                     kind = sc["name"].rsplit(".", 1)[-1]
-                    if sc["name"].startswith("linecaster.serve.") and kind in ("queue", "decode", "model"):
+                    if sc["name"].startswith("linecaster.serving.") and kind in ("queue", "decode", "model"):
                         g[kind].append(sc["seconds"])
     component_rows = {}
     for name, g in groups.items():

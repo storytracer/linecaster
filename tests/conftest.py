@@ -17,11 +17,11 @@ from linecaster.testing.markers import pytest_collection_modifyitems, pytest_con
 
 @pytest.fixture(autouse=True)
 def vendor_requests_for_adapters(request, monkeypatch):
-    """Under ``tests/adapters`` requests are compared with the model vendors' (cards, reference scripts), which do not
+    """Under ``tests/engines/chat`` requests are compared with the model vendors' (cards, reference scripts), which do not
     send vLLM's ``repetition_detection``: the module's ``chat_model`` builds adapters with it off unless a test sets it
     (``tests/components/recognition/test_repetition_detection.py`` covers it, on by default)."""
     chat_model = getattr(request.module, "chat_model", None)
-    if "adapters" not in request.node.path.parts or chat_model is None:
+    if "chat" not in request.node.path.parts or chat_model is None:
         return
 
     def without_detection(*args, overrides=None, **kwargs):
@@ -33,9 +33,9 @@ def vendor_requests_for_adapters(request, monkeypatch):
 @pytest.fixture(autouse=True)
 def pillow_decoding_for_adapters(request):
     """The adapters' requests are compared with their reference scripts' own, which decode with Pillow: under
-    ``tests/adapters`` pages are decoded with Pillow (``image_decode`` ``cpu``); ``tests/images/test_pixels.py``
+    ``tests/engines/chat`` pages are decoded with Pillow (``image_decode`` ``cpu``); ``tests/images/test_pixels.py``
     covers the GPU."""
-    if "adapters" not in request.node.path.parts:
+    if "chat" not in request.node.path.parts:
         yield
         return
     from linecaster.images import pixels

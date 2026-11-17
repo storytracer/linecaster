@@ -18,5 +18,5 @@ block).
   install fails if vLLM moved off 0.26.0). The plugin's one-token MTP speculative decoding stays on, as the card
   serves it. The image is `vllm/vllm-openai:v0.26.0` by its amd64 digest.
 - The completion (coordinate tokens, `<class_*>` tokens and Markdown text) is stored verbatim;
-  `linecaster.adapters.nemotron_parse35.to_markdown` renders it as the vendor's `render_markdown` from the model
+  `linecaster.engines.chat.nemotron_parse35.to_markdown` renders it as the vendor's `render_markdown` from the model
   repo does.

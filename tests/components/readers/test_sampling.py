@@ -20,8 +20,8 @@ from linecaster.catalog import yamlio
 from linecaster.data.page import PAGE_SCHEMA
 from linecaster.data.sample import SampleRule, sample_pairs
 from linecaster.errors import PipelineConfigError
-from linecaster.runtime import run
-from linecaster.runtime.record import RunRecord
+from linecaster.execution import run
+from linecaster.execution.record import RunRecord
 from linecaster.testing import sample_png
 
 RULE = SampleRule(pages=12, per_item=3, seed=7)
@@ -358,7 +358,7 @@ def test_sample_options_that_do_not_fit_the_input_are_refused(argv, message, cap
 
 
 def test_bind_reads_a_sample_of_its_page_records():
-    from linecaster.pipelines import bind
+    from linecaster.templates import bind
 
     p = run.describe(bind, ["OUT1/pages", "OUT2", *PRESETS, "--sample-items", "2"])
     reader = p.components[0]

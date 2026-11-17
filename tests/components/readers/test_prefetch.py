@@ -279,7 +279,7 @@ def test_a_harvest_with_a_dead_link_finishes_with_the_page_in_records_and_reject
 
     from linecaster.components.writers.images import ImageFilesWriter
     from linecaster.components.writers.records import PageJsonlWriter
-    from linecaster.runtime.builder import build
+    from linecaster.execution.builder import build
 
     slow_server["delay"] = 0
     out = tmp_path / "out"
@@ -304,7 +304,7 @@ def test_a_harvest_with_a_dead_link_finishes_with_the_page_in_records_and_reject
 
 
 def test_there_is_no_prefetch_option(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     with pytest.raises(SystemExit):
@@ -450,7 +450,7 @@ def test_a_reuse_listing_that_hangs_is_given_up_and_the_pages_fetched(slow_serve
 
 
 def test_the_console_counts_reused_pages_as_done_but_not_in_the_rate():
-    from linecaster.runtime.console import Console
+    from linecaster.execution.console import Console
 
     c = Console("harvest", tasks=1, total=10, live=False)
     for _ in range(4):

@@ -1,6 +1,6 @@
 """The import rules. The data model, the formats, the text transforms, the image helpers and the built-in rule-based
 engines and the scorer (every module of ``linecaster.data``, ``linecaster.formats``, ``linecaster.text``,
-``linecaster.images``, ``linecaster.engines`` and ``linecaster.scoring``) load neither datatrove nor saturate, nor linecaster's components or runtime; checked in a fresh
+``linecaster.images``, ``linecaster.engines`` and ``linecaster.evaluation``) load neither datatrove nor saturate, nor linecaster's components or runtime; checked in a fresh
 interpreter, so nothing another test imported counts. The engine packages (``engines/*``) import from linecaster
 only the data model and the engine API (``linecaster.engines.api``), read with ``ast``."""
 import ast
@@ -9,9 +9,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-LIGHT = ("linecaster.data", "linecaster.formats", "linecaster.text", "linecaster.images", "linecaster.engines",
-         "linecaster.scoring")
-HEAVY = ("datatrove", "saturate", "linecaster.components", "linecaster.runtime")
+LIGHT = ("linecaster.data", "linecaster.formats", "linecaster.text", "linecaster.normalization", "linecaster.conventions",
+         "linecaster.document", "linecaster.images", "linecaster.engines",
+         "linecaster.evaluation")
+HEAVY = ("datatrove", "saturate", "linecaster.components", "linecaster.execution")
 
 CHECK = f"""
 import importlib, json, pkgutil, sys
@@ -62,5 +63,5 @@ def test_engine_packages_use_only_the_engine_api():
 def test_the_rule_finds_an_internal_import(tmp_path):
     f = tmp_path / "x.py"
     f.write_text("from linecaster.catalog.fetch import hf_file\nimport linecaster.data\n"
-                 "def g():\n    from linecaster import runtime\n")
-    assert linecaster_imports(f) == [(1, "linecaster.catalog.fetch"), (2, "linecaster.data"), (4, "linecaster.runtime")]
+                 "def g():\n    from linecaster import execution\n")
+    assert linecaster_imports(f) == [(1, "linecaster.catalog.fetch"), (2, "linecaster.data"), (4, "linecaster.execution")]

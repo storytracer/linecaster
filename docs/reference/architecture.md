@@ -25,18 +25,18 @@ built on top of it.
 | `linecaster.data` | the data model: `Item`, `Page`, `PageImage`, annotation sets (`AnnotationSet`, `Transcription`) with their annotators (`Annotator`), raw outputs (`RawOutput`) and annotations, `Text`, rendering policies (`RenderingPolicy`), the measurements vocabulary |
 | `linecaster.formats` | ALTO, PAGE-XML and hOCR out and in; HTML in (`HtmlConverter`, by HTML's semantics and a source's conventions); plain text in; DoclingDocuments in (the `docling` extra); the IIIF annotation page |
 | `linecaster.document` | a page's or an item's document (`Document`, its components and their origins), built from transcriptions (`DocumentBuilder`) and written as HTML, Markdown, text and JSON |
-| `linecaster.markup` | conventions: their format (`linecaster.conventions`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
+| `linecaster.conventions` | conventions: their format (`linecaster.conventions`), layering, decisions, matchers (CSS selectors, JSONPath, regular expressions), coverage, and anchors into a source text by alignment |
 | `linecaster.text` | the text transforms: typography, recomposition, the normalizations' rules on characters, offsets through a change of text, a page's literal text |
 | `linecaster.images` | the working image, plots |
 | `linecaster.engines` | the built-in engines: the rule-based steps and the single-region layout |
 | `linecaster.components` | the components by family ([components](../components/README.md)) |
 | `linecaster.backends` | `InProcess`, `Served`, `Chat` |
-| `linecaster.adapters` | one adapter per VLM family, `ADAPTERS` |
-| `linecaster.serve` | `linecaster serve` |
+| `linecaster.engines.chat` | one adapter per VLM family, `ADAPTERS` |
+| `linecaster.serving` | `linecaster serve` |
 | `linecaster.net` | http(s) fetching (`linecaster.net.http`), the HTTP policy, the proxy pools ([http](http.md)) |
-| `linecaster.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
-| `linecaster.runtime` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
-| `linecaster.pipelines` | the pipeline shapes, one per pipeline script ([pipelines](pipelines.md#pipeline-shapes)) |
+| `linecaster.net.broker` | the [broker](broker.md): leases, marks and worker slots in a shared folder; `linecaster broker` |
+| `linecaster.execution` | the builder, the pipelines' command line, executors, the run record, Jobs helpers, secrets, logs |
+| `linecaster.templates` | the pipeline shapes, one per pipeline script ([pipelines](pipelines.md#pipeline-shapes)) |
 | `linecaster.catalog` | the catalog: its entries (normalizations and strategies among them), schemas, index, fetching pins, the docs of its entries |
 | `linecaster.tracing` | tracing (OpenTelemetry) and `linecaster traces` |
 | `linecaster.docs` | `linecaster docs`: the generated pages |
@@ -90,7 +90,7 @@ number of tasks or the backend.
   the worker (Indra OCR), a vendor's package attached to a vLLM server (Surya OCR), or a client of a vendor's page
   pipeline behind its own HTTP API (Falcon-OCR, OXR). A VLM is a catalog preset
   (engine `chat.v1`; its data: revision, prompt, sampling, serve block) plus an adapter in
-  `linecaster.adapters.ADAPTERS` (its code: the request, the parsing; `chat_model(<preset>)`).
+  `linecaster.engines.chat.ADAPTERS` (its code: the request, the parsing; `chat_model(<preset>)`).
 - **Servers inside a task** (one GPU per HF Job): the server components `EngineServer` (`linecaster serve`) and
   `VLMServer` (vLLM or SGLang) start the server through saturate's `Engine` and go last in the pipeline,
   after the writer: datatrove chains generators, and only the last one lives until every page is written. Each
@@ -148,7 +148,7 @@ the index). Its
 environment and entry point is a uv script of its own, `recipes/<id>.py`: a PEP 723 block with `linecaster[ray]`
 and exactly the engine packages its presets need (recipe → presets → engines → packages:
 `linecaster.catalog.code.recipe_packages`), its lock, and a body that only calls
-`linecaster.runtime.run.recipe(__file__, "<id>")`, which runs the recipe through its pipeline shape with `--recipe`
+`linecaster.execution.run.recipe(__file__, "<id>")`, which runs the recipe through its pipeline shape with `--recipe`
 set. The pipeline scripts depend on no model choice (`pipelines/transcribe_modular.py` has PaddleX and Tesseract);
 the recipes bring theirs (`recipes/squiddle.py`: kraken and PaddleX).
 
@@ -166,7 +166,7 @@ zensical serve`.
 
 There are no environment folders: a pipeline is a self-contained uv script in `pipelines/` (a PEP 723 block, a
 `<script>.py.lock` next to it, `uv run <script>`) that runs one pipeline shape with slots, one script per shape,
-never one per machine. The shape is library code, `linecaster.pipelines.<name>` (its options, engines, components,
+never one per machine. The shape is library code, `linecaster.templates.<name>` (its options, engines, components,
 pipeline id and slots), so a derivative's script can run it in its own environment with its own defaults
 ([pipelines](pipelines.md#pipeline-shapes)):
 
@@ -181,7 +181,7 @@ pipeline id and slots), so a derivative's script can run it in its own environme
 | `import_transcriptions.py` | `import_transcriptions.v1` | transcriptions in any format read into page records by an importer, a ground truth by default |
 | `score.py` | `score.v1` | page records scored against a ground truth under a benchmark |
 
-`linecaster.runtime.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
+`linecaster.execution.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
 in-process|served`, `--endpoint` (a running server), `serve` (`linecaster serve` with the script's models), `ray`
 (Ray's CLI from the script's environment). Slots have no default presets: every slot is picked, or a recipe fills
 them (`--recipe`); `launch.py` runs a recipe or a page preset by name ([catalog](catalog.md#pipelines-recipes-and-launchpy)).
@@ -218,7 +218,7 @@ fixed in `tests/test_scripts.py` (`TORCH`), so it changes only on purpose:
 
 datatrove's `JobsPipelineExecutor` is experimental and dill-pickles the pipeline, so the launching machine and the
 Jobs run the same Python minor version (3.12). `uv run` outside a project drops `[tool.uv.sources]`:
-`linecaster.runtime.jobs.dependencies(commit, script)` spells out a pipeline's dependencies and sources as URLs, the
+`linecaster.execution.jobs.dependencies(commit, script)` spells out a pipeline's dependencies and sources as URLs, the
 installed packages' own sources from the script's lock (the commit must be pushed), and pins every other package at
 the lock's version; each Job runs a uv script that carries the pins and the script's overrides, which `uv run --with`
 would ignore ([pipelines](pipelines.md#hf-jobs-helpers)).

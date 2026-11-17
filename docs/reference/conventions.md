@@ -119,8 +119,8 @@ opt-in. Reason: libraries and archives run it on their own infrastructure under 
 loguru (datatrove's), with `{placeholder}` templates and named values, never formatted strings:
 `logger.warning("page {page_id} failed in {component}: {error}", page_id=..., component=..., error=...)` (the values land in
 the record's `extra`). JSON lines on Jobs: the pipeline scripts set `LINECASTER_LOG_JSON=1` in their Jobs, where the
-tasks (`linecaster.runtime.jobs.JobsExecutor`) and `linecaster serve` log with loguru's `serialize=True`
-(`linecaster.runtime.logs`). Log records carry `trace_id` and `span_id`. Reason: logs can be filtered and joined to
+tasks (`linecaster.execution.jobs.JobsExecutor`) and `linecaster serve` log with loguru's `serialize=True`
+(`linecaster.execution.logs`). Log records carry `trace_id` and `span_id`. Reason: logs can be filtered and joined to
 traces.
 
 ## Errors
@@ -133,7 +133,7 @@ linecaster can catch what went wrong, and a run's exit code says whether anythin
 
 ## Secrets
 
-A credential is never a value in a pipeline: it is an `EnvVar("NAME")` (`linecaster.runtime.secrets`), read in the
+A credential is never a value in a pipeline: it is an `EnvVar("NAME")` (`linecaster.execution.secrets`), read in the
 task. Reason: datatrove pickles the pipeline for every executor, and the run record lists every component's parameters.
 
 ## Changes

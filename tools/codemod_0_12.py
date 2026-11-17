@@ -40,6 +40,21 @@ MODULES: list[tuple[str, str]] = [
     ("linecaster.blocks.validation.recipe", "linecaster.components.validation.recipe_stamper"),
     ("linecaster.blocks.composites.modular", "linecaster.components.composites.modular_transcriber"),
     ("linecaster.blocks", "linecaster.components"),
+    ("linecaster.runtime", "linecaster.execution"),
+    ("linecaster.pipelines", "linecaster.templates"),
+    ("linecaster.markup", "linecaster.conventions"),
+    ("linecaster.scoring", "linecaster.evaluation"),
+    ("linecaster.adapters", "linecaster.engines.chat"),
+    ("linecaster.broker", "linecaster.net.broker"),
+    ("linecaster.serve", "linecaster.serving"),
+    ("linecaster.text.normalize", "linecaster.normalization.rules"),
+    ("linecaster.text.latex", "linecaster.normalization.latex"),
+    ("linecaster.text.formulas", "linecaster.normalization.formulas"),
+    ("linecaster.text.recomposition", "linecaster.engines.paragraphs.rules"),
+    ("linecaster.text.typography", "linecaster.engines.hierarchy.rules"),
+    ("linecaster.engines.recomposition", "linecaster.engines.paragraphs.engine"),
+    ("linecaster.engines.typography", "linecaster.engines.hierarchy.engine"),
+    ("linecaster.engines.composition", "linecaster.engines.document"),
 ]
 
 #: packages that were divided: old module -> the new module of each name imported from it
@@ -83,7 +98,7 @@ BLOCK_HOMES = ("linecaster.core", "linecaster.core.component")
 
 def _modules(text: str) -> str:
     for old, new in MODULES:
-        text = re.sub(rf"(?<![\w.]){re.escape(old)}(?![\w])", new, text)
+        text = re.sub(rf"(?<![\w.]){re.escape(old)}(?![\w/])", new, text)
     return text
 
 
@@ -96,7 +111,8 @@ def _names(text: str) -> str:
 def _steps(text: str) -> str:
     for old, new in STEPS:
         text = re.sub(rf"(?<![\w-]){old}(\.[a-z-]+\.v\d+)", rf"{new}\1", text)                 # engine ids
-        text = re.sub(rf"([\"'`]){old}(\1|\.[a-z_]+)", rf"\1{new}\2", text)                    # "id", `id`, "id.option"
+        if old != "typography":                 # also a normalization's id, which keeps its name
+            text = re.sub(rf"([\"'`]){old}(\1|\.[a-z_]+)", rf"\1{new}\2", text)                # "id", `id`, "id.option"
         text = re.sub(rf"--{old}(?![\w-])", f"--{new}", text)                                    # flags
         text = re.sub(rf"(?<!text)(?<!engines)(?<!\d)\.{old}(?![\w.(])", f".{new}", text)          # attributes
         text = re.sub(rf"^(\s*(?:step|{old}): ){old}$", rf"\1{new}", text, flags=re.M)            # step: id
@@ -127,6 +143,34 @@ def _split_imports(text: str) -> str:
     return "\n".join(lines)
 
 
+def _module_imports(text: str) -> str:
+    """``from linecaster import broker`` and the like: a moved module imported by name from its package, under the
+    name the code uses."""
+    moved = dict(MODULES)
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return text
+    lines = text.split("\n")
+    for node in sorted((n for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module and not n.level),
+                       key=lambda n: -n.lineno):
+        if not any(f"{node.module}.{a.name}" in moved for a in node.names):
+            continue
+        indent, new, kept = " " * node.col_offset, [], []
+        for a in node.names:
+            target = moved.get(f"{node.module}.{a.name}")
+            if target is None:
+                kept.append(a.name + (f" as {a.asname}" if a.asname else ""))
+                continue
+            parent, _, leaf = target.rpartition(".")
+            name = a.asname or a.name
+            new.append(f"{indent}from {parent} import {leaf}" + (f" as {name}" if name != leaf else ""))
+        if kept:
+            new.insert(0, f"{indent}from {node.module} import {', '.join(kept)}")
+        lines[node.lineno - 1:node.end_lineno] = new
+    return "\n".join(lines)
+
+
 def _pipeline_block(text: str) -> str:
     """``Block`` -> ``Component`` in a module that imports the pipeline's."""
     try:
@@ -146,6 +190,8 @@ def _fenced(text: str) -> str:
 
 
 def rewrite(text: str, python: bool) -> str:
+    if python:
+        text = _module_imports(text)
     text = _steps(_names(_modules(text)))
     return _pipeline_block(_split_imports(text)) if python else _fenced(text)
 

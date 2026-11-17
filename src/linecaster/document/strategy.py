@@ -4,7 +4,7 @@ one the builder makes (``linecaster.document.builder``).
 A strategy is ``literal`` (the document as it is) or an ordered list of normalizations (``linecaster.catalog``:
 ``Catalog.strategy``), each applied to every block in turn:
 
-- a character rule (``linecaster.text.normalize``) to a block's text and a table's cells (a formula block's LaTeX
+- a character rule (``linecaster.normalization.rules``) to a block's text and a table's cells (a formula block's LaTeX
   stays as it is);
 - ``edits``: the source's edits of those kinds (a block's edit spans: corrections, expansions, regularizations)
   written in place of the characters they read;
@@ -13,7 +13,7 @@ A strategy is ``literal`` (the document as it is) or an ordered list of normaliz
   next half with the same word ends it, on a later block or later in the same one): the first half left out (with
   the space before it at its row's end), the whole word where the second stands, a compound's own hyphen kept;
 - ``division_marks``: the division marks no source marked, resolved by a named method at each wrap: ``unicode-marks``
-  (squiddleocr's rule, ``linecaster.text.recomposition.resolve_mark``, the document's words as its lexicon): a mark
+  (squiddleocr's rule, ``linecaster.engines.paragraphs.rules.resolve_mark``, the document's words as its lexicon): a mark
   it removes is gone and the rows joined;
 - ``flow``: every wrap (``Block.wraps``: a break of the layout's) joined, by a space unless Unicode's line breaking
   joins the two words (``separator``); a row that still ends with a division mark is joined without a space, the
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import unicodedata
 
-from linecaster.text.normalize import apply_rule
+from linecaster.normalization.rules import apply_rule
 from linecaster.text.offsets import moved
 from linecaster.document.model import Block, Document
 
@@ -198,7 +198,7 @@ def _rows_at(text: str, w: int) -> tuple[str, str]:
 
 
 def _division_marks(doc: Document, method: str) -> None:
-    from linecaster.text.recomposition import Lexicon, ends_with_mark, resolve_mark
+    from linecaster.engines.paragraphs.rules import Lexicon, ends_with_mark, resolve_mark
 
     if method != "unicode-marks":
         raise ValueError(f"unknown division-mark method {method!r}")
@@ -215,7 +215,7 @@ def _division_marks(doc: Document, method: str) -> None:
 
 
 def _flow(b: Block) -> None:
-    from linecaster.text.recomposition import ends_with_mark, separator
+    from linecaster.engines.paragraphs.rules import ends_with_mark, separator
 
     if not b.wraps:
         return

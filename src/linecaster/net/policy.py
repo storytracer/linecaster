@@ -44,7 +44,7 @@ own options (``--rate-limit``, ``--proxies``, ``--user-agent``, ``--random-user-
 between them for ``file``). ``direct: true`` at a host means no proxies there (neither a file nor the environment's).
 A field at a host replaces the root's, it does not merge into it (``stop_on: [403]`` at a host drops the root's
 ``stop_on``). ``broker`` (root only) is the folder through which the workers share the proxies and their blocks
-(``linecaster.broker``; default ``OUT/logs/broker``). Hosts that use one proxy list must agree on its ``per_worker``.
+(``linecaster.net.broker``; default ``OUT/logs/broker``). Hosts that use one proxy list must agree on its ``per_worker``.
 Each host's settings get their own fetcher (``HTTPFetcher.shared``), so each host its own rate limits, breaker,
 pause and window; the proxies of one list are shared by a worker's fetchers. Fields of earlier versions fail with a
 ``PipelineConfigError`` that names the line to write instead (``MOVED``).
@@ -368,7 +368,7 @@ def rules(s: dict) -> str:
 
 class Fetchers:
     """A reader's fetchers (``linecaster.net.http.HTTPFetcher.shared``), one per host's settings, for every reader that
-    fetches over http(s): ``http`` (the run's settings, ``linecaster.runtime.run.http``) alone, or with ``http_policy``
+    fetches over http(s): ``http`` (the run's settings, ``linecaster.execution.run.http``) alone, or with ``http_policy``
     (a policy file) the policy's settings for the URL's host (``HTTPPolicy.http_for``, the run's settings between its
     root and its hosts). Each fetcher takes a new random User-Agent at a task's first request through it
     (``start_task``; with ``use_fake_user_agent``). ``last``: the fetcher of the latest request, for

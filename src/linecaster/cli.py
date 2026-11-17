@@ -9,7 +9,7 @@ from linecaster.errors import CatalogError, LinecasterError, PipelineConfigError
 
 
 def _serve(a) -> None:
-    from linecaster.serve import Hosted, serve
+    from linecaster.serving import Hosted, serve
 
     hosted = []
     if a.config:
@@ -50,7 +50,7 @@ def _traces(a) -> None:
 
 
 def _ago(seconds: float) -> str:
-    from linecaster.runtime.console import duration
+    from linecaster.execution.console import duration
 
     return duration(seconds).replace(" ", "")
 
@@ -61,9 +61,9 @@ def _table(rows: list[tuple]) -> list[str]:
 
 
 def render_broker(report: dict) -> str:
-    """Returns ``linecaster broker status``'s text for a ``linecaster.broker.survey_all`` report: the format, the
+    """Returns ``linecaster broker status``'s text for a ``linecaster.net.broker.survey_all`` report: the format, the
     workers, the slots per machine and per kind its resources held, free, blocked per scope and broken."""
-    from linecaster.broker import FORMAT
+    from linecaster.net.broker import FORMAT
     from linecaster.net.proxies import TURN
 
     now = report["now"]
@@ -107,7 +107,7 @@ def _broker(a) -> None:
 
 
 def _broker_action(a) -> None:
-    from linecaster import broker
+    from linecaster.net import broker
 
     if a.action == "status":
         report = broker.survey_all(a.path)
@@ -145,9 +145,9 @@ def _score(a) -> None:
 
     from linecaster.catalog import yamlio
     from linecaster.catalog.registry import rendering_policy
-    from linecaster.scoring.benchmark import read_benchmark
-    from linecaster.scoring.evidence import evidence, write_evidence
-    from linecaster.scoring.run import score_run, write_scores
+    from linecaster.evaluation.benchmark import read_benchmark
+    from linecaster.evaluation.evidence import evidence, write_evidence
+    from linecaster.evaluation.run import score_run, write_scores
 
     bench = read_benchmark(yamlio.read(a.benchmark))
     pages = Path(a.run) / "pages" if (Path(a.run) / "pages").is_dir() else Path(a.run)
@@ -369,7 +369,7 @@ def _truth_check(a) -> None:
     """``linecaster truth check``: what a ground truth's page records hold, per page and in total."""
     from pathlib import Path
 
-    from linecaster.scoring.truth import check, render
+    from linecaster.evaluation.truth import check, render
 
     ids = set(Path(a.ids).read_text(encoding="utf-8").split()) if a.ids else None
     report = check(a.truth, a.transcription, ids)
@@ -380,7 +380,7 @@ def _truth_check(a) -> None:
 
 def _truth_publish(a) -> None:
     """``linecaster truth publish``: a ground truth's page records as a Hub dataset (Parquet and a dataset card)."""
-    from linecaster.scoring.publish import publish
+    from linecaster.evaluation.publish import publish
 
     read_image = None
     if a.images is None and not a.no_images:
@@ -396,7 +396,7 @@ def _truth_publish(a) -> None:
 def _benchmark_init(a) -> None:
     """``linecaster benchmark init``: a benchmark definition from a ground truth's page records."""
     from linecaster.data.sample import SampleRule
-    from linecaster.scoring.truth import benchmark, write_benchmark
+    from linecaster.evaluation.truth import benchmark, write_benchmark
 
     splits = _fractions(a.split)
     limits = (a.sample, a.sample_items, a.sample_per_item, a.per_stratum)
@@ -547,7 +547,7 @@ def main(argv: list[str] | None = None) -> None:
     ex.add_argument("--truth-transcription", default="ground_truth", help="the ground truth's transcription")
     ex.add_argument("--ids", help="a file of page ids (one per line): only these pages")
     ex.add_argument("--tables", choices=["data", "all"], default="data",
-                    help="which tables are tables, on both sides: data (printed as tables; linecaster.scoring.tables) "
+                    help="which tables are tables, on both sides: data (printed as tables; linecaster.evaluation.tables) "
                          "or all")
     ex.add_argument("--strategy", help="an output strategy applied to every text of both sides (e.g. nfc)")
     _ground_truth_parsers(sub)
@@ -592,7 +592,7 @@ def main(argv: list[str] | None = None) -> None:
         if a.command == "page":
             _page(a, rest)
         elif a.command == "sample":
-            from linecaster.runtime import run
+            from linecaster.execution import run
 
             run.sample(rest)
         elif a.command == "serve":
@@ -627,7 +627,7 @@ def _export(a) -> None:
     from pathlib import Path
 
     from linecaster.formats.omnidocbench import export
-    from linecaster.scoring.run import read_truth, truth_ids
+    from linecaster.evaluation.run import read_truth, truth_ids
 
     ids = set(Path(a.ids).read_text().split()) if a.ids else truth_ids(a.truth)
     counts = export(a.out, read_truth(a.truth, ids), read_truth(a.pages, ids), a.transcription, a.truth_transcription,

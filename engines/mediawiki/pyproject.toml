@@ -12,7 +12,7 @@ dependencies = [
     # (it still needs pkg_resources)
     "wikitextprocessor @ git+https://github.com/tatuylonen/wikitextprocessor@6f96ddf5f3466707f1869fe6618390fd77dfd109",
     "lxml>=5",
-    # anchors into the source text (linecaster.markup.anchors)
+    # anchors into the source text (linecaster.conventions.anchors)
     "rapidfuzz>=3.9",
 ]
 

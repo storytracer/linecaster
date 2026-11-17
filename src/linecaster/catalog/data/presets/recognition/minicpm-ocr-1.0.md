@@ -19,7 +19,7 @@ region type. Here the layout comes from linecaster's layout step and `RegionReco
   an A40); 0.33.0 is the first release after the nightly the preset was validated on, 5d35ce3
   (`0.32.1rc1.dev602+g5d35ce393`, with transformers at OpenBMB's pin, in the image
   `cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3`), which is not on PyPI. `ninja` must be on PATH or the engine fails at startup.
-- `linecaster.adapters.minicpm_ocr.assemble_markdown` assembles the page with the SDK's own code (extra
+- `linecaster.engines.chat.minicpm_ocr.assemble_markdown` assembles the page with the SDK's own code (extra
   `linecaster[minicpm-ocr]`), keeping `footnote` and `aside_text`.
 
 Not reproduced: the SDK's PaddleX box filtering (`filter_overlap_boxes`) and its merging of aligned text

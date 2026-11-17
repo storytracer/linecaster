@@ -1,5 +1,5 @@
 """``ParagraphBuilder``: running text from the rows of a page's (or an item's pages') text regions, the transcription's
-``paragraphs`` (``recomposition.*`` engines; ``paragraphs.unicode.v1`` runs ``linecaster.text.recomposition``)."""
+``paragraphs`` (``recomposition.*`` engines; ``paragraphs.unicode.v1`` runs ``linecaster.engines.paragraphs.rules``)."""
 from __future__ import annotations
 
 from typing import Any

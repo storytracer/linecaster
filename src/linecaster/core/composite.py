@@ -1,5 +1,5 @@
 """``Composite``: a named group of components with its own outward contract. The builder
-(``linecaster.runtime.builder``) expands it into its components; the graph and the plan keep the group."""
+(``linecaster.execution.builder``) expands it into its components; the graph and the plan keep the group."""
 from __future__ import annotations
 
 from linecaster.errors import PipelineConfigError

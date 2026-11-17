@@ -10,7 +10,7 @@ from linecaster.components.paragraphs import ParagraphBuilder
 from linecaster.components.images import ImageFetcher
 from linecaster.components.readers import ImageFolderReader, PageRecordReader
 from linecaster.components.writers import ItemDocumentWriter, ItemTextWriter, PageFileWriter, PageJsonlWriter
-from linecaster.runtime.builder import build
+from linecaster.execution.builder import build
 
 
 def _docs(item="b1", count=True):

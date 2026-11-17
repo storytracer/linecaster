@@ -1,5 +1,5 @@
 """HTML -> transcription: ``HtmlConverter`` reads an HTML tree (lxml) into regions, lines, formatting, tables,
-formulas and notes, by HTML's own semantics and, where given, a source's conventions (``linecaster.markup``).
+formulas and notes, by HTML's own semantics and, where given, a source's conventions (``linecaster.conventions``).
 
 **HTML's semantics** (no conventions needed):
 
@@ -10,7 +10,7 @@ formulas and notes, by HTML's own semantics and, where given, a source's convent
   ``s``/``strike``/``del`` strikethrough, ``sup``/``sub`` script;
 - tables (``table``, ``tr``, ``td``/``th`` with ``rowspan``/``colspan``, ``caption``); pictures (``img`` with its
   ``src``, ``figure``, ``figcaption``); formulas (MathML ``math`` with ``alttext``, its LaTeX normalized by
-  ``linecaster.text.formulas``; a TeX ``annotation`` that differs is the formula's ``source``);
+  ``linecaster.normalization.formulas``; a TeX ``annotation`` that differs is the formula's ``source``);
 - ARIA and DPUB-ARIA roles: ``heading`` (with ``aria-level``) a heading, ``doc-pageheader`` and
   ``doc-pagefooter`` the page's furniture (header, footer), ``doc-footnote`` a note, ``doc-noteref`` a note's mark
   (not text);
@@ -27,7 +27,7 @@ formulas and notes, by HTML's own semantics and, where given, a source's convent
   that differ from it (consecutive runs with one value one span, without its spaces at either end). A ``lang`` that
   is no BCP 47 tag (``language_tag``) is skipped and counted (``HtmlReading.ill_formed_languages``).
 
-**Conventions** decide what a source's own markup means (``linecaster.markup.decisions``): a rule's decision on an
+**Conventions** decide what a source's own markup means (``linecaster.conventions.decisions``): a rule's decision on an
 element replaces HTML's meaning of it. ``HtmlConverter.DECISIONS`` are the decisions it applies.
 
 Every region and line is read by the people who wrote the source (``people``) unless the rule that made it says
@@ -45,14 +45,14 @@ from linecaster.data.transcription import (
     Annotator, Cell as TableCell, Description, Edit as EditAnnotation, Formatting, Formula, Link, Table, Transcription,
 )
 from linecaster.data.writing import language_tag
-from linecaster.markup.apply import Conventions, Coverage
-from linecaster.markup.decisions import (
+from linecaster.conventions.apply import Conventions, Coverage
+from linecaster.conventions.decisions import (
     Block, Break, Caption, Cell, Continues, Decision, Describe, Edit, Format, Invisible, Language, Note, Picture,
     Remove, RunsOn, Unwrap,
 )
-from linecaster.markup.matchers import TreeMatcher
-from linecaster.markup.resolve import ResolvedConventions
-from linecaster.text.formulas import clean as clean_formula, layout_brace
+from linecaster.conventions.matchers import TreeMatcher
+from linecaster.conventions.resolve import ResolvedConventions
+from linecaster.normalization.formulas import clean as clean_formula, layout_brace
 
 BLOCK_TAGS = frozenset({"p", "div", "center", "blockquote", "section", "article", "pre", "dd", "dt", "figure",
                         "dl", "ul", "ol", "address", "main", "nav", "aside", "header", "footer", "body", "html"})

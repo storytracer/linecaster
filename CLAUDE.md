@@ -69,7 +69,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
   lack.
 - **The data model, the formats, the text transforms, the image helpers, the built-in engines and the scorer**
   (`linecaster.data`, `linecaster.formats`, `linecaster.text`, `linecaster.images`, `linecaster.engines`,
-  `linecaster.scoring`) **import neither datatrove nor saturate, nor linecaster's components or runtime**
+  `linecaster.evaluation`) **import neither datatrove nor saturate, nor linecaster's components or runtime**
   (`tests/test_import_rule.py`). Derivatives and evaluations use them without the pipeline machinery.
 - **A light core**: no kraken, torch, PaddlePaddle, ONNX Runtime or vLLM in the core, not even as an extra, and no
   LiteLLM anywhere. The one exception to few core dependencies is OpenTelemetry (`opentelemetry-api`, `-sdk`,
@@ -102,7 +102,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **No environment folders: a pipeline is a self-contained uv script** (`pipelines/`, a PEP 723 block, a
   `<script>.py.lock` next to it), **one per pipeline shape, never one per machine.** The machine is the executor's
   business (`--on`), not the pipeline's.
-- **A pipeline script holds no pipeline code: it runs the pipeline shape of its name (`linecaster.pipelines.<name>`)**
+- **A pipeline script holds no pipeline code: it runs the pipeline shape of its name (`linecaster.templates.<name>`)**
   (`tests/test_scripts.py`). Derivatives' scripts then run the same shapes, and tests and the docs build them without
   the scripts' environments.
 - **After changing a script's metadata: `uv lock --script <script>`**; `tests/test_scripts.py` checks pins,
@@ -188,7 +188,7 @@ decisions are in `NOTES.md`, changes in `CHANGELOG.md`.
 - **Always a small smoke job before a full run.** A mistake then costs minutes, not a full run.
 - **The launching machine and the Jobs run the same Python minor version (3.12).** datatrove's experimental
   `JobsPipelineExecutor` dill-pickles the pipeline.
-- **A Job's dependencies come from `linecaster.runtime.jobs.dependencies(commit, script)`, and the commit must be
+- **A Job's dependencies come from `linecaster.execution.jobs.dependencies(commit, script)`, and the commit must be
   pushed.** `uv run --with` drops `[tool.uv.sources]`, so it spells out the script's sources and, from its lock, those
   of the packages it installs; it pins every other package at the lock's version, and the Job runs a uv script that
   carries the pins and the overrides (`uv run --with` ignores both). A Job then resolves what the lock holds.

@@ -26,7 +26,7 @@ a proxy list times the proxies the worker holds). Readers take pages as their re
 slow request (one being retried) delays only itself.
 
 With a proxy list (``proxy_file``: one proxy per line, ``read_proxies``) the workers share the proxies through the
-broker (``broker``, any fsspec folder; ``linecaster.broker``, ``linecaster.net.proxies``): each proxy has one worker
+broker (``broker``, any fsspec folder; ``linecaster.net.broker``, ``linecaster.net.proxies``): each proxy has one worker
 at a time, which holds its lease, and each worker holds a fair share of the free ones (``per_worker``:
 ``"share"``, the default), one (``1``) or up to N. The host's rate limits then hold per proxy, so per IP, as servers
 count them: its owner spaces the requests through it to a host by the strictest limit (``HTTPFetcher.interval``), and
@@ -959,7 +959,7 @@ class HTTPFetcher:
     Args:
         proxy_file: a proxy list (``read_proxies``); None: direct (or the environment's proxy settings).
         broker, default_broker, broker_run: the broker through which the workers share the proxies
-            (``linecaster.broker.shared``): ``broker``, else ``default_broker``; ``broker_run`` names the run.
+            (``linecaster.net.broker.shared``): ``broker``, else ``default_broker``; ``broker_run`` names the run.
         per_worker: how many proxies of the list the worker holds (``linecaster.net.proxies``): ``"share"``, 1 or N.
         block_on: what blocks (statuses and ``html``; default ``BLOCK_ON``): through proxies the proxy is left out
             for the host, direct the fetcher pauses (``Pause``).
@@ -1016,7 +1016,7 @@ class HTTPFetcher:
         self._no_proxy_since: dict[str, float] = {}        # host -> since when no proxy is usable there (``clock``)
         self._no_proxy_waiters: dict[str, int] = {}        # host -> requests waiting for a usable proxy there
         if proxy_file:
-            from linecaster import broker as brokers
+            from linecaster.net import broker as brokers
             from linecaster.net.proxies import shared_pool
 
             try:

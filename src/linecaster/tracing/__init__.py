@@ -5,7 +5,7 @@ run, the task, the host and the GPU; its spans go to ``<run folder>/traces/<rank
 ``JsonlFileExporter``) and, when the standard ``OTEL_EXPORTER_OTLP_ENDPOINT`` (or ``..._TRACES_ENDPOINT``) is set, to
 that OTLP/HTTP endpoint. Nothing else is sent anywhere.
 
-The builder installs a ``Tracing`` observer in every stage (``linecaster.runtime.builder.build``); it opens the
+The builder installs a ``Tracing`` observer in every stage (``linecaster.execution.builder.build``); it opens the
 provider in ``on_task_start`` and flushes and shuts it down in ``on_task_end``, also when the task fails. It keeps
 no state between tasks, and pickles without any (``__getstate__``), so it works on every executor.
 
@@ -14,7 +14,7 @@ no state between tasks, and pickles without any (``__getstate__``), so it works 
   ``linecaster.writer.flush`` (a writer closing its files).
 * **Unit traces**: the reader's boundary gives every page a trace (``doc.metadata["trace"]["traceparent"]``, W3C);
   its root ``linecaster.page`` has one ``linecaster.component`` per component, ``linecaster.request.prepare`` and
-  ``linecaster.request`` inside served components (the server continues the trace: ``linecaster.serve.*``), and
+  ``linecaster.request`` inside served components (the server continues the trace: ``linecaster.serving.*``), and
   ``linecaster.http.fetch`` for what the reader fetched. Items made by a binder get ``linecaster.item`` traces.
   Every span has its parent set explicitly from the unit's context, never from "the current span": pages are
   interleaved in the stream.
@@ -39,7 +39,7 @@ from opentelemetry.sdk.trace.sampling import Decision, Sampler, SamplingResult
 from opentelemetry.trace import SpanContext, StatusCode, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from linecaster.runtime.observers import Observer
+from linecaster.execution.observers import Observer
 from linecaster.tracing.export import JsonlFileExporter, PageBuffer
 
 #: where a document carries its trace context: ``doc.metadata["trace"] = {"traceparent": ...}``
@@ -368,14 +368,14 @@ class Tracing(Observer):
             "linecaster.task": rank, "linecaster.tasks": world_size, "linecaster.sample": self.sample,
             **({"linecaster.stage": self.stage} if self.stage else {})})
         self.task_context = trace_api.set_span_in_context(self.task_span)
-        from linecaster.runtime.logs import install_trace_ids
+        from linecaster.execution.logs import install_trace_ids
 
         install_trace_ids(self)
 
     def on_task_end(self, error=None) -> None:
         if self.provider is None:
             return
-        from linecaster.runtime.logs import remove_trace_ids
+        from linecaster.execution.logs import remove_trace_ids
 
         try:
             with self._lock:

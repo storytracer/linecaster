@@ -21,7 +21,7 @@ uv add "linecaster @ git+https://github.com/storytracer/linecaster@<commit>" \
 kraken itself comes from our fork (the PP-OCRv6 code with the inference precision fix), which this package declares
 as kraken's source (`[tool.uv.sources]`): `uv lock` applies it to every project or script that installs the package
 from a path or git. `uv pip` and `uv run --with` do not; there, give `kraken @ git+https://github.com/storytracer/kraken@48eecb78`
-too (on HF Jobs, `linecaster.runtime.jobs.dependencies` does).
+too (on HF Jobs, `linecaster.execution.jobs.dependencies` does).
 
 ## Tests
 

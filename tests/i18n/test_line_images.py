@@ -12,10 +12,10 @@ from PIL import Image
 
 from linecaster.core.page import page_of
 from linecaster.data import Annotator, Transcription
-from linecaster.pipelines import import_transcriptions
-from linecaster.runtime import run
-from linecaster.runtime.builder import run_pages
-from linecaster.scoring import score_page
+from linecaster.templates import import_transcriptions
+from linecaster.execution import run
+from linecaster.execution.builder import run_pages
+from linecaster.evaluation import score_page
 
 ROWS = [("l1", "東京は晴れです", "ja", (640, 48)), ("l2", "כְּתֹבֶת עִבְרִית", "he", (520, 40)),
         ("l3", "The ship sailed.", "en", (700, 44))]

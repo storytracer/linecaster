@@ -62,7 +62,7 @@
     },
     "ElementSettings": {
       "additionalProperties": false,
-      "description": "How elements are cut and matched (``linecaster.scoring.elements``, ``linecaster.scoring.matching``).",
+      "description": "How elements are cut and matched (``linecaster.evaluation.elements``, ``linecaster.evaluation.matching``).",
       "properties": {
         "lane": {
           "default": "alnum",
@@ -72,7 +72,7 @@
         },
         "tables": {
           "default": "data",
-          "description": "which tables are tables: data (printed as tables; linecaster.scoring.tables) or all; the rest is text",
+          "description": "which tables are tables: data (printed as tables; linecaster.evaluation.tables) or all; the rest is text",
           "enum": [
             "data",
             "all"
@@ -286,7 +286,7 @@
     },
     "words": {
       "default": "uax29",
-      "description": "the tokenizer of the word metrics (linecaster.scoring.tokens): uax29 (Unicode's word boundaries, the default), whitespace or characters",
+      "description": "the tokenizer of the word metrics (linecaster.evaluation.tokens): uax29 (Unicode's word boundaries, the default), whitespace or characters",
       "enum": [
         "whitespace",
         "uax29",

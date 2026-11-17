@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from linecaster.runtime.secrets import EnvVar
+from linecaster.execution.secrets import EnvVar
 from linecaster.backends.served import check_secrets, request_headers
 
 #: the port ``VLMServer`` starts its server on by default; ``Chat`` without an endpoint asks there
@@ -15,13 +15,13 @@ class Chat:
     """Runs a chat preset's VLM (engine ``chat.v1``) behind an OpenAI-compatible server, reached through saturate.
 
     The server is vLLM, SGLang or a hosted endpoint, on ``/chat/completions``. The preset's adapter
-    (``linecaster.adapters``) builds each request and parses each completion; saturate keeps a window of requests
+    (``linecaster.engines.chat``) builds each request and parses each completion; saturate keeps a window of requests
     in flight, adapted to the server's queue gauges and 429s. Secrets are read in the task, when the block's client
     opens (``warm_up()`` reads them first); a key given as text is refused (``PipelineConfigError``).
 
     Args:
         preset: the chat preset (``id``, or a model's Hugging Face id: its preset with unit
-            ``prefer``) or a configured adapter (``linecaster.adapters.chat_model``).
+            ``prefer``) or a configured adapter (``linecaster.engines.chat.chat_model``).
         endpoint: the server's ``.../v1`` base URL; ``None``: the task's ``VLMServer`` on loopback port
             ``CHAT_PORT`` (8000).
         served_name: the name the server hosts the model under; ``None``: the preset's, else the Hub id.
@@ -33,7 +33,7 @@ class Chat:
             ``None``: no authorization header.
         headers: headers sent with every request, values plain or ``EnvVar``.
         prefer: the unit of the preset a Hugging Face id picks when the model has several: ``page`` or ``region``.
-        overrides: options over the preset's settings (``linecaster.adapters.ChatAdapter.Options``: ``max_tokens``,
+        overrides: options over the preset's settings (``linecaster.engines.chat.ChatAdapter.Options``: ``max_tokens``,
             ``temperature``, ``top_p``, ``repair_max_tokens``, ``repair_temperature``), applied to the adapter;
             the ones that differ from the preset's are recorded with it.
 
@@ -51,7 +51,7 @@ class Chat:
     def __init__(self, preset, endpoint: str | None = None, served_name: str | None = None, max_window: int = 32,
                  initial_window: int = 4, read_timeout: float = 600.0, api_key: EnvVar | None = None,
                  headers: dict | None = None, prefer: str = "page", overrides: dict | None = None):
-        from linecaster.adapters import ChatAdapter, chat_model
+        from linecaster.engines.chat import ChatAdapter, chat_model
 
         check_secrets("Chat", api_key, headers)
         if isinstance(preset, ChatAdapter):

@@ -6,7 +6,7 @@ backend.
 ``ModelComponent`` (saturate's ``AdaptiveClient`` + ``through()``: a window of requests in flight, adapted to the
 server's queue gauges, 429s and delivered tokens; results passed on as they finish; a failed request the page's
 error) on the route ``/chat/completions``. What is specific to chat is here: the backend's adapter
-(``linecaster.adapters``) builds the request from the page image (or a region's crop) and parses the completion
+(``linecaster.engines.chat``) builds the request from the page image (or a region's crop) and parses the completion
 into a ``Transcription``: text only for most, labelled regions for a grounding mode (``lighton-ocr-3-grounding``),
 whose boxes the component places on the page image at its full size (``ChatAdapter.place``).
 
@@ -23,7 +23,7 @@ The completion is kept verbatim (the transcription's ``RawOutput``, and ``text``
 off at ``max_tokens`` (``finish_reason == "length"``) is stored like any other and counted in the component's stats
 (``finish_length``). It may be a repetition loop, or a page that needs more tokens than ``max_tokens`` (a dense
 table) and finishes with more room; deciding what it means is for whoever scores or post-processes the text. With the
-repair pass on (the chat option ``repair_max_tokens``, ``linecaster.adapters.ChatAdapter``), ``PageRecognizer`` sends
+repair pass on (the chat option ``repair_max_tokens``, ``linecaster.engines.chat.ChatAdapter``), ``PageRecognizer`` sends
 such a page again with a larger cap, and again with the next while it stops at its cap, and keeps the first
 completion that finished. With vLLM's repetition detection on (the chat option ``repetition_detection``) a loop ends
 early instead, ``finish_reason == "repetition"``: stored like any other (the text as returned), counted
@@ -38,7 +38,7 @@ import time
 
 from loguru import logger
 
-from linecaster.adapters import ENGINE
+from linecaster.engines.chat import ENGINE
 from linecaster.backends import Chat, InProcess, Served
 from linecaster.data.transcription import Line, RawOutput, Reading, Transcription
 from linecaster.errors import CatalogError, PageError, PipelineConfigError, ServerError
@@ -157,7 +157,7 @@ class PageRecognizer(ModelComponent):
     completion cut off at ``max_tokens`` is counted (stat ``finish_length``).
 
     **The repair passes** (the chat option ``repair_max_tokens``: a cap, or a list of rising caps, one per pass;
-    ``linecaster.adapters.ChatAdapter``): a page whose completion stopped at ``max_tokens`` waits in the component while its
+    ``linecaster.engines.chat.ChatAdapter``): a page whose completion stopped at ``max_tokens`` waits in the component while its
     repair request goes into the same window at once (the same request body, so the same image and prompt and
     ``top_p``, with ``max_tokens`` raised and the repair temperature); the other pages stream on. A repair that stops
     at its cap too is sent again with the next cap, until one finishes or the caps run out. Each repair's
@@ -625,7 +625,7 @@ class RegionRecognizer(PageRecognizer):
     # cannot go along: saturate sends the same headers with every request, and a chat server reads it from the
     # headers only
     def _request(self, row: dict) -> dict:
-        from linecaster.adapters import png_encode
+        from linecaster.engines.chat import png_encode
 
         state, region = row["state"], row["region"]
         crop = self.adapter.crop_region(state["image"], region, state["scale"], self.pad)

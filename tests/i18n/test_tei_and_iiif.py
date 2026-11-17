@@ -7,7 +7,7 @@ import json
 
 from linecaster.data import SourceDocument
 from linecaster.engines.importers import AutoImporter
-from linecaster.scoring import score_page
+from linecaster.evaluation import score_page
 
 TEI = """<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:lang="grc"><teiHeader/>
 <sourceDoc><surface ulx="0" uly="0" lrx="1000" lry="600">

@@ -17,7 +17,7 @@ from linecaster.formats.omnidocbench import (
     page_id,
     truth_page,
 )
-from linecaster.scoring.render import text
+from linecaster.evaluation.render import text
 
 DEMO = Path.home() / "dev/OmniDocBench/demo_data/omnidocbench_demo/OmniDocBench_demo.json"
 
@@ -143,7 +143,7 @@ def test_entries_split_the_json_list_into_pages(tmp_path):
 
 @pytest.mark.skipif(not DEMO.is_file(), reason="OmniDocBench's demo data is not checked out here")
 def test_a_real_entry_of_omnidocbench_s_demo_data():
-    from linecaster.scoring.tables import table_kind
+    from linecaster.evaluation.tables import table_kind
 
     pages = dict(entries(DEMO))
     for pid, entry in pages.items():

@@ -127,7 +127,7 @@ def test_no_proxy_left_stops_the_run_and_says_when_one_returns(tmp_path):
 
 
 def test_the_proxies_option_reaches_the_readers_and_the_run_states_it(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     (tmp_path / "proxies.txt").write_text("1.2.3.4:8080\n5.6.7.8:8080\n")
     ap = run.parser(None)
@@ -290,8 +290,8 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
     from linecaster.components.readers.resources import ResourceReader
     from linecaster.components.writers.resources import ResourceFilesWriter, ResourceRecordWriter
     from linecaster.net import proxies as netproxies
-    from linecaster.runtime.builder import build
-    from linecaster.runtime.local import LocalExecutor
+    from linecaster.execution.builder import build
+    from linecaster.execution.local import LocalExecutor
 
     monkeypatch.setattr(netproxies, "REBALANCE_SECONDS", 0.5)        # the workers are forked: they see these
     monkeypatch.setattr(netproxies, "FILL_SECONDS", 0.2)
@@ -353,12 +353,12 @@ def test_two_workers_share_the_proxies_and_their_rate_limits(tmp_path, monkeypat
 
 
 def test_a_task_that_ends_hands_its_proxies_to_the_next_process_in_its_slot(tmp_path):
-    """A Ray task's process ends (``linecaster.runtime.ray.hand_over``): its slot is free, its proxy leases stay, and
+    """A Ray task's process ends (``linecaster.execution.ray.hand_over``): its slot is free, its proxy leases stay, and
     the next process on the machine claims the slot, is the same worker and holds the proxies before its first
     request."""
-    from linecaster import broker as brokers
+    from linecaster.net import broker as brokers
     from linecaster.net.http import HTTPFetcher
-    from linecaster.runtime.ray import hand_over
+    from linecaster.execution.ray import hand_over
 
     served = []
     good = proxy_server(served)

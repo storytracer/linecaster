@@ -70,7 +70,7 @@ def producer() -> str:
     from linecaster import __version__
 
     try:
-        from linecaster.runtime.provenance import commit
+        from linecaster.execution.provenance import commit
 
         c = commit()
     except Exception:  # noqa: BLE001 - provenance is best effort

@@ -47,8 +47,8 @@ MODEL_CPUS, RULE_CPUS = 3, 0.5
 def recipe_components(images: str, out: str, recipe: str):
     """The reader and the per-page components of ``recipe``'s pipeline, as the builder expands them for a normal run of
     one task (composites expanded, the recipe stamper added); the writers are left out."""
-    from linecaster.pipelines import transcribe_modular as module
-    from linecaster.runtime import builder, run
+    from linecaster.templates import transcribe_modular as module
+    from linecaster.execution import builder, run
 
     a = run.parse([images, out, "--recipe", recipe], module.__doc__, module.options, module.PIPELINE, module.SLOTS)
     components = module.pipeline(a, str(SCRIPT))

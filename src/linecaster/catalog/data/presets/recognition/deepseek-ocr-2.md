@@ -15,5 +15,5 @@ DeepSeek-OCR and DeepSeek-OCR-2 presets differ only in the checkpoint).
   is not verified).
 - Serve flags: `--max-model-len 8192` (the native context), `--trust-remote-code`, no prefix caching, no
   multimodal processor cache, one image per prompt.
-- The completion is stored verbatim, grounding markup included; `linecaster.adapters.deepseek_ocr.strip_grounding`
+- The completion is stored verbatim, grounding markup included; `linecaster.engines.chat.deepseek_ocr.strip_grounding`
   removes it for whoever wants the text alone. `--gpu-memory-utilization` is the deployment's choice.

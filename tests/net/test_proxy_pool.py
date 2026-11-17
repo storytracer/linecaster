@@ -13,7 +13,7 @@ from collections import defaultdict
 import pytest
 from loguru import logger
 
-from linecaster.broker import LEASE_TTL, Broker
+from linecaster.net.broker import LEASE_TTL, Broker
 from linecaster.errors import PipelineConfigError
 from linecaster.net.proxies import KIND, SHARE, ProxyPool, proxy_id, shared_pool
 

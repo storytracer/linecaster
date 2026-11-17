@@ -158,13 +158,13 @@ def fetcher(s: Site, via: str, clocks: Clocks, tmp_path, clocked_broker: bool = 
 
 
 def pool_on(clocks: Clocks, folder: str, proxy_file: str, worker: str | None = None):
-    """The process's shared broker for ``folder`` (``linecaster.broker.shared``) and proxy pool for ``proxy_file``
+    """The process's shared broker for ``folder`` (``linecaster.net.broker.shared``) and proxy pool for ``proxy_file``
     (``linecaster.net.proxies.shared_pool``) on the clocks: the broker on the wall clock, with leases that never
     expire (they are written and renewed on the real clock), the pool on the monotonic clock, listing the broker at
     every look for a proxy, without rebalancing in the background (``tick``)."""
     import os
 
-    from linecaster import broker as brokers
+    from linecaster.net import broker as brokers
     from linecaster.net import proxies
     from linecaster.net.http import read_proxies
 
@@ -544,7 +544,7 @@ def test_a_proxys_blocks_and_breaks_double_until_it_answers(tmp_path):
     """``ProxyPool.block`` without ``Retry-After``: 60, 120, 240 s for repeats, at most ``block_ttl`` (here 200 s); a
     successful response from the host starts it again; ``Retry-After`` is taken as it is and keeps the doubling. A
     broken proxy: 300, 600 s, at most ``block_ttl``; any answer through it starts that again."""
-    from linecaster.broker import Broker
+    from linecaster.net.broker import Broker
     from linecaster.net.proxies import ProxyPool, proxy_id
 
     now = [1_800_000_000.0]
@@ -756,7 +756,7 @@ hosts:
 def test_the_http_policy_option_is_taken_by_every_input_that_fetches(tmp_path, option):
     """``--http-policy`` with each input that fetches over http(s) reaches its reader, with the run's options as the
     policy's base (proxies, the broker)."""
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     policy = policy_file(tmp_path, "block_on: [429, html]\n")
     extra = {"--manifests": [str(tmp_path / "m.txt")], "--pages": [str(tmp_path)], "--parquet": [str(tmp_path)],

@@ -293,7 +293,7 @@ def test_an_image_with_image_warnings_is_kept_with_them(server, tmp_path):
 
 
 def test_the_command_line_builds_the_resource_harvest(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     a = run.check(ap, ap.parse_args(["--items", items_table(tmp_path, ["a1", "b2"]), "OUT", "--item-key", "lccn",
@@ -310,9 +310,9 @@ def test_the_command_line_builds_the_resource_harvest(tmp_path):
 
 
 def test_the_harvest_pipeline_runs_through_the_builder_and_counts_files(server, tmp_path, capsys):
-    from linecaster.runtime.builder import build
-    from linecaster.runtime.console import Progress
-    from linecaster.runtime.local import LocalExecutor
+    from linecaster.execution.builder import build
+    from linecaster.execution.console import Progress
+    from linecaster.execution.local import LocalExecutor
 
     out = tmp_path / "out"
     reader = ResourceReader(items_table(tmp_path, ["a1", "bad", "c3"]), item_key="lccn", http=FAST,
@@ -477,7 +477,7 @@ def test_every_proxy_marked_blocked_stops_the_run_at_its_first_request(tmp_path)
     """Every proxy marked blocked at the host by another worker for longer than max_pause: the run stops."""
     import time
 
-    from linecaster.broker import Broker
+    from linecaster.net.broker import Broker
     from linecaster.net.proxies import KIND, proxy_id
 
     proxies = ["127.0.0.1:9", "127.0.0.1:10"]
@@ -494,7 +494,7 @@ def test_every_proxy_marked_blocked_stops_the_run_at_its_first_request(tmp_path)
 
 
 def test_the_http_policy_option(tmp_path):
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     policy = policy_file(tmp_path, 'max_retries: 3\nhosts:\n  catalog.library.test: {rate_limits: ["25/60"]}\n')
     ap = run.parser(None)
@@ -580,7 +580,7 @@ def test_a_harvest_on_ray_runs_on_cpus(tmp_path):
     no GPU per task."""
     pytest.importorskip("ray")
     from linecaster.components.writers.rejects import RejectWriter
-    from linecaster.runtime import run
+    from linecaster.execution import run
 
     ap = run.parser(None)
     out = str(tmp_path / "out")
@@ -727,14 +727,14 @@ def test_reuse_and_reuse_from_together_take_outs_copy_first_then_the_earlier_fol
 
 
 def test_reuse_from_leaves_the_runs_fingerprint_and_not_with_existing_ocr(tmp_path):
-    from linecaster.pipelines import harvest
-    from linecaster.runtime import run
+    from linecaster.templates import harvest
+    from linecaster.execution import run
 
     a = run.parse(["--manifests", "m/", str(tmp_path / "out"), "--existing-ocr", "--reuse-from", "v1"],
                   harvest.__doc__, harvest.options, harvest.PIPELINE)
     with pytest.raises(PipelineConfigError, match="--reuse-from does not go with --existing-ocr"):
         harvest.pipeline(a, "harvest.py")
-    from linecaster.runtime.provenance import functional_component
+    from linecaster.execution.provenance import functional_component
 
     one = ResourceReader("items", item_key="item", reuse_from=["v1"])
     other = ResourceReader("items", item_key="item", reuse_from=["v1", "v2"])

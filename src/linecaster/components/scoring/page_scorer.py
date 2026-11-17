@@ -2,10 +2,10 @@
 its summary on the document (``doc.metadata["score"]``), for ``ScoreWriter``.
 
 A task collects its pages first (their ids), reads their ground truth from the truth folder in one pass
-(``linecaster.scoring.run.read_truth``: only those lines decoded), then scores each (``score_pair``). A page outside
+(``linecaster.evaluation.run.read_truth``: only those lines decoded), then scores each (``score_pair``). A page outside
 the benchmark's page set is passed by unscored (stat ``outside``); a page of the set without ground truth is an
 error. The pages a run lacks are scored as empty outputs when the tasks' scores are put together
-(``linecaster.scoring.run.aggregate``)."""
+(``linecaster.evaluation.run.aggregate``)."""
 from __future__ import annotations
 
 from typing import Any
@@ -22,7 +22,7 @@ class PageScorer(Contracted, PipelineStep):
 
     The page's transcription ``transcription`` (the page record's, ``doc.metadata["page"]``; a page with errors
     scores as an empty output) is compared with the ground truth's page of the same id, rendered and normalized as
-    the benchmark says (``linecaster.scoring.run.score_pair``): ``doc.metadata["score"]`` gets ``records`` (one per
+    the benchmark says (``linecaster.evaluation.run.score_pair``): ``doc.metadata["score"]`` gets ``records`` (one per
     text and lane) and ``page`` (the page's summary: roles, confusion, missing, failed).
 
     Args:
@@ -43,8 +43,8 @@ class PageScorer(Contracted, PipelineStep):
 
     def run(self, data, rank: int = 0, world_size: int = 1):
         from linecaster.catalog.registry import rendering_policy
-        from linecaster.scoring.benchmark import read_benchmark
-        from linecaster.scoring.run import read_truth, score_pair, wanted_pages
+        from linecaster.evaluation.benchmark import read_benchmark
+        from linecaster.evaluation.run import read_truth, score_pair, wanted_pages
 
         bench = read_benchmark(self.benchmark)
         policy = rendering_policy(bench.policy)

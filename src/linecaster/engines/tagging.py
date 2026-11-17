@@ -808,10 +808,10 @@ class ChatTaggingEngine(RuleEngine):
         return img, shown, s
 
     def _views(self, page_image, box, o) -> tuple[list[str], list[str]]:
-        """The images a member sees, as base64 PNGs (``linecaster.adapters.png_bytes``), with what each is."""
+        """The images a member sees, as base64 PNGs (``linecaster.engines.chat.png_bytes``), with what each is."""
         from PIL import Image, ImageDraw
 
-        from linecaster.adapters import png_bytes
+        from linecaster.engines.chat import png_bytes
 
         img, shown, scale = page_image
         kinds, out = [], []
@@ -843,7 +843,7 @@ class ChatTaggingEngine(RuleEngine):
         return kinds, out
 
     def _body(self, member: dict, images: list[str], text: str) -> dict:
-        from linecaster.adapters import data_url
+        from linecaster.engines.chat import data_url
 
         return {"model": member["model"], "max_tokens": member["max_tokens"], "temperature": member["temperature"],
                 "messages": [{"role": "user", "content": [*(data_url("image/png", b) for b in images),

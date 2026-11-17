@@ -6,8 +6,8 @@ from linecaster.data import SourceDocument
 from linecaster.engines.importers import AutoImporter, TeiImporter
 from linecaster.formats.tei import from_tei
 from linecaster.formats.text import sniff
-from linecaster.scoring import score_page
-from linecaster.scoring.render import text as rendered
+from linecaster.evaluation import score_page
+from linecaster.evaluation.render import text as rendered
 
 TEI = 'xmlns="http://www.tei-c.org/ns/1.0"'
 
