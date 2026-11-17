@@ -28,7 +28,7 @@ def serve_command(models: list[dict], port: int = 8100, python: str | None = Non
 
 def model_args(models: list[dict]) -> list[str]:
     """``linecaster serve`` arguments for ``models``: ``--preset NAME=REF`` for a catalog preset (the server
-    resolves it and stamps its edition on every page; ``overrides`` go along as ``--kwargs`` and are merged
+    resolves it and stamps it on every page; ``overrides`` go along as ``--kwargs`` and are merged
     over the preset's options), otherwise ``--model NAME=module:Class --kwargs NAME=JSON``."""
     out = []
     for m in models:

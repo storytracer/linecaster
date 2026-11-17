@@ -81,7 +81,7 @@ def _describe_backend(ref):
     from ..catalog.registry import BUILTIN_ENGINES, engine_spec
     from ..errors import CatalogError
 
-    if not (isinstance(ref, str) and "@" in ref):
+    if not isinstance(ref, str):
         return ref
     try:
         spec, kwargs, r = engine_spec(ref, installed=False)
@@ -96,7 +96,9 @@ def _describe_backend(ref):
 
 def instance(cls, **extra):
     """``cls`` built with its ``docs_args`` (and ``extra``)."""
-    kwargs = {k: _describe_backend(v) for k, v in {**cls.docs_args, **extra}.items()}
+    kwargs = {**cls.docs_args, **extra}
+    if ".servers." not in cls.__module__:       # a server block takes a preset's id, never a backend
+        kwargs = {k: _describe_backend(v) for k, v in kwargs.items()}
     return cls(**kwargs)
 
 
@@ -200,7 +202,7 @@ def _backends(cls) -> str | None:
     names = re.findall(r"\w+", ann)
     found = [f"{BACKENDS[n]} (`{n}`)" for n in names if n in BACKENDS]
     if "str" in names:
-        found.append("a preset ref (`id@edition`) builds one")
+        found.append("a preset ref (`id`) builds one")
     return ", ".join(found)
 
 

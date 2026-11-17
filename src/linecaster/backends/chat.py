@@ -20,7 +20,7 @@ class Chat:
     opens (``warm_up()`` reads them first); a key given as text is refused (``PipelineConfigError``).
 
     Args:
-        preset: the chat preset (``id``, ``id@edition``, or a model's Hugging Face id: its preset with unit
+        preset: the chat preset (``id``, or a model's Hugging Face id: its preset with unit
             ``prefer``) or a configured adapter (``linecaster.adapters.chat_model``).
         endpoint: the server's ``.../v1`` base URL; ``None``: the task's ``ChatModelServer`` on loopback port
             ``CHAT_PORT`` (8000).
@@ -68,7 +68,7 @@ class Chat:
 
     @property
     def preset(self) -> str | None:
-        """The preset edition (``id@edition``)."""
+        """The preset (``id``)."""
         return self.adapter.preset
 
     @property
@@ -93,7 +93,7 @@ class Chat:
         return f"served {self.endpoint} ({self.model})"
 
     def to_dict(self) -> dict[str, Any]:
-        """The backend as the run record names it: the adapter (preset edition and its hash, model, revision, adapter
+        """The backend as the run record names it: the adapter (preset and its hash, model, revision, adapter
         class, served name), the endpoint, the window and timeout, and the secrets by name (``{"env": NAME}``)."""
         from ..blocks.base.block import plain
 

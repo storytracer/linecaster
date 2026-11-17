@@ -3,9 +3,8 @@ in the catalog), with a mandatory Markdown sidecar (``<id>.md``) for what the ru
 
     schema: linecaster.conventions
     id: example
-    edition: 2
     format: html                      # what the rules match: the tree, JSON or text the format's importer reads
-    extends: base@1                   # one parent, pinned (optional)
+    extends: base                     # one parent, by id (optional)
     description: ...
     rules:
       - id: running-head-cells        # a parent's id: replaces that rule; a new id: adds one (at the end, or

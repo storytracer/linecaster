@@ -19,7 +19,7 @@ request.
 
 **Dispatch by script.** A by-script engine (``recomposition.by-script.v1``) is
 constructed with ``strategies``: ISO 15924 code -> strategy, and ``"*"`` -> the default strategy, each as
-``Strategy`` (the engine as ``module:Class``, its options, the preset edition it came from), which a preset's
+``Strategy`` (the engine as ``module:Class``, its options, the preset it came from), which a preset's
 ``by_script`` resolves to. ``ScriptDispatch`` builds them and routes each decision to the strategy of the script
 around it (``scripts.Classifier.at``: the characters before a row end, else after it), and each run of a text to
 the strategy of its script (``Classifier.runs``); a script without a strategy of its own goes to the default.
@@ -82,8 +82,8 @@ class Strategy(BaseModel):
 
     engine: str = Field(description="the engine's class, module:Class")
     options: dict[str, Any] = Field(default_factory=dict, description="its options")
-    preset: str | None = Field(None, description="the preset edition it came from: id@edition")
-    preset_sha256: str | None = Field(None, description="that edition's hash")
+    preset: str | None = Field(None, description="the preset it came from: id")
+    preset_sha256: str | None = Field(None, description="its hash")
 
 
 def engine_class(spec: str):

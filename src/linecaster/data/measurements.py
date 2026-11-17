@@ -1,4 +1,4 @@
-"""The measurements vocabulary: every key a step may write into ``StepInfo.measurements``, with its meaning.
+"""The measurements vocabulary: every key a step may write into ``Annotator.measurements``, with its meaning.
 
 Measurements are numbers (and a few short values) a step records for one page: how long it took, what it cost in
 tokens, what its rules changed. The vocabulary is fixed, so that the page records of different runs, engines and

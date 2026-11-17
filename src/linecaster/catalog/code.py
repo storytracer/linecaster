@@ -217,7 +217,7 @@ def recipe_scripts(repo: Path | None = REPO) -> dict[str, Path]:
 
 
 def recipe_packages(recipe_id: str, c=None, repo: Path = REPO) -> set[str]:
-    """The engine packages the presets of the recipe ``recipe_id`` (its current edition) need: recipe -> presets ->
+    """The engine packages the presets of the recipe ``recipe_id`` need: recipe -> presets ->
     engines -> the packages that provide them (``engines``); linecaster's own engines need none."""
     from .registry import catalog
 

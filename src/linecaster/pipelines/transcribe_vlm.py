@@ -20,7 +20,7 @@ its ``serve.version``, with the preset's ``server_packages``): the one on ``PATH
 release (``--server-env auto``, the default: vLLM's image at linecaster's pin serves every preset on it), else in an
 environment uv builds once per machine (``--server-env uv`` always; ``path`` takes the one there, whatever it is).
 
---recognition takes a chat preset of the catalog (``linecaster models``; ``id`` or ``id@edition``) or a Hugging Face
+--recognition takes a chat preset of the catalog (``linecaster models``; ``id``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
 in the Job's image: the one the preset was validated with (its ``serve.image``) unless --image is given. It
 has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv environment the executor builds
@@ -71,7 +71,7 @@ VLM_PORT = 8000
 
 
 def options(ap):
-    ap.add_argument("--recognition", help="a chat preset (id[@edition]) or a model's Hugging Face id (needed)")
+    ap.add_argument("--recognition", help="a chat preset's id or a model's Hugging Face id (needed)")
     ap.add_argument("--layout", help="a layout preset: the model then reads each region (a region preset)")
     ap.add_argument("--recognition-endpoint", help="a running OpenAI-compatible server for the model")
     ap.add_argument("--gpu-memory-utilization", type=float, default=None)

@@ -40,7 +40,7 @@ class TranscriptionImporter(PageBlock):
     document's context (a wiki page's title); ``record``, ``revision`` and ``dataset`` go to the source's fields.
 
     Args:
-        importer: the importer: a preset (``id@edition``) of step ``import`` or an ``InProcess`` engine spec.
+        importer: the importer: a preset (``id``) of step ``import`` or an ``InProcess`` engine spec.
         source: ``media`` (the page's first document media with bytes), ``uri`` (the file named by ``uri_key``) or
             ``metadata`` (the content in the page's metadata under ``data_key``).
         transcription: the name of the transcription it fills.
@@ -75,7 +75,7 @@ class TranscriptionImporter(PageBlock):
         self.context_keys = tuple(context_keys)
 
     def init_params(self) -> dict[str, Any]:
-        """The parameters, ``importer`` as the backend it resolved to (engine, options, edition and hash)."""
+        """The parameters, ``importer`` as the backend it resolved to (engine, options, preset and hash)."""
         out = super().init_params()
         out["importer"] = self.backend
         return out

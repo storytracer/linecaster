@@ -79,9 +79,9 @@ number of tasks or the backend.
 - **`linecaster serve`** hosts engines: stateless (no state between requests), one worker per model (several
   replicas per model were measured at +7–10 % and removed; NOTES.md), each with a bounded queue (`--max-queue`; a
   full queue answers 429 with `Retry-After`). Routes: `POST /v1/linecaster/{step}` (the image and the transcription
-  so far in, the transcription with its part and the call's annotator added out; both `linecaster.page/4`
+  so far in, the transcription with its part and the call's annotator added out; both `linecaster.page/5`
   annotation sets), `GET /v1/models`, `/health` (`status` and `protocol`, the transcription format:
-  `linecaster.page/4`) and vLLM-shaped `/metrics` (the gauges saturate reads). A `Served` client asks a server that
+  `linecaster.page/5`) and vLLM-shaped `/metrics` (the gauges saturate reads). A `Served` client asks a server that
   already answers for its `protocol` when it warms up and refuses one that names another format or none
   (`ServerError`): both sides run the same linecaster version. Built-in engines are not served: they run in the pipeline's process.
 - **VLMs** run behind OpenAI-compatible servers (vLLM, SGLang, hosted endpoints): `PageRecognizer` and
@@ -178,6 +178,8 @@ pipeline id and slots), so a derivative's script can run it in its own environme
 | `transcribe_page.py` | `transcribe_page.v1` | a page engine per page, with the service its preset names |
 | `bind.py` | `bind.v1` | item texts and item documents from page records |
 | `convert.py` | `convert.v1` | page images converted to JPEG, JPEG 2000, PNG or WebP by an image preset, on NVIDIA GPUs where the machine has them |
+| `import_transcriptions.py` | `import_transcriptions.v1` | transcriptions in any format read into page records by an importer, a ground truth by default |
+| `score.py` | `score.v1` | page records scored against a ground truth under a benchmark |
 
 `linecaster.runtime.run.main` gives every pipeline the same command line: `--on local|ray|hf-jobs`, `--backend
 in-process|served`, `--endpoint` (a running server), `serve` (`linecaster serve` with the script's models), `ray`

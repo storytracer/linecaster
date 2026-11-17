@@ -1,11 +1,11 @@
 """``RuleBlock``: the base of the blocks of the rule-based steps (image, typography, recomposition,
 composition), each on a built-in engine (``linecaster.engines``) that runs in the pipeline's process.
 
-A rule block takes its engine like a model block: a catalog preset (``"ratios"``, ``id@edition``; ``id`` alone
-is its latest edition) or an engine spec, ``InProcess("module:Class", **options)``; ``options`` go over either (they
+A rule block takes its engine like a model block: a catalog preset (by its id: ``"ratios"``)
+or an engine spec, ``InProcess("module:Class", **options)``; ``options`` go over either (they
 are recorded as the backend's ``overrides``, as ``--set`` records them for model steps). There is no backend
 choice: rules are cheaper than a request, so a ``Served`` backend is refused. Each call of the engine adds one
-``Annotator`` to the transcription; the block stamps it with the preset edition and its hash, ``seconds`` and
+``Annotator`` to the transcription; the block stamps it with the preset and its hash, ``seconds`` and
 ``datetime``, as ``ModelBlock`` does for model steps.
 """
 from __future__ import annotations
@@ -39,7 +39,7 @@ def rule_backend(preset, step: str, options: dict[str, Any] | None = None) -> In
     elif getattr(preset, "served", False):
         raise PipelineConfigError(f"{step}: rule-based steps run in the pipeline's process only (no Served backend)")
     else:
-        raise PipelineConfigError(f"{step}: give a preset (id@edition) or an engine spec (InProcess), not {preset!r}")
+        raise PipelineConfigError(f"{step}: give a preset (id) or an engine spec (InProcess), not {preset!r}")
     if options:
         backend.kwargs = {**backend.kwargs, **options}
         backend.overrides = {**(backend.overrides or {}), **options}
@@ -67,7 +67,7 @@ def check_engine(backend: InProcess, step: str) -> None:
 
 
 def stamp(info: Annotator, backend: InProcess, start: float, began: str) -> Annotator:
-    """``info`` with the preset edition it ran as, and ``seconds`` and ``datetime`` (unless the engine set them)."""
+    """``info`` with the preset it ran as, and ``seconds`` and ``datetime`` (unless the engine set them)."""
     info.measurements.setdefault("seconds", round(time.perf_counter() - start, 4))
     info.measurements.setdefault("datetime", began)
     if backend.preset:
@@ -85,13 +85,13 @@ class RuleBlock(PageBlock):
     blocks.
 
     Subclasses state their catalog ``step`` and implement ``apply(page, t)`` (the engine is ``self.engine``); the
-    base stamps every ``Annotator`` the call added with the preset edition and its hash, ``seconds`` and
+    base stamps every ``Annotator`` the call added with the preset and its hash, ``seconds`` and
     ``datetime``. A page without the transcription passes unchanged (stat ``no_transcription``). There is no
     backend choice: a ``Served`` backend is refused.
 
     Args:
-        preset: the engine: a catalog preset of the block's step (``id@edition``; ``id`` alone is its latest
-            edition) or an engine spec, ``InProcess("module:Class", **options)``; a preset of another step, an
+        preset: the engine: a catalog preset of the block's step (its ``id``)
+            or an engine spec, ``InProcess("module:Class", **options)``; a preset of another step, an
             engine of another step or options its engine does not have are refused (``PipelineConfigError``).
         transcription: the transcription it works on.
         options: engine options over the preset's (recorded as the backend's ``overrides``); ``None``: the
@@ -106,7 +106,7 @@ class RuleBlock(PageBlock):
         self.transcription, self.options = transcription, dict(options or {})
 
     def init_params(self) -> dict[str, Any]:
-        """The parameters, ``preset`` as the backend it resolved to (engine, options, edition and hash)."""
+        """The parameters, ``preset`` as the backend it resolved to (engine, options, preset and hash)."""
         out = super().init_params()
         out["preset"] = self.backend
         return out

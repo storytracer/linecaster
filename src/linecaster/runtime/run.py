@@ -40,8 +40,8 @@ holds per worker: a server sees the workers running at once times it, which the 
 (``rate_note``, with why it has the workers it has, ``workers_note``); with ``--proxies`` it holds per proxy, each
 proxy used by one worker at a time (the workers share them through ``--broker``, ``linecaster.broker``).
 ``--dry-run`` writes nothing and prints the record with the plan and its Mermaid graph. A model dict may name a catalog
-``preset`` (``id@edition``): ``preset_models`` fills in its engine and options, and the record and the
-page files carry the edition and its hash.
+``preset`` (``id``): ``preset_models`` fills in its engine and options, and the record and the
+page files carry the preset and its hash.
 """
 from __future__ import annotations
 
@@ -765,8 +765,8 @@ def overrides(items: list[str], steps: list[str]) -> dict[str, dict]:
 
 
 def preset_models(models: list[dict], installed: bool = True, served: bool = False) -> list[dict]:
-    """Model dicts with a catalog ``preset`` (``id`` or ``id@edition``) and no ``spec`` get the preset's
-    engine and options, and its edition (``preset``) and hash (``preset_sha256``); the others stay as they
+    """Model dicts with a catalog ``preset`` (``id``) and no ``spec`` get the preset's
+    engine and options, and its id (``preset``) and hash (``preset_sha256``); the others stay as they
     are. ``installed=False``: the engines need not be installed here (``describe``). ``served``: for a server,
     which refuses the in-process-only engines."""
     out = []
@@ -1216,7 +1216,7 @@ def parse(argv: list[str], description: str | None, options: Callable, pipeline_
     ap = parser(description)
     g = ap.add_argument_group("pipeline")
     if pipeline_id:
-        g.add_argument("--recipe", help="a catalog recipe (id[@edition]) filling the slots and options the "
+        g.add_argument("--recipe", help="a catalog recipe (id) filling the slots and options the "
                                         "command line leaves open")
     options(g)
     a = ap.parse_args(argv)
@@ -1246,7 +1246,7 @@ def describe(shape, argv: list[str], c=None, script: str | None = None):
 
 
 def describe_recipe(ref: str, c=None) -> dict:
-    """A recipe edition's expanded pipeline: its pipeline shape (by the recipe's pipeline id,
+    """A recipe's expanded pipeline: its pipeline shape (by the recipe's pipeline id,
     ``linecaster.pipelines``) described with ``--recipe REF`` on placeholder folders (``describe``), in-process, one
     task: ``{"pipeline": the functional blocks (provenance.functional_pipeline), "pipeline_sha256": ...}``. ``c``: the
     catalog the recipe is in (default the installed one)."""

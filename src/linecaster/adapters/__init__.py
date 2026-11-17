@@ -75,9 +75,9 @@ class RepetitionDetection(BaseModel):
 
 @dataclass(frozen=True)
 class ChatPreset:
-    """A resolved chat preset edition, as an adapter is built from it."""
+    """A resolved chat preset, as an adapter is built from it."""
 
-    ref: str                                     # id@edition
+    ref: str                                     # id
     sha256: str | None                           # its functional content's hash (catalog.lock)
     repo: str                                    # the model's Hugging Face id (also the default served name)
     revision: str | None
@@ -361,7 +361,7 @@ class ChatAdapter:
         return self.server == "vllm" and bool(version) and version >= REPETITION_DETECTION_VLLM
 
     def to_dict(self) -> dict[str, Any]:
-        """The adapter as the run record names it: the preset edition and its hash, the model and revision, the
+        """The adapter as the run record names it: the preset and its hash, the model and revision, the
         adapter class and the name the server hosts the model under; the repetition detection in effect, while it
         is on (on by default, so not in the preset)."""
         out = {"adapter": f"{type(self).__module__}:{type(self).__qualname__}", "preset": self.preset,
@@ -374,7 +374,7 @@ class ChatAdapter:
         return out
 
     def settings(self) -> dict[str, Any]:
-        """Everything that decides the output, recorded in ``Annotator.settings`` (next to the preset edition
+        """Everything that decides the output, recorded in ``Annotator.settings`` (next to the preset
         and its hash)."""
         return {"sampling": dict(self.sampling), "serve_args": list(self.serve_args)}
 
@@ -416,7 +416,7 @@ class ChatAdapter:
 
     def annotator(self, backend: str | None = None, settings: dict | None = None,
                   measurements: dict | None = None) -> Annotator:
-        """The ``Annotator`` of one result: model, engine, revision, preset edition and its hash, settings (with the
+        """The ``Annotator`` of one result: model, engine, revision, preset and its hash, settings (with the
         repair pass's, ``repair``, when it is on), ``measurements`` (``linecaster.data.MEASUREMENTS``)."""
         if settings is None:
             settings = self.settings()

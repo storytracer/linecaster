@@ -43,7 +43,7 @@ class ServiceServer(Contracted, PipelineStep):
     written. A vendor's entrypoint listens on the ports the image sets (one service per machine).
 
     Args:
-        preset: the page preset whose ``serve`` block names the service (``id`` or ``id@edition``); a chat preset
+        preset: the page preset whose ``serve`` block names the service (``id``); a chat preset
             (``ChatModelServer`` starts its server), or a preset without such a block, is refused
             (``PipelineConfigError``).
         port: the port vLLM listens on (``server: vllm``); a vendor's entrypoint uses the image's own ports.

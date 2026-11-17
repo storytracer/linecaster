@@ -40,7 +40,7 @@ class Composer(RuleBlock):
         transcription: the transcription to compose.
         unit: ``page`` (a document per page) or ``item`` (a document per item record, after a ``Binder``).
         options: engine options over the preset's, e.g. ``{"sections": True}``; ``None``: the preset's.
-        policy: the rendering policy (a catalog ``policy`` edition) that puts each region into its layer.
+        policy: the rendering policy (a catalog ``policy`` entry) that puts each region into its layer.
 
     Example:
         Composer("linked-composition")

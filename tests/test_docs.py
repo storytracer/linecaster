@@ -23,6 +23,8 @@ def test_the_generator_writes_every_page_and_removes_stale_ones(tmp_path, capsys
                  "blocks/readers/ImageFolderReader.md"):
         assert (out / page).is_file(), page
     assert f"({SITE}/blocks/)" in (out / "llms.txt").read_text()
+    failed = [p.relative_to(out).as_posix() for p in (out / "blocks").rglob("*.md") if "not built" in p.read_text()]
+    assert failed == []                                        # every block builds for its page
     assert "stale.md" in capsys.readouterr().out
     cli.main(["docs", "--out", str(out), "--readme", str(README)])
     assert capsys.readouterr().out == ""                       # nothing changed: nothing written

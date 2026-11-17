@@ -9,7 +9,7 @@ names a running one. Page records in OUT/pages; the engine's raw output is in ea
     uv run pipelines/transcribe_page.py IMAGES OUT --recognition falcon-ocr           # inside the vendor's image
     uv run pipelines/transcribe_page.py IMAGES OUT --recognition oxr-1.0 --recognition-endpoint http://127.0.0.1:8000
 
---recognition takes a page engine's preset (``linecaster models``; ``id`` or ``id@edition``); chat presets run in
+--recognition takes a page engine's preset (``linecaster models``; ``id``); chat presets run in
 ``pipelines/transcribe_vlm.py``. A vendor's service runs inside the vendor's image (the preset's ``serve.image``):
 the pipeline runs there too, in its own uv environment, and the service in the image's own environments
 (``ServiceServer`` leaves the pipeline's out of its environment). Its entrypoint listens on the image's ports, so
@@ -25,7 +25,7 @@ from ..runtime import run
 
 
 def options(ap):
-    ap.add_argument("--recognition", help="a page engine's preset (id[@edition]) (needed)")
+    ap.add_argument("--recognition", help="a page engine's preset, by id (needed)")
     ap.add_argument("--recognition-endpoint", help="a running service for the engine (its base URL; vLLM's .../v1)")
     ap.add_argument("--boot-timeout", type=int, default=1800, help="seconds the service may take to start")
 

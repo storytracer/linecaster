@@ -15,7 +15,7 @@ whose boxes the block places on the page image at its full size (``ChatAdapter.p
     PageRecognizer(Chat("lightonocr-2-1b", "http://127.0.0.1:8000/v1", max_window=48, initial_window=8))
     PageRecognizer("lightonocr-2-1b")             # a preset by name: Chat on the task's ChatModelServer
 
-Every result's ``Annotator`` records the preset edition and its hash (``preset``, ``preset_sha256``) next to the
+Every result's ``Annotator`` records the preset and its hash (``preset``, ``preset_sha256``) next to the
 settings.
 
 The completion is kept verbatim (the transcription's ``RawOutput``, and ``text`` equals it for a text-only parse); its
@@ -101,7 +101,7 @@ SENT = ("max_tokens", "temperature", "top_p", "preset")
 def pass_entry(t: Transcription, request: dict | None = None) -> dict:
     """One request of a page, from the chat annotator's kept raw output in ``t``: the completion verbatim (``raw``),
     ``finish_reason``, ``prompt_tokens``, ``completion_tokens``, the ``max_tokens``, ``temperature`` and ``top_p`` it
-    was sent with, the preset edition, and the raw output's ``index``. ``t`` is the completion parsed; ``request`` the
+    was sent with, the preset, and the raw output's ``index``. ``t`` is the completion parsed; ``request`` the
     body sent (``None``: what the raw output and the annotator record, for a page record written earlier)."""
     ai = chat_annotator(t)
     a = t.annotators[ai] if ai is not None else None
@@ -188,7 +188,7 @@ class PageRecognizer(ModelBlock):
     page: a vendor package, or a client of a vendor's service) as every model block runs its engine: the engine
     gets the page image and returns the page's transcription. Either way it reads the page image and adds
     ``text`` and what the preset produces (``lines``, ``markdown``, ``html``, ...); the ``Annotator`` records the
-    preset edition and its hash. A failed request or call is the page's error.
+    preset and its hash. A failed request or call is the page's error.
 
     Args:
         backend: a ``Chat`` backend, an ``InProcess`` or ``Served`` backend of a page engine, or a preset's ref:
@@ -576,7 +576,7 @@ class RegionRecognizer(PageRecognizer):
     at that scale), so a small region is not blown up; the adapter decides which regions it reads. Every read
     region gets one line: the region's box and polygon, the completion as its reading (verbatim; the completion, its
     ``finish_reason`` and tokens are a raw output of the step, which the line and its reading name), in reading
-    order; the transcription's earlier lines are replaced. The step's ``Annotator`` records the preset edition, the
+    order; the transcription's earlier lines are replaced. The step's ``Annotator`` records the preset, the
     settings with ``pad``, ``page_scale`` and ``labels``, and the token counts, ``regions`` and ``failed``. A page
     whose regions all failed is the page's error, and so is a page without image bytes (stat ``errors``); a page
     without readable regions passes through unchanged (stat ``pages_without_regions``).

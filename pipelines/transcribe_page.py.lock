@@ -871,6 +871,7 @@ name = "linecaster"
 version = "0.11.0"
 source = { editable = "../" }
 dependencies = [
+    { name = "aiohttp" },
     { name = "cssselect" },
     { name = "datatrove", extra = ["io", "s3"] },
     { name = "fake-useragent" },
@@ -898,6 +899,7 @@ ray = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.10" },
     { name = "cssselect", specifier = ">=1.2" },
     { name = "datatrove", extras = ["io", "s3"], specifier = ">=0.10.1,<0.11" },
     { name = "docling-core", marker = "extra == 'docling'", specifier = ">=2.95" },

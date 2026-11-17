@@ -1,6 +1,6 @@
-"""``RecipeStamper``: the recipe edition a run followed, on every step of every page (``Annotator.recipe``).
+"""``RecipeStamper``: the recipe a run followed, on every step of every page (``Annotator.recipe``).
 The builder (``build(..., recipe=...)``, which ``linecaster.runtime.run.main`` calls for ``--recipe``) puts it before
-the first writer, so the page records and every ALTO, PAGE-XML and hOCR file name the recipe edition and its hash
+the first writer, so the page records and every ALTO, PAGE-XML and hOCR file name the recipe and its hash
 next to each preset. Before an item writer it stamps the pages of each item record.
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ from ..base.page import PageBlock, page_of, set_page
 
 
 class RecipeStamper(PageBlock):
-    """Stamps the recipe edition a run follows on every step of every transcription, of a page or of each page of an
+    """Stamps the recipe a run follows on every step of every transcription, of a page or of each page of an
     item record.
 
     It sets ``Annotator.recipe`` and ``Annotator.recipe_sha256`` on every annotator of kind model or rule that names
@@ -18,8 +18,8 @@ class RecipeStamper(PageBlock):
     records). The builder puts one before the first writer when a run follows a recipe.
 
     Args:
-        recipe: the recipe edition, ``id@edition``.
-        recipe_sha256: that edition's hash (``sha256:<hex>``).
+        recipe: the recipe, ``id``.
+        recipe_sha256: its hash (``sha256:<hex>``).
     """
 
     name = "recipe stamper"

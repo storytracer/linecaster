@@ -200,9 +200,9 @@ def _served_models(blocks: list) -> dict[str, dict]:
 
 def _functional_backend(backend: dict, served: dict[str, dict]) -> dict[str, Any]:
     """What a model block's backend contributes to the pipeline's hash: the engine, its options and the preset
-    edition with its hash, wherever the engine runs (in-process, or the server model a served backend names);
+    with its hash, wherever the engine runs (in-process, or the server model a served backend names);
     for a server this run does not start, what the backend knows (engine, preset, else the served model's name);
-    for a chat backend its adapter, preset edition and hash, model and revision, the options set over the preset
+    for a chat backend its adapter, preset and hash, model and revision, the options set over the preset
     (``overrides``: the sampling, the repair pass) and, while it is on, the repetition detection (on by default)."""
     from ..blocks.base.block import ENGINE_OPERATIONAL, plain
 

@@ -112,7 +112,7 @@ class ChatModelServer(Contracted, PipelineStep):
     written.
 
     Args:
-        spec: the chat preset's adapter (``linecaster.adapters.chat_model``) or the preset's ref (``id@edition``).
+        spec: the chat preset's adapter (``linecaster.adapters.chat_model``) or the preset's ref (``id``).
         port: the port the server listens on; ``Chat`` without an endpoint asks on 8000.
         host: the address the server binds to; default loopback only.
         gpu_memory_utilization: the share of GPU memory the server may take (for SGLang ``--mem-fraction-static``);

@@ -17,7 +17,7 @@ Mapping (see ``docs/reference/serialization.md``):
   fields;
 * lines without a region go into a synthetic ``TextRegion`` the reader drops again;
 * each model and rule annotator -> ``Metadata/MetadataItem[@type="processingStep"]`` (``name`` the step,
-  ``value`` the preset edition or model, ``Labels`` of the ``linecaster`` model for the rest), read back as
+  ``value`` the preset or model, ``Labels`` of the ``linecaster`` model for the rest), read back as
   annotators (foreign files: OCR-D's processing steps with their parameters; without any, the file is the one
   annotator).
 
@@ -262,7 +262,7 @@ class _Writer:
 
     def processing_step(self, md, m: Annotator) -> None:
         """``MetadataItem type="processingStep"`` (as OCR-D records its processors): ``name`` = the step,
-        ``value`` = the preset edition or the model; ``Labels`` of the ``linecaster`` model with the model
+        ``value`` = the preset or the model; ``Labels`` of the ``linecaster`` model with the model
         (``externalId="model"``: name, engine, revision, preset, preset hash, backend, software) and the settings
         (``externalId="settings"``: one label per setting, values as ``encode_value`` writes them)."""
         when = P.processed_at(m)

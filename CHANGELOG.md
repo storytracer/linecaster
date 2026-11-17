@@ -4,6 +4,18 @@ All notable changes to linecaster. The format follows [Keep a Changelog](https:/
 each release lists upgrade notes first, then additions, changes, deprecations, removals and fixes. Versions follow
 the tags; the first is `v0.1.0`.
 
+## Unreleased
+
+### Fixed
+
+- The generated pages of `LayoutDetector`, `LineDetector`, `LineRecognizer`, `TableRecognizer`, `FormulaRecognizer`
+  and `ModularTranscriber` show their contract again. They said "not built" since catalog references lost their
+  edition in 0.10; a test now fails when a block's page does not build.
+- Help texts and docstrings no longer speak of preset, recipe and policy editions or of `id@edition`.
+- `linecaster serve`'s docs name its protocol, `linecaster.page/5`.
+- `aiohttp`, which `linecaster serve` imports, is a declared dependency (it was installed through saturate).
+- The reference lists every pipeline script (`import_transcriptions.py` and `score.py` were missing).
+
 ## 0.11.0 (2026-11-17)
 
 linecaster reads, keeps, writes and scores texts in any writing system: languages, scripts and writing directions

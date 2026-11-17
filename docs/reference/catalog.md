@@ -488,7 +488,8 @@ transcription strategies, the catalog kind, are another thing.)
 ## Pipelines, recipes and `launch.py`
 
 Every pipeline script declares `PIPELINE`, its id: its file name with `.v<n>` (`harvest.v1`,
-`transcribe_modular.v1`, `transcribe_vlm.v1`, `transcribe_page.v1`, `bind.v1`). A script with slots also declares `SLOTS` (slot →
+`transcribe_modular.v1`, `transcribe_vlm.v1`, `transcribe_page.v1`, `bind.v1`, `convert.v1`,
+`import_transcriptions.v1`, `score.v1`). A script with slots also declares `SLOTS` (slot →
 option; the option is the step's name: `--layout`, `--lines`, `--recognition`, ...; the rule-based steps are slots
 too: `transcribe_modular.v1` has `--typography`, `--recomposition` and `--composition`, `bind.v1`
 `--recomposition` and `--composition`; a slot left empty leaves its step out, e.g. no recomposition: the page stays

@@ -41,7 +41,7 @@ from ..runtime import run
 
 STEPS = ("layout", "lines", "recognition", "tables", "formulas")
 #: the rule-based steps, each a slot (a preset; none: the step does not run)
-RULE_STEPS = ("typography", "recomposition", "composition")
+RULE_SLOTS = ("typography", "recomposition", "composition")
 #: --naming: where per-page files go (a folder per item, or one folder)
 NAMING = {"item": {"bucket_by_item": True}, "flat": {"bucket_by_item": False}}
 
@@ -75,7 +75,7 @@ def options(ap):
     ap.add_argument("--furniture", action="store_true",
                     help="--files: keep page headers and footers in md, txt and html (by default they are left out)")
     ap.add_argument("--policy", default="page-layers", metavar="ID@EDITION",
-                    help="the rendering policy (a catalog policy edition) the documents, files and texts are rendered "
+                    help="the rendering policy (a catalog policy) the documents, files and texts are rendered "
                          "under: which content roles are body, furniture, notes or nowhere")
     ap.add_argument("--strategy", default="literal",
                     help="the transcription strategy the page files' md, txt, html and json are written by: literal "
@@ -100,7 +100,7 @@ def chosen(a) -> dict[str, str]:
 
 def sets(a) -> dict[str, dict]:
     """``--set`` by step: the model steps picked and the rule-based ones."""
-    return run.overrides(a.set, steps=[*chosen(a), *(s for s in RULE_STEPS if getattr(a, s))])
+    return run.overrides(a.set, steps=[*chosen(a), *(s for s in RULE_SLOTS if getattr(a, s))])
 
 
 def models(a) -> list[dict]:

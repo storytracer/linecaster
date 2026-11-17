@@ -190,7 +190,7 @@ class DoclingImporter(Importer):
 
 
 class HtmlImporter(Importer):
-    """HTML, by HTML's semantics and a source's conventions (``conventions``: a catalog entry, ``id@edition``).
+    """HTML, by HTML's semantics and a source's conventions (``conventions``: a catalog entry, ``id``).
 
     Args:
         **options: the engine's options, the fields of its ``Options`` model (described there); a preset's
@@ -203,7 +203,7 @@ class HtmlImporter(Importer):
     scripts: ClassVar[tuple[str, ...]] = ("*",)
 
     class Options(Importer.Options):
-        conventions: str | None = Field(None, description="the source's conventions, a catalog entry (id@edition)")
+        conventions: str | None = Field(None, description="the source's conventions, a catalog entry (id)")
 
     def read(self, source, options):
         from lxml import html as lxml_html

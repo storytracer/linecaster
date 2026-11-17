@@ -51,7 +51,7 @@ def _preset_produces(ref: str) -> tuple[str, ...] | None:
 
     try:
         p = catalog().preset(ref)
-    except (CatalogError, ValueError):     # unknown, or not an id@edition
+    except (CatalogError, ValueError):     # unknown, or not an id
         return None
     return tuple(p.capabilities.produces) or None
 
@@ -88,7 +88,7 @@ def produces(backend, step: str, spec=None) -> tuple[str, ...]:
 
 
 def preset_backend(ref: str, step: str) -> InProcess:
-    """The in-process backend of catalog preset ``ref`` (``id`` or ``id@edition``) for a block of ``step``."""
+    """The in-process backend of catalog preset ``ref`` (``id``) for a block of ``step``."""
     from ...catalog.registry import catalog
 
     try:
@@ -119,14 +119,14 @@ class ModelBlock(PageBlock):
     Contract: reads the page image (recognition also ``lines``, tables and formulas ``regions``) and adds what its
     preset's ``capabilities.produces`` names, else its engine's declared capabilities, else the step's default
     (``STEP_PRODUCES``). The engine's ``Annotator`` gets the engine id, ``seconds``, ``datetime`` and, from a
-    preset, the edition and its hash. A page an earlier block failed on passes through at once (stat
+    preset, its id and its hash. A page an earlier block failed on passes through at once (stat
     ``skipped_after_error``); a failed request is the page's error (type ``ServerError``), counted against the
     error budget. Served stats: ``pages``, ``model_seconds``, token counts, ``finish_<reason>``,
     ``served_wall_seconds``.
 
     Args:
         backend: where the engine runs: ``InProcess``, ``Served``, or a catalog preset's ref (``id`` or
-            ``id@edition``) for its engine in the pipeline's process; a preset of another step is refused
+            ``id``) for its engine in the pipeline's process; a preset of another step is refused
             (``PipelineConfigError``).
         transcription: the transcription the step reads and adds to.
         params: keyword arguments for every call of the engine (in-process) or sent with every request (served);

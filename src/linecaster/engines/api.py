@@ -132,8 +132,7 @@ def hf_snapshot(weights: dict, download: bool = True) -> Path:
 
 
 def conventions(ref: str) -> "ResolvedConventions":
-    """A conventions entry of the catalog with its chain resolved (``id@edition``; ``id`` alone: its latest
-    edition), for an importer that applies a source's conventions.
+    """A conventions entry of the catalog with its chain resolved (by its ``id``), for an importer that applies a source's conventions.
 
     Args:
         ref: the entry, e.g. ``example@1``.

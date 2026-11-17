@@ -77,7 +77,7 @@ def failed(doc: Document) -> bool:
 
 def error_entry(block, error: BaseException | str, error_type: str | None = None, **extra) -> dict:
     """What a page records when ``block`` fails on it: ``block`` (its class), ``step`` (a model block's), ``preset``
-    (its edition, if it has one), ``type`` (the exception's class, or ``error_type``) and ``error`` (the message),
+    (its id, if it has one), ``type`` (the exception's class, or ``error_type``) and ``error`` (the message),
     plus ``extra`` (e.g. ``field`` and ``raw_value`` of a check)."""
     entry = {"block": type(block).__name__}
     if getattr(block, "step", None) and block.step != "model":

@@ -525,7 +525,7 @@ def main(argv: list[str] | None = None) -> None:
                                       "of served requests, gaps, the slowest pages, per task the warm-up")
     t.add_argument("out", help="the run folder (its traces/)")
     t.add_argument("--by", choices=["block", "preset", "task"], default="block",
-                   help="group the time per page by block, preset edition or task")
+                   help="group the time per page by block, preset or task")
     t.add_argument("--slowest", type=int, default=10, metavar="N", help="the N slowest traced pages")
     t.add_argument("--json", action="store_true", help="the report as JSON")
     sc = sub.add_parser("score", help="score a run's page records against a ground truth's, by a benchmark: score "

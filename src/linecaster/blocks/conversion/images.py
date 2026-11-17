@@ -110,7 +110,7 @@ class ImageConverter(Contracted, PipelineStep):
 
     Args:
         output_folder: the folder (local path, fsspec URI or ``DataFolder``) the images go to.
-        preset: the image preset (``id@edition``, e.g. ``working-image``) or an engine spec
+        preset: the image preset (``id``, e.g. ``working-image``) or an engine spec
             (``InProcess("module:Class", **options)``).
         keep_bytes: the converted image replaces ``doc.media``, so later blocks need not read it again (it then also
             replaces ``image``); without it the page leaves with no image bytes.

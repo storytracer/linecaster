@@ -91,7 +91,7 @@ class Served:
         initial_window: the requests in flight at the start; saturate adapts the window between it and
             ``max_window``.
         read_timeout: seconds per request before it fails (the page's error).
-        preset: the catalog preset (``id@edition``) the server hosts under ``model``, when known: the block's
+        preset: the catalog preset (``id``) the server hosts under ``model``, when known: the block's
             contract takes its parts from it.
         engine: the engine (``module:Class``) the server hosts under ``model``, when known: the contract's parts
             from its capabilities when there is no preset.
@@ -111,7 +111,7 @@ class Served:
     max_window: int = 32
     initial_window: int = 4
     read_timeout: float = 600.0
-    #: the catalog preset (id@edition) and the engine (module:Class) the server hosts under ``model``, when known:
+    #: the catalog preset (id) and the engine (module:Class) the server hosts under ``model``, when known:
     #: the block's contract takes its parts from them
     preset: str | None = None
     engine: str | None = None

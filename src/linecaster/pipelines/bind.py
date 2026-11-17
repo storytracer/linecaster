@@ -25,7 +25,7 @@ from ..errors import PipelineConfigError
 from ..runtime import run
 
 #: the rule-based steps of the item stage, each a slot
-RULE_STEPS = ("recomposition", "composition")
+RULE_SLOTS = ("recomposition", "composition")
 
 
 def options(ap):
@@ -45,7 +45,7 @@ def options(ap):
     ap.add_argument("--dividers", action="store_true",
                     help="item documents: --- between the items of consecutive layout regions in md")
     ap.add_argument("--policy", default="page-layers", metavar="ID@EDITION",
-                    help="the rendering policy (a catalog policy edition) the documents, files and texts are rendered "
+                    help="the rendering policy (a catalog policy) the documents, files and texts are rendered "
                          "under: which content roles are body, furniture, notes or nowhere")
 
 
@@ -59,7 +59,7 @@ def pipeline(a, script: str) -> list:
     if not a.composition:
         raise PipelineConfigError("bind: pick --composition (or a --recipe that names it): every text is written "
                                   "from the item's document")
-    over = run.overrides(a.set, steps=[s for s in RULE_STEPS if getattr(a, s)])
+    over = run.overrides(a.set, steps=[s for s in RULE_SLOTS if getattr(a, s)])
     return [
         PageRecordReader(a.images, fetch_images=False, item_shards=True, sample=run.sample_rule(a)),
         Binder(),

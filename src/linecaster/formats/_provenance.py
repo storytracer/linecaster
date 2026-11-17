@@ -76,12 +76,12 @@ def from_record(d: dict[str, Any]) -> Annotator:
 
 
 def label(m: Annotator) -> str:
-    """What ran, in one word: the preset edition when it ran as one, else the model's name."""
+    """What ran, in one word: the preset when it ran as one, else the model's name."""
     return m.preset or m.name
 
 
 def summary(m: Annotator) -> str:
-    """``step: name@revision`` for people (PAGE ``Comments``), with the preset edition when it ran as one."""
+    """``step: name@revision`` for people (PAGE ``Comments``), with the preset when it ran as one."""
     out = f"{m.step}: {m.name}" + (f"@{m.revision}" if m.revision else "")
     return out + (f" (preset {m.preset})" if m.preset else "")
 

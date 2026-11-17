@@ -394,7 +394,7 @@ def _until(entries: list[_Entry], name: str, run_folder: str | None, problems: l
 
 
 def _stamp(entries: list[_Entry], recipe: tuple[str, str]) -> None:
-    """The recipe edition on every step: a ``RecipeStamper`` before the first writer."""
+    """The recipe on every step: a ``RecipeStamper`` before the first writer."""
     from ..blocks.validation.recipe import RecipeStamper
 
     i = next((k for k, e in enumerate(entries) if e.contract.role in ("writer", "server")), len(entries))
@@ -655,7 +655,7 @@ def build(blocks: list, *, tasks: int = 1, until: str | None = None, after: str 
             blocks up to it add.
         taps: block name -> folder: the page records as they leave that block, written to ``<folder>/<rank>.jsonl.gz``.
         run_folder: the run folder (``OUT``): rejects, traces, partial runs and item shards go there; default none.
-        recipe: ``(ref, sha256)`` of the recipe edition the run follows, stamped on every step before the first
+        recipe: ``(ref, sha256)`` of the recipe the run follows, stamped on every step before the first
             writer (``RecipeStamper``).
         observers: more observers, on every stage next to the taps and the tracing.
         max_page_errors: every page block's error budget, a share of a task's pages; default each block's own

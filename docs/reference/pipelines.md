@@ -557,7 +557,7 @@ a key given as text is refused. A missing variable fails the block's warm-up.
 ## Pipeline shapes
 
 A pipeline script's code is a pipeline shape in `linecaster.pipelines` (`harvest`, `convert`, `transcribe_modular`,
-`transcribe_vlm`, `transcribe_page`, `bind`, `import_transcriptions`): its docstring (the help text), `options(ap)`, `models(a)`,
+`transcribe_vlm`, `transcribe_page`, `bind`, `import_transcriptions`, `score`): its docstring (the help text), `options(ap)`, `models(a)`,
 `pipeline(a, script)`, `PIPELINE` and, where recipes fill it, `SLOTS`. `linecaster.pipelines.shapes()` lists them by
 pipeline id and `shape(id)` finds one; importing one imports no engine. The script in `pipelines/` is its PEP 723
 block, a docstring and the call that runs the shape:

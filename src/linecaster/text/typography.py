@@ -1,4 +1,4 @@
-"""Retyper: what the typesetter's sizes and initials say about a page's regions, on a ``Transcription``.
+"""Typography: what the typesetter's sizes and initials say about a page's regions, on a ``Transcription``.
 
 The engine ``typography.ratios.v1`` (``linecaster.engines.typography``) runs it, every threshold a field of
 ``Ratios`` (the constants below are their defaults). It runs after recognition (and tables), before page composition. All rules

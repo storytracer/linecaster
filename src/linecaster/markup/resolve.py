@@ -63,7 +63,7 @@ def _place(rules: list[Rule], rule: Rule) -> None:
 
 
 def resolve(ref: str, entry: Callable[[str], ConventionsDoc]) -> ResolvedConventions:
-    """The entry ``ref`` (``id@edition``) with its chain, each entry looked up by ``entry(ref)``."""
+    """The entry ``ref`` (``id``) with its chain, each entry looked up by ``entry(ref)``."""
     seen: list[str] = []
     stated: list[tuple[str, ...]] = []                     # each entry's transcription, root first
 

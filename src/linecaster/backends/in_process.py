@@ -29,7 +29,7 @@ class InProcess:
     Nothing is imported until ``warm_up()`` (or the first ``model()``): a pipeline builds, checks and describes
     without the engine installed. The engine is loaded in the worker and never pickled (a pickled backend carries
     its spec and options only). ``InProcess.from_preset(ref)`` builds one from a catalog preset and records the
-    preset edition and its hash, which the block stamps on every step it records.
+    preset and its hash, which the block stamps on every step it records.
 
     Args:
         spec: the engine's class, ``"package.module:Class"``.
@@ -47,14 +47,14 @@ class InProcess:
 
     def __init__(self, spec: str, **kwargs):
         self.spec, self.kwargs = spec, kwargs
-        self.preset: str | None = None           # id@edition when built from a catalog preset
+        self.preset: str | None = None           # id when built from a catalog preset
         self.preset_sha256: str | None = None
         self.overrides: dict | None = None       # options given over the preset's (the pipelines' --set)
         self._model = None
 
     @classmethod
     def from_preset(cls, ref: str) -> "InProcess":
-        """The engine and options of catalog preset ``ref`` (``id`` or ``id@edition``)."""
+        """The engine and options of catalog preset ``ref`` (``id``)."""
         from ..catalog.registry import engine_spec
 
         spec, kwargs, resolved = engine_spec(ref)
@@ -77,7 +77,7 @@ class InProcess:
 
     def to_dict(self) -> dict:
         """The backend as the run record names it: the engine class, its options (a preset's with ``overrides``
-        over them), and the preset edition and its hash when it came from one."""
+        over them), and the preset and its hash when it came from one."""
         out = {"backend": "in-process", "engine": self.spec, "options": self.kwargs}
         for k in ("preset", "preset_sha256", "overrides"):
             if getattr(self, k, None):
