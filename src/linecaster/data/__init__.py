@@ -4,7 +4,7 @@ stored page records; and the geometry helpers (``linecaster.data.geometry``). Im
 datatrove, saturate or engines."""
 from linecaster.data.measurements import FINISH_REASONS, MEASUREMENTS
 from linecaster.data.page import PAGE_KEY, PAGE_SCHEMA, Item, Page, PageImage
-from linecaster.data.source import SourceDocument
+from linecaster.data.source import SourceFile
 from linecaster.data.policy import DEFAULT_POLICY, LAYERS, ROLES, MarkdownRules, RenderingPolicy, RenderingRule, TableRules
 from linecaster.data.transcription import (
     DECISIONS, EDITS, LINKS, PROPERTIES, REASONS, SCHEMES, STATUSES, Anchor, Annotation, AnnotationSet, Annotator, Box, Cell, Classification,
@@ -18,5 +18,5 @@ __all__ = [
     "Box", "Cell", "Classification", "Decision", "Description", "DocumentRange", "Edit", "Formatting", "Formula",
     "Glyph", "Item", "Line", "Link", "MarkdownRules", "Page", "PageImage", "Paragraph", "ParagraphRow", "Point",
     "Range", "RawOutput", "Reading", "ReadingOrder", "Ref", "Region", "RenderingPolicy", "RenderingRule", "Shape",
-    "Source", "SourceDocument", "Table", "TableRules", "Transcription", "Word", "Zone",
+    "Source", "SourceFile", "Table", "TableRules", "Transcription", "Word", "Zone",
 ]

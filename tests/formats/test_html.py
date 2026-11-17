@@ -256,10 +256,10 @@ def test_a_language_reaches_notes_and_cells():
 
 
 def test_auto_directionality_follows_the_text():
-    from linecaster.data import SourceDocument
+    from linecaster.data import SourceFile
     from linecaster.engines.importers import HtmlImporter
 
-    t = HtmlImporter()(SourceDocument(data='<html dir="rtl"><body><p dir="auto">English text</p><p>שלום</p>'
+    t = HtmlImporter()(SourceFile(data='<html dir="rtl"><body><p dir="auto">English text</p><p>שלום</p>'
                                            '<p>English and <bdi>שלום עולם</bdi> here</p><p dir="auto">123</p>'
                                            '</body></html>'))
     assert [t.text_of(ln) for ln in t.lines][1] == "שלום"                 # text: parsed as the UTF-8 it is
@@ -282,8 +282,8 @@ def test_auto_directionality_follows_the_text():
     ('<p>Hi <bdi>שלום</bdi> there</p>', [("paragraph_0_l0[3:7]", "horizontal-rl")]),
 ])
 def test_auto_directionality_is_resolved_on_its_element(html, directions):
-    from linecaster.data import SourceDocument
+    from linecaster.data import SourceFile
     from linecaster.engines.importers import HtmlImporter
 
-    t = HtmlImporter()(SourceDocument(data=html))
+    t = HtmlImporter()(SourceFile(data=html))
     assert [(c.target, c.value) for c in t.classifications if c.scheme == "direction"] == directions

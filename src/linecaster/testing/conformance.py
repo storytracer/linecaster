@@ -363,7 +363,7 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
     * a rule-based engine by its unit: ``engine(transcription)`` (page), ``engine([t1, t2])`` (item, the
       transcriptions of two pages), ``engine(image_bytes) -> (bytes, info)`` (the image step);
 
-    an importer (step ``import``) as ``engine(source)``, a ``SourceDocument``: it returns a new ``Transcription``
+    an importer (step ``import``) as ``engine(source)``, a ``SourceFile``: it returns a new ``Transcription``
     whose rule annotators of step ``import`` name the engine and only measurements of the vocabulary;
     a composition (a rendering) returns what it renders and changes nothing in the transcription it reads; every
     other call gives each transcription exactly one more ``Annotator``, of kind ``rule`` for a rule-based step
@@ -378,7 +378,7 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
         options: keyword arguments that construct it (a preset's options and ``weights``); ``None``: none.
         image: the page image, an RGB array (the image step and an engine whose ``image_input`` is ``"bytes"``: an
             image file's bytes); default ``sample_page()`` (``sample_png()``).
-        source: an importer's source document (``linecaster.data.SourceDocument``); default the sample page as ALTO.
+        source: an importer's source document (``linecaster.data.SourceFile``); default the sample page as ALTO.
         transcription: the transcription it is called with; default a sample layout fit for its step and unit
             (``sample_layout``: recognition gets lines without readings, layout an empty transcription, lines a
             region, tables and formulas a region of their label besides a recognized one, a page engine
@@ -439,7 +439,7 @@ def check_engine(engine_cls, *, options: dict | None = None, image=None, transcr
                 break
             result, dump = out, (out[0], json.dumps(out[1], sort_keys=True, default=str))
         elif step == "import":              # a source document in, a new transcription out
-            from linecaster.data import SourceDocument
+            from linecaster.data import SourceFile
             from linecaster.formats import to_alto
             from linecaster.testing.samples import sample_transcription
 
@@ -526,7 +526,7 @@ def _sample_source(fmt: str):
     import json as _json
     from xml.sax.saxutils import escape
 
-    from linecaster.data import SourceDocument
+    from linecaster.data import SourceFile
     from linecaster.formats import to_alto, to_hocr, to_page
     from linecaster.formats.iiif import to_annotation_page
     from linecaster.testing.samples import sample_transcription
@@ -542,7 +542,7 @@ def _sample_source(fmt: str):
                             + "</body></text></TEI>"),
             "omnidocbench": lambda: _json.dumps(_omnidocbench_entry(t))}.get(
         fmt, lambda: to_alto(t))()
-    return SourceDocument(data=data, format=fmt if fmt != "auto" else None)
+    return SourceFile(data=data, format=fmt if fmt != "auto" else None)
 
 
 def _omnidocbench_entry(t) -> dict:

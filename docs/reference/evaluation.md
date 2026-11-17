@@ -20,7 +20,7 @@ run's page records ─────► transcription (ocr_new) ──────
 |---|---|---|
 | a source | transcriptions made or checked by people, in their own format (PAGE-XML, TEI, wikitext, a benchmark's JSON) | the source |
 | conventions | what a public source's markup means, declaratively (`linecaster.conventions`) | linecaster's catalog |
-| page records | the neutral exchange format: a ground truth imported into linecaster's data model, or a run's output | the dataset (`linecaster truth publish`), the run |
+| page records | the neutral exchange format: a ground truth imported into linecaster's data model, or a run's output | the dataset (`linecaster ground-truth publish`), the run |
 | rendering policy, output strategy, lanes | how both sides are rendered, written and compared | linecaster's catalog |
 | the scorer | page and element metrics, strata, aggregation | linecaster (`linecaster.evaluation`) |
 | a benchmark | a definition: a ground truth, its page set, the policy, lanes, metrics (`linecaster.benchmark/2`; `linecaster benchmark init`) | the evaluation |
@@ -228,7 +228,7 @@ counts, so corpus rates are exact. Element rows are in `OUT/scores/elements.parq
 `linecaster score` scores a run in one process. `pipelines/score.py` (the pipeline `score.v1`) scores the same way over
 many tasks, here (`--workers`) or on a Ray cluster (`--on ray`), like every other pipeline:
 
-    uv run pipelines/score.py RUN/scores --pages RUN/pages --truth TRUTH --benchmark benchmark.yaml --tasks 32
+    uv run pipelines/score.py RUN/scores --pages RUN/pages --ground-truth TRUTH --benchmark benchmark.yaml --tasks 32
 
 Each task scores a share of the run's page records (`PageScorer`: its pages' ground truth read in one pass, only
 their lines decoded) and writes their score records and page summaries (`ScoreWriter`: `OUT/records`, `OUT/pages`).
@@ -288,7 +288,7 @@ linecaster runs no external benchmark's code: it writes a ground truth and a run
 benchmark's own evaluation scores them, where and how its owners run it. For OmniDocBench (opendatalab/OmniDocBench,
 its end-to-end evaluation):
 
-    linecaster export omnidocbench OUT --truth TRUTH/pages --pages RUN/pages [--ids IDS] [--tables data] [--strategy nfc]
+    linecaster export omnidocbench OUT --ground-truth TRUTH/pages --pages RUN/pages [--ids IDS] [--tables data] [--strategy nfc]
 
 `OUT` holds `truth.json` (OmniDocBench's ground-truth JSON), `predictions/<page id>.md` (a page the run lacks or failed
 on: an empty prediction), `export.yaml` (what was exported and with what) and a `README.md` naming OmniDocBench's own
@@ -319,9 +319,9 @@ its formula metric CDM (TeX Live) and pages with tables and formulas. Its readin
 against itself where its matching splits or merges components. Its results are another view than linecaster's own
 scoring, not one of its lanes; for scripts with combining marks linecaster's scoring is the measure.
 
-## Checking a ground truth (`linecaster truth check`)
+## Checking a ground truth (`linecaster ground-truth check`)
 
-    linecaster truth check TRUTH [--transcription ground_truth] [--ids FILE] [--json OUT]
+    linecaster ground-truth check TRUTH [--transcription ground_truth] [--ids FILE] [--json OUT]
 
 reads a ground truth's page records (a folder, local or fsspec; JSON Lines, gzipped or not, or Parquet) and reports,
 per page and in total (`linecaster.evaluation.truth`: `check_page`, `check`, `render`):
@@ -387,9 +387,9 @@ hashed, as before:
 Both are recorded in the rule (`stratify`, `per_stratum`, `splits`, `split`), and a sample's record
 (`Sample.record()`) names the split hash (`split_hash`) where splits were used.
 
-## Publishing a ground truth (`linecaster truth publish`)
+## Publishing a ground truth (`linecaster ground-truth publish`)
 
-    linecaster truth publish TRUTH OUT [--transcription ground_truth] [--images FOLDER | --no-images]
+    linecaster ground-truth publish TRUTH OUT [--transcription ground_truth] [--images FOLDER | --no-images]
         [--split NAME:FRACTION ...] [--seed S] [--license LICENSE] [--name NAME] [--shard-pages 1000]
 
 writes a ground truth's page records as a dataset the Hugging Face Hub reads (`linecaster.evaluation.publish`):

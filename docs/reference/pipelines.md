@@ -213,7 +213,7 @@ includes waiting in a served window; `error` is the entry the component added to
 are plain callables, not datatrove steps, so they add no stats; a stage without observers has none.
 
 Every stage with a run folder (or an OTLP endpoint) is traced: the builder adds a `linecaster.tracing.Tracing`
-observer (`build(..., trace_sample=SHARE)`, `--trace-sample`; [tracing](tracing.md)).
+observer (`build(..., trace_share=SHARE)`, `--trace-share`; [tracing](tracing.md)).
 
 ## Warm-up
 

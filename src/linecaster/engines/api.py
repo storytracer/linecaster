@@ -17,7 +17,7 @@ import):
 * for importers (step ``import``): ``Importer``, the base of the import engines; ``conventions`` (a conventions
   entry of the catalog, resolved: ``ResolvedConventions``); ``HtmlConverter`` (HTML into a transcription under
   conventions); ``SourceMap`` (anchors into a source text by alignment); ``ConventionsDoc`` and
-  ``resolve_conventions`` (an entry and its chain resolved without the catalog, for tests); ``SourceDocument`` is in
+  ``resolve_conventions`` (an entry and its chain resolved without the catalog, for tests); ``SourceFile`` is in
   the data model.
 
 Import-light, like the data model: the catalog is imported only when a helper is called.

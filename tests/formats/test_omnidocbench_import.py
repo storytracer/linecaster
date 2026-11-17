@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from linecaster.data import Annotator, Source, SourceDocument, Transcription
+from linecaster.data import Annotator, Source, SourceFile, Transcription
 from linecaster.data.transcription import Cell, Formula, Table
 from linecaster.formats.omnidocbench import (
     entries,
@@ -126,7 +126,7 @@ def test_the_importer_reads_an_entry_and_fits_it_to_the_page_image():
 
     entry = truth_page("p1", _truth(), attributes={"language": "simplified_chinese"})
     entry["layout_dets"][0]["poly"] = [0, 0, 500, 0, 500, 50, 0, 50]
-    t = OmniDocBenchImporter()(SourceDocument(data=json.dumps(entry), image_width=500, image_height=700,
+    t = OmniDocBenchImporter()(SourceFile(data=json.dumps(entry), image_width=500, image_height=700,
                                               record="row-1"))
     assert t.source.kind == "ground_truth" and t.language("") == "zh-Hans"
     assert t.regions[0].box == [0.0, 0.0, 250.0, 25.0]                             # 1000 x 1400 onto 500 x 700

@@ -14,7 +14,7 @@ from typing import Any
 
 from datatrove.data import MediaType
 
-from linecaster.data.source import SourceDocument
+from linecaster.data.source import SourceFile
 from linecaster.errors import PipelineConfigError
 from linecaster.core.contract import Contract, Part
 from linecaster.core.page import PageComponent
@@ -116,7 +116,7 @@ class TranscriptionImporter(PageComponent):
         image = page.image
         context = {k: _dotted(page.metadata, k) for k in self.context_keys}
         revision = context.pop("revision", None)
-        source = SourceDocument(data=data, format=fmt, uri=uri, record=context.pop("record", None),
+        source = SourceFile(data=data, format=fmt, uri=uri, record=context.pop("record", None),
                                 revision=str(revision) if revision is not None else None,
                                 dataset=context.pop("dataset", None), image_width=image.width if image else None,
                                 image_height=image.height if image else None, context=context)

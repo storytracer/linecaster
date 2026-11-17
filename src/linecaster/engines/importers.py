@@ -1,4 +1,4 @@
-"""The import step: engines that read a source document (``linecaster.data.SourceDocument``) into a transcription,
+"""The import step: engines that read a source document (``linecaster.data.SourceFile``) into a transcription,
 in the pipeline's process.
 
 An importer (``Importer``) is a rule-based engine of step ``import``: ``__call__(source, **options)`` for its unit
@@ -23,7 +23,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecaster.data.source import SourceDocument
+from linecaster.data.source import SourceFile
 from linecaster.data.transcription import Annotator, Transcription
 from linecaster.data.writing import language_tag
 from linecaster.engines.base import RuleEngine
@@ -50,10 +50,10 @@ class Importer(RuleEngine):
         ground_truth: bool = Field(True, description="the source is a ground truth, made or checked by people (else "
                                                      "a delivered file whose making is unknown)")
 
-    def read(self, source: SourceDocument, options) -> Transcription:  # pragma: no cover - interface
+    def read(self, source: SourceFile, options) -> Transcription:  # pragma: no cover - interface
         raise NotImplementedError
 
-    def __call__(self, source: SourceDocument, **options) -> Transcription:
+    def __call__(self, source: SourceFile, **options) -> Transcription:
         o = self.configured(options)
         t = self.read(source, o)
         if not any(a.kind == "rule" and a.step == "import" for a in t.annotators):

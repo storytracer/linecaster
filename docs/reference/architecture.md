@@ -111,7 +111,7 @@ engine class (`<Provider><Step>Engine`) has `engine_id` (the entry point's name 
 `capabilities` (unit, produces), an `Options` model (its keyword arguments; a preset's `weights` besides), `load()`
 and `__call__(image, transcription, **params) -> Transcription` (the page image as an RGB array, or the image file's
 bytes for an engine whose `image_input` is `"bytes"`, and the transcription so far, returned with its part added);
-an importer (step `import`) is called with a source document (`SourceDocument`) and returns a new transcription. Engines with weights load exactly the pin (`weights`,
+an importer (step `import`) is called with a source document (`SourceFile`) and returns a new transcription. Engines with weights load exactly the pin (`weights`,
 `linecaster.catalog.fetch`). PaddleX's models load from the pinned snapshot (`create_predictor(model_dir=...)`);
 `small-models-for-glam/kraken-blla-base` (the BLLA base model of September 2026) is pinned in
 `linecaster_kraken.models`, and no engine uses it. Engine packages carry code only; their presets and models are in

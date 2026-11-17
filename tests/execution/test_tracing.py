@@ -128,7 +128,7 @@ def test_failed_unsampled_pages_are_exported_and_the_others_not(tmp_path: Path):
     src = images(tmp_path / "images", 20)
     out = tmp_path / "out"
     plan = build([ImageFolderReader(src), FailsOn({"p007"}), PageJsonlWriter(str(out / "pages"))],
-                 run_folder=str(out), trace_sample=0)
+                 run_folder=str(out), trace_share=0)
     docs = run_plan(plan)
     assert len(docs) == 20
     spans = spans_of(out)
@@ -152,7 +152,7 @@ def test_failed_unsampled_pages_are_exported_and_the_others_not(tmp_path: Path):
 def test_sampled_pages_carry_their_trace_id(tmp_path: Path):
     src = images(tmp_path / "images", 5)
     out = tmp_path / "out"
-    run_plan(build([ImageFolderReader(src), PageJsonlWriter(str(out / "pages"))], run_folder=str(out), trace_sample=1))
+    run_plan(build([ImageFolderReader(src), PageJsonlWriter(str(out / "pages"))], run_folder=str(out), trace_share=1))
     rows = {json.loads(x)["id"]: json.loads(x) for f in (out / "pages").glob("*.jsonl.gz") for x in gzip.open(f, "rt")}
     traces = {s["attrs"][PAGE_ID]: s["trace"] for s in by_name(spans_of(out), "linecaster.page")}
     assert sorted(traces) == sorted(rows) and all(rows[p]["page"]["metadata"]["trace_id"] == traces[p] for p in rows)
@@ -163,7 +163,7 @@ def test_interleaved_pages_have_the_right_parents(tmp_path: Path):
     out = tmp_path / "out"
     component = Interleaves()
     docs = run_plan(build([ImageFolderReader(src), component, PageJsonlWriter(str(out / "pages"))], run_folder=str(out),
-                          trace_sample=1))
+                          trace_share=1))
     assert [d.id for d in docs] == ["p003", "p002", "p001", "p000"]
     spans = spans_of(out)
     ids = {(s["trace"], s["span"]): s for s in spans}
@@ -203,7 +203,7 @@ def test_the_trace_context_reaches_linecaster_serve_and_its_spans_join(tmp_path:
     server = EngineServer([{"name": "lines", "spec": "linecaster.testing:FakeLineEngine", "kwargs": {}}], port=port,
                          python=sys.executable, boot_timeout=120)
     plan = build([ImageFolderReader(src), LineDetector(Served(endpoint, model="lines", max_window=4)),
-                  PageJsonlWriter(str(out / "pages")), server], run_folder=str(out), trace_sample=1)
+                  PageJsonlWriter(str(out / "pages")), server], run_folder=str(out), trace_share=1)
     plan.check()
     docs = run_plan(plan)
     assert len(docs) == 3 and not any(d.metadata.get("errors") for d in docs)
@@ -231,7 +231,7 @@ def test_files_per_rank_closed_when_the_task_fails(tmp_path: Path):
     src = images(tmp_path / "images", 6)
     out = tmp_path / "out"
     plan = build([ImageFolderReader(src), PageJsonlWriter(str(out / "pages"))], run_folder=str(out), tasks=2,
-                 trace_sample=1)
+                 trace_share=1)
     for rank in (0, 1):
         data = None
         for step in plan.stages[0].pipeline:
@@ -245,7 +245,7 @@ def test_files_per_rank_closed_when_the_task_fails(tmp_path: Path):
     # a failing task: its file is complete, with the task span marked failed and the unfinished page
     out2 = tmp_path / "out2"
     plan = build([ImageFolderReader(src), Breaks(), PageJsonlWriter(str(out2 / "pages"))], run_folder=str(out2),
-                 trace_sample=1)
+                 trace_share=1)
     with pytest.raises(ServerError):
         run_plan(plan)
     raw = (out2 / "traces" / "00000.jsonl.gz").read_bytes()
@@ -315,7 +315,7 @@ def test_log_records_carry_trace_ids(tmp_path: Path):
     sink = logger.add(lambda m: records.append(m.record), level="INFO")
     try:
         run_plan(build([ImageFolderReader(src), FailsOn(), PageJsonlWriter(str(out / "pages"))], run_folder=str(out),
-                       trace_sample=1))
+                       trace_share=1))
     finally:
         logger.remove(sink)
     traces = {s["attrs"][PAGE_ID]: s["trace"] for s in by_name(spans_of(out), "linecaster.page")}
@@ -338,8 +338,8 @@ def test_the_tracing_observer_pickles_without_state(tmp_path: Path):
     assert copy.environment()["LINECASTER_TRACES"].endswith("traces/00000.serve.jsonl.gz")
     with pytest.raises(Exception):
         Tracing(str(tmp_path), 1.5)
-    assert build([ImageFolderReader("x")], run_folder=str(tmp_path), trace_sample=2).problems == [
-        "--trace-sample is a share from 0 to 1, not 2"]
+    assert build([ImageFolderReader("x")], run_folder=str(tmp_path), trace_share=2).problems == [
+        "--trace-share is a share from 0 to 1, not 2"]
 
 
 class _Images(BaseHTTPRequestHandler):
@@ -368,7 +368,7 @@ def test_fetches_become_spans_of_their_page(tmp_path: Path):
             f.write(json.dumps(row) + "\n")
         out = tmp_path / "out"
         run_plan(build([PageRecordReader(str(records)), PageJsonlWriter(str(out / "pages"))], run_folder=str(out),
-                       trace_sample=1))
+                       trace_share=1))
     finally:
         httpd.shutdown()
     spans = spans_of(out)
@@ -390,7 +390,7 @@ def test_the_traces_command(tmp_path: Path, capsys):
     src = images(tmp_path / "images", 8)
     out = tmp_path / "out"
     run_plan(build([ImageFolderReader(src), FailsOn({"p003"}), LineDetector(InProcess("linecaster.testing:FakeLineEngine")),
-                    PageJsonlWriter(str(out / "pages"))], run_folder=str(out), trace_sample=1))
+                    PageJsonlWriter(str(out / "pages"))], run_folder=str(out), trace_share=1))
     main(["traces", str(out), "--slowest", "3"])
     text = capsys.readouterr().out
     assert "fails on" in text and "lines (in-process)" in text and "slowest units" in text

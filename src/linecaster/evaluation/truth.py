@@ -1,4 +1,4 @@
-"""What a ground truth holds, checked before it is scored or published (``linecaster truth check``), and the
+"""What a ground truth holds, checked before it is scored or published (``linecaster ground-truth check``), and the
 benchmark definition its data supports (``linecaster benchmark init``).
 
 ``check_page`` reports one page: its lines (with text, empty), its regions and boxes (those outside the image), its
@@ -433,7 +433,7 @@ def benchmark(truth: str, id: str, transcription: str = "ground_truth", rule=Non
     s = data["supports"]
     comments = [f"written by linecaster benchmark init ({producer()}) from {truth} ({transcription}): "
                 f"{len(ids):,} pages",
-                "supports: from the ground truth's data (linecaster truth check)"]
+                "supports: from the ground truth's data (linecaster ground-truth check)"]
     possible = [m for m, ok in (("role_words", bool(s["roles"])), ("confusion", s["boxes"])) if ok]
     if possible:
         comments.append(f"metrics it supports besides the defaults: {', '.join(possible)}")

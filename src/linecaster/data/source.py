@@ -1,4 +1,4 @@
-"""``SourceDocument``: what an importer reads, a file or record of a source with what is known about it."""
+"""``SourceFile``: what an importer reads, a file or record of a source with what is known about it."""
 from __future__ import annotations
 
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class SourceDocument(BaseModel):
+class SourceFile(BaseModel):
     """One document of a source an importer reads: its content (bytes, or text already decoded), its format where
     known, where it comes from (``uri``, the ``record`` of a table, the ``revision`` its anchors refer to, the
     ``dataset`` it belongs to), the page image's size where the transcription is to fit one, and ``context``: what

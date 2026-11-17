@@ -1,5 +1,5 @@
-"""A ground truth checked (``linecaster truth check``), turned into a benchmark definition (``linecaster benchmark
-init``) and published as a Hub dataset (``linecaster truth publish``), on page records written for the tests."""
+"""A ground truth checked (``linecaster ground-truth check``), turned into a benchmark definition (``linecaster benchmark
+init``) and published as a Hub dataset (``linecaster ground-truth publish``), on page records written for the tests."""
 from __future__ import annotations
 
 import io
@@ -126,7 +126,7 @@ def test_linecaster_truth_check_prints_the_report_and_writes_json(tmp_path, caps
     folder = _write(tmp_path / "truth", [_row("p1", _truth(["one"], conventions=True)),
                                          _row("p2", _truth(["two"], order=False))])
     (tmp_path / "ids").write_text("p1\np2\n")
-    main(["truth", "check", folder, "--ids", str(tmp_path / "ids"), "--json", str(tmp_path / "check.json")])
+    main(["ground-truth", "check", folder, "--ids", str(tmp_path / "ids"), "--json", str(tmp_path / "check.json")])
     out = capsys.readouterr().out
     assert "pages 2 (items 1)" in out and "reading order: complete 1, none 1" in out
     assert "conventions html>example (sha256:abc): 1 pages" in out and "pages without a reading order (1): p2" in out
@@ -200,7 +200,7 @@ def test_linecaster_truth_publish_writes_hub_parquet_and_a_card(tmp_path, capsys
             _row("p2", _truth(["two"], language="he"), item="other")]
     folder = _write(tmp_path / "truth", rows)
     out = tmp_path / "hub"
-    main(["truth", "publish", folder, str(out), "--images", str(images)])
+    main(["ground-truth", "publish", folder, str(out), "--images", str(images)])
     assert "pages 2 (with an image 1); train 2" in capsys.readouterr().out
     (file,) = (out / "data").iterdir()
     assert file.name == "train-00000-of-00001.parquet"
@@ -217,7 +217,7 @@ def test_linecaster_truth_publish_writes_hub_parquet_and_a_card(tmp_path, capsys
     assert front["configs"][0]["data_files"] == [{"split": "train", "path": "data/train-*"}]
     assert "`example/truth@r1` | 2" in card and "`long-s`: 1 pages" in card and "linecaster" in card
     # splits by item, records read again for their images (none here: the image cannot be read)
-    main(["truth", "publish", folder, str(tmp_path / "split"), "--split", "a:0.5", "--split", "b:0.5",
+    main(["ground-truth", "publish", folder, str(tmp_path / "split"), "--split", "a:0.5", "--split", "b:0.5",
           "--no-images", "--license", "CC-BY-4.0"])
     names = sorted(p.name.split("-")[0] for p in (tmp_path / "split/data").iterdir())
     assert sum(pq.read_table(p).num_rows for p in (tmp_path / "split/data").iterdir()) == 2 and names

@@ -61,10 +61,10 @@ class Unwrap(Decision):
     name: ClassVar[str] = "unwrap"
 
 
-class Block(Decision):
+class TextBlock(Decision):
     """A block of its own, of a content role (``linecaster.data.policy.ROLES``)."""
 
-    name: ClassVar[str] = "block"
+    name: ClassVar[str] = "text_block"
     role: str = "paragraph"
     heading_level: int | None = Field(None, ge=1)
 
@@ -181,7 +181,7 @@ class Describe(Decision):
 
 
 #: linecaster's own decisions, by name
-DECISIONS: dict[str, type[Decision]] = {c.name: c for c in (Remove, Invisible, Unwrap, Block, Cell, Picture, Caption,
+DECISIONS: dict[str, type[Decision]] = {c.name: c for c in (Remove, Invisible, Unwrap, TextBlock, Cell, Picture, Caption,
                                                              Note, Edit, Language, Format, Break, Continues, RunsOn,
                                                              Describe)}
 

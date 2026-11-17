@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from linecaster.data import SourceDocument
+from linecaster.data import SourceFile
 from linecaster.engines.api import ConventionsDoc, resolve_conventions as resolve
 
 DUMP = """<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.11/" version="0.11">
@@ -120,13 +120,13 @@ def test_the_engine_reads_a_source_document(site):
     from linecaster.testing import check_engine
 
     engine = MediaWikiImporter(site=str(site.folder))
-    t = engine(SourceDocument(data=PAGE, record="Page:Example.djvu/12", revision="99"))
+    t = engine(SourceFile(data=PAGE, record="Page:Example.djvu/12", revision="99"))
     assert t.source.kind == "ground_truth" and t.annotators[1].engine == "import.mediawiki.v1"
     assert any(ln.reading.text == "Second paragraph, abab and a label." for ln in t.lines)
     with pytest.raises(ValueError, match="title"):
-        engine(SourceDocument(data=PAGE))
+        engine(SourceFile(data=PAGE))
     check_engine(MediaWikiImporter, options={"site": str(site.folder)},
-                 source=SourceDocument(data=PAGE, record="Page:Example.djvu/12"))
+                 source=SourceFile(data=PAGE, record="Page:Example.djvu/12"))
 
 
 def test_wikidata_is_never_asked(site):

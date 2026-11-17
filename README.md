@@ -67,7 +67,7 @@ uv run pipelines/transcribe_vlm.py scans/ out/ --layout pp-doclayoutv3 --recogni
 ```
 
 **3. The modular pipeline**: layout, lines and a line recognizer, then post-processing. You choose a preset for
-every step; `linecaster models` lists them.
+every step; `linecaster presets` lists them.
 
 ```bash
 uv run pipelines/transcribe_modular.py scans/ out/ \

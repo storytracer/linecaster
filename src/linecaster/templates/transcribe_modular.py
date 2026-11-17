@@ -1,4 +1,4 @@
-r"""The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster models`):
+r"""The modular pipeline: smaller models, picked step by step from the catalog's presets (`linecaster presets`):
 a layout (a layout model, or `single-region` for the page as one region), text lines and a line recognizer,
 optionally table and formula models after; then the rule-based steps, each a preset too: typography (--hierarchy),
 recomposition (--paragraphs; without one the page stays as laid out) and page composition (--document). Page
@@ -119,7 +119,7 @@ def pipeline(a, script: str) -> list:
     picks = chosen(a)
     missing = [f"--{s}" for s in ("layout", "lines", "recognition") if s not in picks]
     if missing:
-        raise PipelineConfigError(f"modular: pick {' and '.join(missing)} (`linecaster models` lists the presets; "
+        raise PipelineConfigError(f"modular: pick {' and '.join(missing)} (`linecaster presets` lists the presets; "
                                   "--layout single-region reads the page as one region)")
     if a.item_texts and not a.document:
         raise PipelineConfigError("modular: --item-texts writes the item's document; pick --document (e.g. "

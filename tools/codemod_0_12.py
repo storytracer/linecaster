@@ -87,6 +87,9 @@ NAMES: list[tuple[str, str]] = [
     ("RatiosTypographyEngine", "RatiosHierarchyEngine"), ("UnicodeRecompositionEngine", "UnicodeParagraphsEngine"),
     ("ByScriptRecompositionEngine", "ByScriptParagraphsEngine"), ("LinkedCompositionEngine", "LinkedDocumentEngine"),
     ("unicode-recomposition", "unicode-paragraphs"), ("linked-composition", "linked-document"),
+    ("SourceDocument", "SourceFile"), ("--trace-sample", "--trace-share"), ("trace_sample", "trace_share"),
+    ("linecaster models", "linecaster presets"), ("linecaster truth", "linecaster ground-truth"),
+    ("--truth", "--ground-truth"),
 ]
 
 #: step ids, old -> new: renamed where they are ids (quoted, a flag, an attribute, a key), not in running prose

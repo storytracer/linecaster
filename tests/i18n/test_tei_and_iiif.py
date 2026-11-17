@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 
-from linecaster.data import SourceDocument
+from linecaster.data import SourceFile
 from linecaster.engines.importers import AutoImporter
 from linecaster.evaluation import score_page
 
@@ -34,12 +34,12 @@ def _iiif() -> str:
 
 
 def test_a_tei_page_and_an_iiif_page_of_one_text_score_against_each_other():
-    tei = AutoImporter()(SourceDocument(data=TEI))
+    tei = AutoImporter()(SourceFile(data=TEI))
     assert tei.source.format == "tei" and tei.language("") == "grc"
     assert [(e.kind, e.text) for e in tei.edits] == [("expanded", "πρὸς")]
 
     def score(iiif_text: str) -> dict:
-        iiif = AutoImporter()(SourceDocument(data=iiif_text))
+        iiif = AutoImporter()(SourceFile(data=iiif_text))
         assert (iiif.source.format, iiif.language("")) == ("iiif", "grc")
         row = score_page(tei, iiif, lanes=("diplomatic",))["rows"][0]
         return {k: row[k] for k in ("s", "d", "i", "words_true", "words_both")}

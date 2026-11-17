@@ -86,12 +86,12 @@ def test_a_span_of_another_direction_is_written_as_one():
 
 
 def test_a_run_of_another_direction_is_one_isolate_whatever_its_formatting():
-    from linecaster.data import SourceDocument
+    from linecaster.data import SourceFile
     from linecaster.document.builder import build_document
     from linecaster.document.serialize import to_html
     from linecaster.engines.importers import HtmlImporter
 
-    t = HtmlImporter()(SourceDocument(data='<p>The phrase <span dir="rtl">שלום <b>עולם</b></span> and '
+    t = HtmlImporter()(SourceFile(data='<p>The phrase <span dir="rtl">שלום <b>עולם</b></span> and '
                                            '<i lang="de">ein <b>Wort</b></i>.</p>'))
     assert ('<p>The phrase <span dir="rtl">שלום <b>עולם</b></span> and <span lang="de"><i>ein </i><b><i>Wort</i></b>'
             '</span>.</p>') in to_html(build_document(t))

@@ -20,7 +20,7 @@ its ``serve.version``, with the preset's ``server_packages``): the one on ``PATH
 release (``--server-env auto``, the default: vLLM's image at linecaster's pin serves every preset on it), else in an
 environment uv builds once per machine (``--server-env uv`` always; ``path`` takes the one there, whatever it is).
 
---recognition takes a chat preset of the catalog (``linecaster models``; ``id``) or a Hugging Face
+--recognition takes a chat preset of the catalog (``linecaster presets``; ``id``) or a Hugging Face
 id (that model's page preset, with --layout its region preset where it has one). On HF Jobs the server runs
 in the Job's image: the one the preset was validated with (its ``serve.image``) unless --image is given. It
 has ``uv``, Python 3.12 and ``vllm`` on PATH, so the pipeline runs in the uv environment the executor builds
@@ -113,7 +113,7 @@ def models(a) -> list[dict]:
 
 def pipeline(a, script: str):
     if not a.recognition:
-        raise PipelineConfigError("vlm: pick --recognition (`linecaster models` lists the presets)")
+        raise PipelineConfigError("vlm: pick --recognition (`linecaster presets` lists the presets)")
     regions = bool(a.layout)
     if a.repair_only and (regions or not a.pages):
         raise PipelineConfigError("vlm: --repair-only reads page records (--pages OUT/pages) of whole pages, "

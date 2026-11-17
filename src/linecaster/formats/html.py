@@ -47,7 +47,7 @@ from linecaster.data.transcription import (
 from linecaster.data.writing import language_tag
 from linecaster.conventions.apply import Conventions, Coverage
 from linecaster.conventions.decisions import (
-    Block, Break, Caption, Cell, Continues, Decision, Describe, Edit, Format, Invisible, Language, Note, Picture,
+    TextBlock, Break, Caption, Cell, Continues, Decision, Describe, Edit, Format, Invisible, Language, Note, Picture,
     Remove, RunsOn, Unwrap,
 )
 from linecaster.conventions.matchers import TreeMatcher
@@ -216,7 +216,7 @@ class _Cascade:
 class HtmlConverter:
     """Reads an HTML tree into a transcription, by HTML's semantics and a source's resolved conventions."""
 
-    DECISIONS = frozenset({"remove", "invisible", "unwrap", "block", "cell", "picture", "caption", "note", "edit",
+    DECISIONS = frozenset({"remove", "invisible", "unwrap", "text_block", "cell", "picture", "caption", "note", "edit",
                            "language", "format", "break", "continues", "runs_on", "describe"})
 
     def __init__(self, conventions: ResolvedConventions | None = None):
@@ -419,7 +419,7 @@ class _Walk:
             return
         if role == "heading":
             level = el.get("aria-level")
-            self.as_block(el, Block(role="heading", heading_level=int(level) if level and level.isdigit()
+            self.as_block(el, TextBlock(role="heading", heading_level=int(level) if level and level.isdigit()
                                     and int(level) > 0 else 2), fmt, case, part, attrs)
             return
         if tag == "br":
@@ -439,13 +439,13 @@ class _Walk:
             self.formula(el, fmt, part, attrs)
             return
         if tag == "figcaption" or tag == "caption":
-            self.as_block(el, Block(role="caption"), fmt, case, part, attrs)
+            self.as_block(el, TextBlock(role="caption"), fmt, case, part, attrs)
             return
         if tag in HEADINGS:
-            self.as_block(el, Block(role="heading", heading_level=HEADINGS[tag]), fmt, case, part, attrs)
+            self.as_block(el, TextBlock(role="heading", heading_level=HEADINGS[tag]), fmt, case, part, attrs)
             return
         if tag == "li":
-            self.as_block(el, Block(role="list_item"), fmt, case, part, attrs)
+            self.as_block(el, TextBlock(role="list_item"), fmt, case, part, attrs)
             return
         if tag in BLOCK_TAGS:
             self.flush()
@@ -473,7 +473,7 @@ class _Walk:
         else:
             self.emit(" ", fmt, part, case)
 
-    def as_block(self, el, d: Block, fmt, case, part, attrs, by_rule: bool = False):
+    def as_block(self, el, d: TextBlock, fmt, case, part, attrs, by_rule: bool = False):
         self.flush()
         with self.within(attrs):
             self.block(part, role=d.role, heading_level=d.heading_level, by_rule=by_rule)
@@ -495,7 +495,7 @@ class _Walk:
                 self.invisible(tag, fmt, part, case)
             case Unwrap():
                 self.children(el, fmt, case, part, attrs)
-            case Block():
+            case TextBlock():
                 self.as_block(el, d, fmt, case, part, attrs, by_rule=False)
             case Cell(role=role):                     # the cells under one parent: one row of cells
                 self.flush()
@@ -508,7 +508,7 @@ class _Walk:
             case Picture():
                 self.picture(el, d, part)
             case Caption():
-                self.as_block(el, Block(role="caption"), fmt, case, part, attrs)
+                self.as_block(el, TextBlock(role="caption"), fmt, case, part, attrs)
             case Note():
                 self.note(el, d, fmt, case, part, attrs)
             case Edit(kind=kind, attr=attr, extract=extract):
@@ -617,7 +617,7 @@ class _Walk:
                         cells.append((text, _span(c.get("rowspan")), _span(c.get("colspan")), formulas))
                 rows.append(cells)
         if caption is not None:
-            self.as_block(caption, Block(role="caption"), frozenset(), case, part, self.scope(caption, attrs))
+            self.as_block(caption, TextBlock(role="caption"), frozenset(), case, part, self.scope(caption, attrs))
         if any(rows):
             self.blocks.append(TextBlock(role="table", part=part, rows=[r for r in rows if r], **_writing(attrs)))
 

@@ -634,7 +634,7 @@ def _describe_component(e: _Entry, node: Node) -> dict:
 def build(components: list, *, tasks: int = 1, until: str | None = None, after: str | None = None,
           taps: dict[str, str] | None = None, run_folder: str | None = None, recipe: tuple[str, str] | None = None,
           observers: list[Observer] | None = None, max_page_errors: float | None = None,
-          trace_sample: float | None = None, image_decode: str | None = None, run_id: str | None = None) -> Plan:
+          trace_share: float | None = None, image_decode: str | None = None, run_id: str | None = None) -> Plan:
     """Turns a list of components into a checked plan of stages, cut where the stream changes from pages to items.
 
     The builder expands composites, checks the contracts (every part a component reads is added before it, units fit,
@@ -660,7 +660,7 @@ def build(components: list, *, tasks: int = 1, until: str | None = None, after: 
         observers: more observers, on every stage next to the taps and the tracing.
         max_page_errors: every page component's error budget, a share of a task's pages; default each component's own
             (0.01).
-        trace_sample: the share of pages traced, chosen by page id; default ``linecaster.tracing.DEFAULT_SAMPLE``.
+        trace_share: the share of pages traced, chosen by page id; default ``linecaster.tracing.DEFAULT_SAMPLE``.
         image_decode: how every model component decodes page images (``auto``, ``gpu``, ``cpu``;
             ``linecaster.images.pixels``); default each component's own (``auto``).
         run_id: the run's id (``RunRecord.run_id``), given to every component that names it on the annotators the run
@@ -678,11 +678,11 @@ def build(components: list, *, tasks: int = 1, until: str | None = None, after: 
             print(stage.name, stage.tasks, len(stage.pipeline))
     """
     return _build(components, tasks=tasks, until=until, after=after, taps=taps, run_folder=run_folder, recipe=recipe,
-                  observers=observers, max_page_errors=max_page_errors, trace_sample=trace_sample,
+                  observers=observers, max_page_errors=max_page_errors, trace_share=trace_share,
                   image_decode=image_decode, run_id=run_id)
 
 
-def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | None, problems: list[str]):
+def _tracing(run_folder: str | None, trace_share: float | None, stage: str | None, problems: list[str]):
     """The stage's tracing observer: when there is a run folder for its file, or an OTLP endpoint."""
     from linecaster.errors import PipelineConfigError
     from linecaster.tracing import DEFAULT_SAMPLE, Tracing, otlp_configured
@@ -690,7 +690,7 @@ def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | No
     if run_folder is None and not otlp_configured():
         return None
     try:
-        return Tracing(run_folder, DEFAULT_SAMPLE if trace_sample is None else trace_sample, stage=stage)
+        return Tracing(run_folder, DEFAULT_SAMPLE if trace_share is None else trace_share, stage=stage)
     except PipelineConfigError as e:
         if e.problems[0] not in problems:
             problems.extend(e.problems)
@@ -698,7 +698,7 @@ def _tracing(run_folder: str | None, trace_sample: float | None, stage: str | No
 
 
 def _build(components: list, *, tasks: int = 1, until=None, after=None, taps=None, run_folder=None, recipe=None,
-           observers=None, given: bool = False, max_page_errors=None, trace_sample=None, image_decode=None,
+           observers=None, given: bool = False, max_page_errors=None, trace_share=None, image_decode=None,
            run_id=None) -> Plan:
     problems: list[str] = []
     entries = _expand(list(components), problems)
@@ -755,7 +755,7 @@ def _build(components: list, *, tasks: int = 1, until=None, after=None, taps=Non
             for e in stage_entries:
                 if hasattr(type(e.component), "run_id"):
                     e.component.run_id = run_id
-        tracing = _tracing(run_folder, trace_sample, name if len(stages) > 1 else None, problems)
+        tracing = _tracing(run_folder, trace_share, name if len(stages) > 1 else None, problems)
         timing = _timing(stage_entries)
         hub = Observers([*([timing] if timing else []), *tap_at.get(s, []), *(observers or []),
                          *([tracing] if tracing else [])])

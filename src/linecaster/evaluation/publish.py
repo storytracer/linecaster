@@ -1,4 +1,4 @@
-"""A ground truth published as a dataset for the Hugging Face Hub (``linecaster truth publish``): its page records as
+"""A ground truth published as a dataset for the Hugging Face Hub (``linecaster ground-truth publish``): its page records as
 Parquet, one row per page (``id``, ``item_id``, ``image``, ``text``, ``language``, ``script``, ``page``), in
 ``OUT/data/<split>-<n>-of-<m>.parquet``, and a dataset card, ``OUT/README.md``, generated from the records: their
 sources and licenses, the conventions they were read with (with their hashes), the languages and scripts recorded

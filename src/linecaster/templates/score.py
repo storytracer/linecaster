@@ -5,8 +5,8 @@ every task is done the driver puts them together (``linecaster.evaluation.run.ag
 scored as empty outputs, the corpus rates with their bootstrap intervals, the conventions check) into
 OUT/scores.parquet and OUT/evidence.yaml, as ``linecaster score`` writes them in one process.
 
-    uv run pipelines/score.py RUN/scores --pages RUN/pages --truth TRUTH --benchmark benchmark.yaml
-    uv run pipelines/score.py s3://bucket/run/scores --pages s3://bucket/run/pages --truth s3://bucket/truth \
+    uv run pipelines/score.py RUN/scores --pages RUN/pages --ground-truth TRUTH --benchmark benchmark.yaml
+    uv run pipelines/score.py s3://bucket/run/scores --pages s3://bucket/run/pages --ground-truth s3://bucket/truth \
         --benchmark benchmark.yaml --preset lightonocr-3-0.8b --on ray --tasks 32
     ... --workers 64                                   # tasks at once on this machine
 
@@ -19,7 +19,7 @@ from linecaster.execution import run
 
 
 def options(ap):
-    ap.add_argument("--truth", help="the ground truth's page records (a folder: local or fsspec URI; needed)")
+    ap.add_argument("--ground-truth", dest="truth", help="the ground truth's page records (a folder: local or fsspec URI; needed)")
     ap.add_argument("--benchmark", help="the benchmark definition (linecaster.benchmark/2 YAML; needed)")
     ap.add_argument("--transcription", default="ocr_new", help="the run's transcription scored")
     ap.add_argument("--preset", help="the preset measured (id), when the run follows no recipe")
@@ -37,7 +37,7 @@ def pipeline(a, script: str):
     from linecaster.errors import PipelineConfigError
 
     if not (a.truth and a.benchmark and getattr(a, "pages", None)):
-        raise PipelineConfigError("score: give --pages (the run's page records), --truth and --benchmark")
+        raise PipelineConfigError("score: give --pages (the run's page records), --ground-truth and --benchmark")
     import fsspec
 
     with fsspec.open(a.benchmark, "rt", encoding="utf-8") as fh:

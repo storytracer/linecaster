@@ -18,7 +18,7 @@ no state between tasks, and pickles without any (``__getstate__``), so it works 
   ``linecaster.http.fetch`` for what the reader fetched. Items made by a binder get ``linecaster.item`` traces.
   Every span has its parent set explicitly from the unit's context, never from "the current span": pages are
   interleaved in the stream.
-* **Sampling** by unit id (``sampled``): a fixed share ``sample`` (``--trace-sample``, default 0.01) is traced,
+* **Sampling** by unit id (``sampled``): a fixed share ``sample`` (``--trace-share``, default 0.01) is traced,
   the same pages on every rerun; the spans of the others are recorded and held per page (``PageBuffer``) and
   exported only if the page failed in the stage. A sampled page's record carries ``metadata.trace_id``.
 * **Attributes** are identifiers and numbers under ``linecaster.*`` (``ATTRIBUTES``), never text or images.
@@ -44,7 +44,7 @@ from linecaster.tracing.export import JsonlFileExporter, PageBuffer
 
 #: where a document carries its trace context: ``doc.metadata["trace"] = {"traceparent": ...}``
 TRACE_KEY = "trace"
-#: the share of pages traced by default (``--trace-sample``)
+#: the share of pages traced by default (``--trace-share``)
 DEFAULT_SAMPLE = 0.01
 #: the instrumentation scope of linecaster's spans
 SCOPE = "linecaster"
@@ -334,7 +334,7 @@ class Tracing(Observer):
         if not 0 <= sample <= 1:
             from linecaster.errors import PipelineConfigError
 
-            raise PipelineConfigError(f"--trace-sample is a share from 0 to 1, not {sample}")
+            raise PipelineConfigError(f"--trace-share is a share from 0 to 1, not {sample}")
         self.run_folder, self.sample, self.stage = run_folder, sample, stage
         self.run = run or os.environ.get(RUN_ENV) or (run_folder.rstrip("/").rsplit("/", 1)[-1] if run_folder else None)
         self._reset()

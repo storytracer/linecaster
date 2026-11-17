@@ -4,7 +4,7 @@ from lxml import html
 from pydantic import ValidationError
 
 from linecaster.conventions import Conventions, ConventionsDoc, TextMatcher, TreeMatcher, resolve
-from linecaster.conventions.decisions import Block, Remove, make
+from linecaster.conventions.decisions import Remove, TextBlock, make
 from linecaster.conventions.resolve import ConventionsError
 
 
@@ -20,7 +20,7 @@ def rule(id, css, decision="remove", params=None, **kw):
 
 
 BASE = doc("base", rules=[rule("edit-links", ".edit"), rule("notes", ".note", "note", {}),
-                          rule("heads", "h2", "block", {"role": "heading", "heading_level": 1})])
+                          rule("heads", "h2", "text_block", {"role": "heading", "heading_level": 1})])
 
 
 def entries(*docs):
@@ -37,14 +37,14 @@ def test_a_child_replaces_adds_disables_and_places_rules():
     assert r.chain == ("base", "site") and r.ref == "base>site"
     assert [x.id for x in r.rules] == ["hidden", "edit-links", "heads", "captions"]
     assert r.rule("edit-links").match.css == ".edit, .editsection"
-    assert isinstance(r.decisions[2], Block) and r.decisions[2].heading_level == 1
+    assert isinstance(r.decisions[2], TextBlock) and r.decisions[2].heading_level == 1
     assert len(r.sha256) == 64 and r.sha256 != resolve("base", entries(BASE)).sha256
 
 
 def test_documentation_does_not_change_the_hash():
     other = doc("base", rules=[{**rule("edit-links", ".edit"), "why": "said differently", "decided": "2026-11-14"},
                                rule("notes", ".note", "note", {}),
-                               rule("heads", "h2", "block", {"role": "heading", "heading_level": 1})])
+                               rule("heads", "h2", "text_block", {"role": "heading", "heading_level": 1})])
     assert resolve("base", entries(BASE)).sha256 == resolve("base", entries(other)).sha256
 
 
@@ -67,7 +67,7 @@ def test_resolution_refuses_what_it_cannot_resolve():
 
 def test_decisions_are_checked():
     assert make("remove", {"reason": "editorial"}) == Remove(reason="editorial")
-    for name, params in (("block", {"role": "nonsense"}), ("edit", {"kind": "nfc"}), ("remove", {})):
+    for name, params in (("text_block", {"role": "nonsense"}), ("edit", {"kind": "nfc"}), ("remove", {})):
         with pytest.raises(ValidationError):
             make(name, params)
 

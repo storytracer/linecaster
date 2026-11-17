@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def _score_pipeline(tmp_path: Path, monkeypatch, out: str = "scores-pipeline") -> Path:
     folder = tmp_path / out
     monkeypatch.setattr(sys, "argv", ["score.py", str(folder), "--pages", str(tmp_path / "run" / "pages"),
-                                      "--truth", str(tmp_path / "gt"), "--benchmark", str(tmp_path / "bench.yaml"),
+                                      "--ground-truth", str(tmp_path / "gt"), "--benchmark", str(tmp_path / "bench.yaml"),
                                       "--tasks", "2", "--workers", "1"])
     run.main(str(ROOT / "pipelines" / "score.py"), shape.__doc__, shape.options, shape.models, shape.pipeline,
              shape.PIPELINE, shape.SLOTS)

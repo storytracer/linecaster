@@ -126,7 +126,7 @@ def test_linecaster_export_omnidocbench_reads_page_records_and_writes_the_folder
     gt = {f"p{i}": _page([("paragraph", [f"page {i}"])]) for i in range(2)}
     write(tmp_path / "truth", "ground_truth", gt)
     write(tmp_path / "run", "ocr_new", {"p0": gt["p0"]})
-    main(["export", "omnidocbench", str(tmp_path / "out"), "--truth", str(tmp_path / "truth"),
+    main(["export", "omnidocbench", str(tmp_path / "out"), "--ground-truth", str(tmp_path / "truth"),
           "--pages", str(tmp_path / "run")])
     assert "pages 2, missing 1, failed 0" in capsys.readouterr().out
     assert sorted(p.name for p in (tmp_path / "out/predictions").iterdir()) == ["p0.md", "p1.md"]

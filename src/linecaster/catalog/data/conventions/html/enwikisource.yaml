@@ -81,7 +81,7 @@ rules:
   decided: 2026-11-14
 - id: figure-boxes
   match: {kind: tree, css: span.wst-freedimg}
-  decision: block
+  decision: text_block
   params: {role: picture}
   why: "{{FreedImg/span}} sets a figure in spans; its box is a block of its own, as the figure is on the page."
   decided: 2026-11-14

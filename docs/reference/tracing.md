@@ -52,7 +52,7 @@ Log records carry `trace_id` and `span_id` in `extra` (JSON lines on Jobs show t
 
 ## The trace sample
 
-`--trace-sample SHARE` (`build(..., trace_sample=)`, default 0.01): a page is in the trace sample when a hash of its
+`--trace-share SHARE` (`build(..., trace_share=)`, default 0.01): a page is in the trace sample when a hash of its
 id (BLAKE2b, 64 bits) is below `SHARE`, so the same pages on every rerun and machine, and a larger trace sample
 contains a smaller one. It is not the sample a run reads (`--sample`, [pipelines](pipelines.md#samples)). `0`
 traces only failed pages and the task spans; `1` traces every page. A sampled page's record
@@ -104,7 +104,7 @@ reads `OUT/traces/**/*.jsonl.gz` (a task still running: what its file has so far
   p50, p90, p99, errors); for served components the split: `prepare`, `request` (as the pipeline saw it), and the
   server's `queue`, `decode` and `model`;
 - the **gaps**: per component the time it had no page in it between its first page and its last (it waited for its
-  input), when every page was traced (`--trace-sample 1`);
+  input), when every page was traced (`--trace-share 1`);
 - the `N` slowest traced pages (default 10) with their id, seconds, lines, slowest component and trace id;
 - per task its duration, GPU and trace sample, the warm-up of each component and the server starts, the reader's files
   (pages, seconds reading) and the writers' flush.

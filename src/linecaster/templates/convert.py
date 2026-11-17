@@ -10,7 +10,7 @@ records (each image's size, hashes, decoder and encoder) in OUT/pages, failed pa
         --preset webp-lossy-q80                                  # a table of source paths and the ids they get
     ... --set image.accel=cpu                                    # never the GPU; =gpu: an error where it cannot
 
-The presets (``linecaster models``, step ``image``): ``webp-lossy-q80``, ``jpeg-q90``, ``jp2-lossless``, ``png``,
+The presets (``linecaster presets``, step ``image``): ``webp-lossy-q80``, ``jpeg-q90``, ``jp2-lossless``, ``png``,
 ``working-image`` (lossless WebP); ``--set image.OPTION=VALUE`` over a preset's options (``format``, ``quality``,
 ``lossless``, ``psnr``, ``method``, ``compress_level``, ``accel``). A page goes through two stages, decoding and
 encoding, each with a window saturate's controller adapts to the throughput and the machine's memory (``--window``
@@ -56,7 +56,7 @@ def pipeline(a, script: str):
     from linecaster.execution.cpus import available_cpus
 
     if not a.preset:
-        raise PipelineConfigError("convert: pick --preset (an image preset, e.g. webp-lossy-q80; `linecaster models`)")
+        raise PipelineConfigError("convert: pick --preset (an image preset, e.g. webp-lossy-q80; `linecaster presets`)")
     over = run.overrides(a.set, steps=["image"])
     out = a.out.rstrip("/")
     convert = ImageConverter(f"{out}/images", a.preset, options=over.get("image"), skip_existing=not a.overwrite,

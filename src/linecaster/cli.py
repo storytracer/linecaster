@@ -366,7 +366,7 @@ def _fractions(specs: list[str]) -> dict[str, float] | None:
 
 
 def _truth_check(a) -> None:
-    """``linecaster truth check``: what a ground truth's page records hold, per page and in total."""
+    """``linecaster ground-truth check``: what a ground truth's page records hold, per page and in total."""
     from pathlib import Path
 
     from linecaster.evaluation.truth import check, render
@@ -379,7 +379,7 @@ def _truth_check(a) -> None:
 
 
 def _truth_publish(a) -> None:
-    """``linecaster truth publish``: a ground truth's page records as a Hub dataset (Parquet and a dataset card)."""
+    """``linecaster ground-truth publish``: a ground truth's page records as a Hub dataset (Parquet and a dataset card)."""
     from linecaster.evaluation.publish import publish
 
     read_image = None
@@ -423,8 +423,8 @@ def _benchmark_init(a) -> None:
 
 
 def _ground_truth_parsers(sub) -> None:
-    """``linecaster truth check|publish`` and ``linecaster benchmark init``."""
-    tr = sub.add_parser("truth", help="ground truths' page records: check what they hold (check), publish them as a "
+    """``linecaster ground-truth check|publish`` and ``linecaster benchmark init``."""
+    tr = sub.add_parser("ground-truth", help="ground truths' page records: check what they hold (check), publish them as a "
                                       "Hugging Face dataset (publish) (docs/reference/evaluation.md)")
     tsub = tr.add_subparsers(dest="action", required=True)
     tc = tsub.add_parser("check", help="per page and in total: lines, boxes outside the image, reading order, "
@@ -497,7 +497,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--traces", default=None, metavar="FILE",
                    help="write the spans of traced requests to FILE (OTLP JSON lines, .jsonl.gz; default "
                         "LINECASTER_TRACES, which a pipeline task sets for the server it starts)")
-    m = sub.add_parser("models", help="the catalog's presets")
+    m = sub.add_parser("presets", help="the catalog's presets")
     m.add_argument("--step", default=None)
     c = sub.add_parser("catalog", help="pin models, verify and index the catalog (docs/reference/catalog.md)")
     c.add_argument("action", choices=["verify", "show", "index", "pin", "schemas"])
@@ -541,10 +541,10 @@ def main(argv: list[str] | None = None) -> None:
                                        "evaluation to score (omnidocbench)")
     ex.add_argument("format", choices=["omnidocbench"], help="the benchmark's formats")
     ex.add_argument("out", help="the folder the export goes to (its README says how to score it)")
-    ex.add_argument("--truth", required=True, help="the ground truth's page records (a folder: local or fsspec URI)")
+    ex.add_argument("--ground-truth", dest="truth", required=True, help="the ground truth's page records (a folder: local or fsspec URI)")
     ex.add_argument("--pages", required=True, help="the run's page records")
     ex.add_argument("--transcription", default="ocr_new", help="the run's transcription")
-    ex.add_argument("--truth-transcription", default="ground_truth", help="the ground truth's transcription")
+    ex.add_argument("--ground-truth-transcription", default="ground_truth", help="the ground truth's transcription")
     ex.add_argument("--ids", help="a file of page ids (one per line): only these pages")
     ex.add_argument("--tables", choices=["data", "all"], default="data",
                     help="which tables are tables, on both sides: data (printed as tables; linecaster.evaluation.tables) "
@@ -597,7 +597,7 @@ def main(argv: list[str] | None = None) -> None:
             run.sample(rest)
         elif a.command == "serve":
             _serve(a)
-        elif a.command == "models":
+        elif a.command == "presets":
             _models(a)
         elif a.command == "catalog":
             _catalog(a)
@@ -615,7 +615,7 @@ def main(argv: list[str] | None = None) -> None:
             _evidence(a)
         elif a.command == "export":
             _export(a)
-        elif a.command in ("truth", "benchmark"):
+        elif a.command in ("ground-truth", "benchmark"):
             a.handler(a)
     except LinecasterError as e:            # the exit code (2: a pipeline that cannot run)
         print(e, file=sys.stderr)
@@ -630,7 +630,7 @@ def _export(a) -> None:
     from linecaster.evaluation.run import read_truth, truth_ids
 
     ids = set(Path(a.ids).read_text().split()) if a.ids else truth_ids(a.truth)
-    counts = export(a.out, read_truth(a.truth, ids), read_truth(a.pages, ids), a.transcription, a.truth_transcription,
+    counts = export(a.out, read_truth(a.truth, ids), read_truth(a.pages, ids), a.transcription, a.ground_truth_transcription,
                     a.tables, a.strategy)
     print(f"pages {counts['pages']:,}, missing {counts['missing']:,}, failed {counts['failed']:,}; {a.out}/README.md "
           f"says how OmniDocBench scores it")

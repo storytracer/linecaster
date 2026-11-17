@@ -93,7 +93,7 @@ def parser(description: str | None) -> argparse.ArgumentParser:
     g.add_argument("--new-pipeline", action="store_true",
                    help="run into an OUT that holds a run of another pipeline (another pipeline_sha256) knowingly; "
                         "without it such a run is refused")
-    g.add_argument("--trace-sample", type=float, default=None, metavar="SHARE",
+    g.add_argument("--trace-share", type=float, default=None, metavar="SHARE",
                    help="the share of pages traced, chosen by page id (default 0.01; 0: only failed pages and the "
                         "task spans, 1: every page); traces go to OUT/traces and, with the OTEL_* variables, to an "
                         "OTLP endpoint")
@@ -934,7 +934,7 @@ def build_plan(a: argparse.Namespace, pipeline: list):
                          recipe=(recipe["ref"], recipe["sha256"]) if recipe else None,
                          max_page_errors=getattr(a, "max_page_errors", None),
                          image_decode=getattr(a, "image_decode", None),
-                         trace_sample=getattr(a, "trace_sample", None), run_id=getattr(a, "run_id", None))
+                         trace_share=getattr(a, "trace_share", None), run_id=getattr(a, "run_id", None))
 
 
 def _executors(a: argparse.Namespace, p, out: str, image: str | None, deps, script: str | None = None):

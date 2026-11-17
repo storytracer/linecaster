@@ -87,7 +87,7 @@ policies:
   page-layers: sha256:9be1019d6f2212d5e38a9b963f14f3f2a77127c80c2b661ced6d70b54fd9fe65
   page-layers-described: sha256:8b1ba61d75e270262f032c9c55850ee408ccb7823caa8cd0453ade5faea9b84e
 conventions:
-  enwikisource: sha256:370a2e32f138629d05f95d29b5e56f10c322e3dac05928cc63090605a5baf48c
+  enwikisource: sha256:cbe666bcb6074f06b7974d880a62fe84f72a2ddde63a61f9548b97dcb4918fdc
   mediawiki: sha256:06d2da6ee7247931898cba5fb9be005fffacc1e7c34c6245ac99af3fd0992094
 normalizations:
   arabic-letters: sha256:2fff1a1e86bd04a53002f9b9d3a7497b24854ff1043030377ed62d57a76781da

@@ -2,7 +2,7 @@
 (choices, gaps, unclear text, formatting, furniture, languages, divided words), pages, and auto-detection."""
 import pytest
 
-from linecaster.data import SourceDocument
+from linecaster.data import SourceFile
 from linecaster.engines.importers import AutoImporter, TeiImporter
 from linecaster.formats.tei import from_tei
 from linecaster.formats.text import sniff
@@ -225,14 +225,14 @@ def test_auto_import_tells_tei_apart():
     assert sniff(f"<?xml version='1.0'?><!-- c --><tei:teiCorpus xmlns:tei='http://www.tei-c.org/ns/1.0'/>"
                  .encode()) == "tei"
     assert sniff(b"<TEI><text/></TEI>") == "text"               # TEI's namespace is what tells it apart
-    t = AutoImporter()(SourceDocument(data=DIPLOMATIC))
+    t = AutoImporter()(SourceFile(data=DIPLOMATIC))
     assert t.source.format == "tei" and t.order().regions[0] == "rh"
     rule = [a for a in t.annotators if a.kind == "rule"]
     assert [a.engine for a in rule] == ["import.auto.v1"]
 
 
 def test_the_importer_reads_the_page_its_option_names_and_fits_the_image():
-    t = TeiImporter(page="pb2", ground_truth=False)(SourceDocument(data=FACSIMILE, image_width=1200,
+    t = TeiImporter(page="pb2", ground_truth=False)(SourceFile(data=FACSIMILE, image_width=1200,
                                                                    image_height=1800))
     assert t.source.kind == "converted" and [ln.reading.text for ln in t.lines] == ["Page two."]
     assert t.regions[0].box == [20.0, 40.0, 1160.0, 80.0] and t.source.image_width == 1200

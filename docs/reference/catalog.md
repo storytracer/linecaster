@@ -520,7 +520,7 @@ of a pipeline gets a hint instead: the pipeline, the flag and the recipes that u
 
 | Command | Does |
 |---|---|
-| `linecaster models [--step STEP]` | lists the presets (and the recipes) |
+| `linecaster presets [--step STEP]` | lists the presets (and the recipes) |
 | `linecaster catalog pin ID --hf REPO [--revision REV]` | pins a Hugging Face model: model entry, card, file hashes |
 | `linecaster catalog pin ID --github OWNER/NAME --revision COMMIT --file F [--tag T]` | pins files of a GitHub repository |
 | `linecaster catalog index` | writes `catalog.index`: every entry's hash, and each recipe's pipeline hash |

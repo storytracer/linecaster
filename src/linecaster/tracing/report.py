@@ -4,7 +4,7 @@
   spans (p50, p90, p99 over the traced pages), for served components the split of a request: the whole request as the
   pipeline saw it, and the server's queue, decode and model spans;
 * **gaps**: the time each component had no page in it between its first and its last (it waited for its input), when
-  every page was traced (``--trace-sample 1``); from a sample they would only show the pages not traced;
+  every page was traced (``--trace-share 1``); from a sample they would only show the pages not traced;
 * **slowest pages**: the ``N`` traced pages that took longest, with their attributes and slowest component;
 * **tasks**: per task its duration, the warm-up of each component, the server starts, the reader's files and the
   writers' flushes.
@@ -233,7 +233,7 @@ def render(report: dict) -> str:
                     out.append(f"  {name:<{width}}  {_f(g['idle_seconds'])} s of {_f(g['active_window_seconds'])} s "
                                f"({100 * g['idle_share']:.0f} %)")
         else:
-            out.append("gaps: only with every page traced (--trace-sample 1)")
+            out.append("gaps: only with every page traced (--trace-share 1)")
         out.append("")
     if report["slowest"]:
         out.append("slowest units")
