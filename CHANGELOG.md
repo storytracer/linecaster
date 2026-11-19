@@ -6,6 +6,19 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Added
+
+- Paged answers in a resource harvest: `pipelines/harvest.py --items ... --follow KIND=PATH` (`ResourceReader`'s
+  `follow`) fetches a resource of that kind page after page, reading each next page's URL from the page itself at
+  the JSON path given (`search=_links.next.href` for HAL links, a cursor or scroll link alike), until a page names
+  none. Every page is kept as served, with a record that says its page number and the page that named it. With
+  `--reuse` an answer that broke off goes on from the pages already there, and starts again from its first page
+  when the server's cursor has run out.
+- `max_in_flight` in an HTTP policy (and `HTTPFetcher`): the most requests to a host under way at once, per
+  worker. The rate limits only space the moments requests go out; with `max_in_flight: 1` they go out strictly one
+  after the other, and one that is being retried holds the next back.
+- `retry_jitter` in an HTTP policy: a random share added to each wait between attempts. The default stays none.
+
 ## 0.13.2 (2026-11-19)
 
 Fixes for the servers of vision-language models, found by starting every vLLM preset on one machine: five did not

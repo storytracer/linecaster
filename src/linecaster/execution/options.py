@@ -177,6 +177,10 @@ def input_options(ap: argparse.ArgumentParser) -> None:
     g.add_argument("--resource", action="append", default=[], metavar="KIND=URL",
                    help="--items: a resource of every item, its URL with {item} for the item id, e.g. "
                         "marcxml=https://catalog.example.org/{item}/marcxml; repeatable")
+    g.add_argument("--follow", action="append", default=[], metavar="KIND=PATH",
+                   help="--items: a resource of this kind is the first page of a paged JSON answer; PATH is where "
+                        "each page names the next one's URL (dotted keys, e.g. search=_links.next.href), followed "
+                        "one page after the other until a page names none; every page is kept as served; repeatable")
     g.add_argument("--url-key", default="url", help="--items without --resource: the resource URL column")
     g.add_argument("--kind-key", default="kind", help="--items without --resource: the resource kind column")
     g.add_argument("--name-key", default=None, help="--items without --resource: the copy's name column (default "
@@ -247,8 +251,14 @@ def check(ap: argparse.ArgumentParser, a: argparse.Namespace) -> argparse.Namesp
         if not sep or not kind or "{item}" not in url:
             ap.error(f"--resource needs KIND=URL with {{item}} in the URL, got {spec!r}")
         a.templates[kind] = url
-    if (a.resource or a.max_items is not None) and not a.items:
-        ap.error("--resource and --max-items are for --items")
+    a.follows = {}
+    for spec in a.follow:
+        kind, sep, path = spec.partition("=")
+        if not sep or not kind or not path:
+            ap.error(f"--follow needs KIND=PATH, the JSON path of the next page's URL, got {spec!r}")
+        a.follows[kind] = path
+    if (a.resource or a.follow or a.max_items is not None) and not a.items:
+        ap.error("--resource, --follow and --max-items are for --items")
     if a.max_items is not None and a.max_items < 1:
         ap.error("--max-items needs at least 1")
     if a.http_policy:

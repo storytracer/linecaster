@@ -4,8 +4,10 @@ server, its catalogue, its API)::
 
     # 1. general: every request, direct or through a proxy
     rate_limits: ["100/60", "2/1"]     # per worker direct, per proxy through proxies
+    max_in_flight: 4                   # requests to a host under way at once, per worker; default: no cap
     attempt_timeout: 120
     max_retries: 6
+    retry_jitter: 0.5                  # each wait between attempts up to half as long again, at random
     random_user_agent: true            # or user_agent: TEXT
     block_on: [429]                    # default [429]; 4xx/5xx statuses and `html`
     stop_on: []                        # statuses and `html`; never also in block_on
@@ -56,8 +58,8 @@ from urllib.parse import urlsplit
 from linecaster.errors import PipelineConfigError
 
 #: the fields of level 1, at the root and per host
-GENERAL = ("rate_limits", "attempt_timeout", "max_retries", "user_agent", "random_user_agent", "block_on", "stop_on",
-           "max_pause", "direct")
+GENERAL = ("rate_limits", "max_in_flight", "attempt_timeout", "max_retries", "retry_jitter", "user_agent",
+           "random_user_agent", "block_on", "stop_on", "max_pause", "direct")
 #: the fields of the ``proxies:`` section
 PROXY_FIELDS = ("file", "per_worker", "block_ttl", "broken_after", "broken_ttl")
 #: what a host's entry may hold
@@ -228,6 +230,14 @@ class HTTPPolicy:
         retries = policy.get("max_retries")
         if retries is not None and not (isinstance(retries, int) and not isinstance(retries, bool) and retries >= 0):
             raise PipelineConfigError(f"{where}: max_retries is a whole number, at least 0")
+        flight = policy.get("max_in_flight")
+        if flight is not None and not (isinstance(flight, int) and not isinstance(flight, bool) and flight >= 1):
+            raise PipelineConfigError(f"{where}: max_in_flight is a whole number, at least 1")
+        jitter = policy.get("retry_jitter")
+        if jitter is not None and not (isinstance(jitter, int | float) and not isinstance(jitter, bool)
+                                       and jitter >= 0):
+            raise PipelineConfigError(f"{where}: retry_jitter is a share of the wait, 0 or more (0.5: up to half "
+                                      "as long again)")
         if "block_on" in policy:
             _statuses(policy["block_on"] or [], "block_on", where, 400)
         if "stop_on" in policy:
@@ -286,7 +296,7 @@ class HTTPPolicy:
             out["rate_limits"] = [_rate(r, self.path) for r in policy["rate_limits"] or ()] or None
             if out["rate_limits"] is None:
                 out.pop("rate_limits")
-        for key in ("user_agent", "attempt_timeout", "max_retries", "broker"):
+        for key in ("user_agent", "attempt_timeout", "max_retries", "broker", "max_in_flight", "retry_jitter"):
             if key in policy:
                 out[key] = policy[key]
         if "random_user_agent" in policy:
@@ -339,7 +349,9 @@ def rules(s: dict) -> str:
     ttl, pause = s.get("block_ttl", BLOCK_TTL), s.get("max_pause", MAX_PAUSE)
     parts = ["through proxies, " + describe_per_worker(s.get("per_worker", DEFAULT_PER_WORKER)) if proxied else "direct",
              f"{limits} per {'proxy' if proxied else 'worker'}" if limits else "no rate limit",
-             f"{s.get('max_retries', HTTP_DEFAULTS['max_retries'])} retries"]
+             *([f"{s['max_in_flight']} in flight at most"] if s.get("max_in_flight") else []),
+             f"{s.get('max_retries', HTTP_DEFAULTS['max_retries'])} retries"
+             + (f" (waits up to {s['retry_jitter']:.0%} longer at random)" if s.get("retry_jitter") else "")]
     if s.get("use_fake_user_agent"):
         parts.append("a random User-Agent")
     elif s.get("user_agent"):

@@ -105,7 +105,7 @@ def record(a: argparse.Namespace, p, script: str | None, argv: list[str] | None 
         extra = {"image": image, "dependencies": deps.requirements if deps else None,
                  "constraints": (deps.constraints or None) if deps else None,
                  "overrides": (deps.overrides or None) if deps else None}
-    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "workers_note",
+    internal = ("recipe_record", "describe_only", "has_engines", "proxy_count", "templates", "follows", "workers_note",
                 "sample_record", "script_name", "gpu_tasks", "run_id")
     opts = {k: v for k, v in vars(a).items() if k not in internal}
     if getattr(a, "sample_record", None):

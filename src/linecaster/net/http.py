@@ -92,6 +92,7 @@ import contextvars
 import json
 import math
 import os
+import random
 import re
 import threading
 import time
@@ -144,6 +145,12 @@ class HTTPConfig:
         retry_wait_min, retry_wait_max: the wait after the n-th failed attempt is ``retry_wait_min * 2**(n-1)``
             seconds, at most ``retry_wait_max``.
         retry_after_max: the longest ``Retry-After`` honored by a retry on a direct connection.
+        retry_jitter: a random share added to each wait between attempts (0.5: the wait times 1 to 1.5), so that
+            clients that failed together do not come back together; 0: none.
+        max_in_flight: the most requests to the host under way at once (a request is under way from its first
+            attempt to its response or its failure, its waits between attempts included), so with 1 the requests
+            go out one after the other and a failing one holds the next back; None: as many as the rate limits
+            keep busy.
         attempt_timeout: the longest one attempt may take, from when it goes out (after the rate limits) to its
             last byte, plus 1 s per ``attempt_min_rate`` bytes the response declares (``Content-Length``); None:
             only ``timeout``.
@@ -166,6 +173,8 @@ class HTTPConfig:
     retry_wait_min: float = 2.0
     retry_wait_max: float = 60.0
     retry_after_max: float = 300.0
+    retry_jitter: float = 0.0
+    max_in_flight: int | None = None
     attempt_timeout: float | None = 15.0
     attempt_min_rate: float | None = 50_000
     rate_limits: list[tuple[int, float]] | None = None
@@ -177,6 +186,10 @@ class HTTPConfig:
     def __post_init__(self):
         if self.rate_limits is not None:
             self.rate_limits = check_rate_limits(self.rate_limits) or None
+        if self.max_in_flight is not None and self.max_in_flight < 1:
+            raise ValueError(f"max_in_flight must be at least 1, not {self.max_in_flight}")
+        if self.retry_jitter < 0:
+            raise ValueError(f"retry_jitter must be 0 or more, not {self.retry_jitter}")
 
 
 #: ``HTTPConfig``'s defaults
@@ -994,6 +1007,7 @@ class HTTPFetcher:
                  sleep: Callable | None = None, **config):
         self.config = HTTPConfig(**config)
         self._limiter = RateLimiter(self.config.rate_limits) if self.config.rate_limits else None
+        self._in_flight: asyncio.Semaphore | None = None
         self._lock, self._waiting, self.ahead = threading.Lock(), 0, 1
         self._clock, self._wall, self._sleep = clock, wall_clock, sleep or asyncio.sleep
         self.breaker = Breaker(in_a_row=self.config.max_retries + 1)      # as many as a request's attempts
@@ -1102,12 +1116,30 @@ class HTTPFetcher:
         per proxy, times the proxies this worker holds) times the deadline per attempt, since every attempt ends within
         it; ``MAX_AHEAD`` without either, and never more."""
         limits, deadline = self.config.rate_limits, getattr(self.config, "attempt_timeout", None)
+        cap = min(MAX_AHEAD, getattr(self.config, "max_in_flight", None) or MAX_AHEAD)
         if not limits or not deadline:
-            return MAX_AHEAD
+            return cap
         rate = min(n / s for n, s in limits) * (max(1, self._proxies.held()) if self._proxies is not None else 1)
-        return max(1, min(MAX_AHEAD, int(rate * deadline) + 1))
+        return max(1, min(cap, int(rate * deadline) + 1))
 
     async def _fetch(self, url: str, fallback_url: str | None, ticket: _Ticket):
+        """``url``'s response, with the fetch's record; under ``max_in_flight``, once a request before it is done."""
+        limit = getattr(self.config, "max_in_flight", None)
+        if limit is None:
+            return await self._fetch_now(url, fallback_url, ticket)
+        if self._in_flight is None:                      # made in the event loop that uses it
+            self._in_flight = asyncio.Semaphore(limit)
+        try:
+            await self._in_flight.acquire()
+        except BaseException:
+            ticket.queue(False)
+            raise
+        try:
+            return await self._fetch_now(url, fallback_url, ticket)
+        finally:
+            self._in_flight.release()
+
+    async def _fetch_now(self, url: str, fallback_url: str | None, ticket: _Ticket):
         record = {"start": time.time_ns(), "host": urlsplit(url).hostname or "", "attempts": 0, "wait_seconds": 0.0,
                   "tries": []}
         token, ticket_token = _FETCH.set(record), _TICKET.set(ticket)
@@ -1242,10 +1274,12 @@ class HTTPFetcher:
 
     def _backoff(self, failed: int, error: BaseException | None) -> float:
         """The wait after the ``failed``-th failed attempt: ``retry_wait_min * 2**(failed-1)``, at most
-        ``retry_wait_max``; with ``error`` (a status's, on a direct connection) at least its ``Retry-After``, at most
+        ``retry_wait_max``, longer by a random share of up to ``retry_jitter``; with ``error`` (a status's, on a direct connection) at least its ``Retry-After``, at most
         ``retry_after_max``."""
         c = self.config
         wait = min(c.retry_wait_max, c.retry_wait_min * 2 ** (failed - 1))
+        if getattr(c, "retry_jitter", 0):
+            wait *= 1 + random.uniform(0, c.retry_jitter)
         response = getattr(error, "response", None)
         if response is not None and (asked := retry_after(response.headers.get("retry-after"), self._wall())) is not None:
             wait = max(wait, min(asked, c.retry_after_max))

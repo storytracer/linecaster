@@ -27,6 +27,17 @@ breaker and pause; a status in a host's ``block_on`` (429 by default) pauses its
 ``Retry-After`` has passed (direct; through proxies the proxy is left out there) and the resource is then fetched
 again, a status in its ``stop_on`` stops the run (a ``ServerError``) without a retry.
 
+Paged answers: a kind named in ``follow`` (kind -> the JSON path of the next page's URL, dotted keys:
+``{"search": "_links.next.href"}``) is the first page of an answer that comes in pages, as a search API gives it (HAL
+links, a cursor or scroll link). Each page names the next; the reader fetches them one after the other until a page
+names none, and each page is a resource of its own, kept as served: its name is the resource's with the page number
+(``<name>_00001``, ``<name>_00002``, ...), its record says ``page`` and ``followed_from`` (the page that named it). A
+next URL may be relative to its page's. A page that is no JSON, or names a page already seen, fails the resource
+there. The pages of one answer cannot be fetched side by side, and with ``reuse_folder`` an answer that broke off
+goes on where it stopped: the pages that are there are read back, and the first one missing is fetched from the
+link the last one names. A server's cursor may have run out by then; when that fetch fails, the answer is fetched
+again from its first page (``restarted`` in the stats), since its pages belong to one cursor.
+
 Reuse: with ``reuse_folder`` (OUT itself) a resource whose copy is there already (one listing of ``<kind>/<item>/`` per
 item) is read back instead of fetched (``reused``), and not written again. With ``reuse_from`` (earlier harvests'
 folders) a resource whose source URL an earlier harvest fetched is read from that folder's copy: the earlier folders'
@@ -147,6 +158,8 @@ class ResourceReader(Contracted, BaseDiskReader):
         data_folder: the Parquet files (a folder, or the folder of ``glob_pattern``'s file).
         item_key: the column with each row's item id.
         templates: kind -> URL template with ``{item}``; default: the table names its resources (``url_key``).
+        follow: kind -> the JSON path (dotted keys, a number for a list's item) at which a page of that kind names
+            the next page's URL; such a resource is fetched page after page (module docstring, Paged answers).
         url_key, kind_key, name_key: the table's columns for a resource's URL, kind and copy name (without
             ``templates``; ``name_key`` optional).
         http: ``linecaster.net.http.HTTPFetcher`` settings for every host (rate limits, proxies, ...).
@@ -178,7 +191,7 @@ class ResourceReader(Contracted, BaseDiskReader):
     operational = ("reuse_from",)
 
     def __init__(self, data_folder: DataFolderLike, item_key: str, templates: dict[str, str] | None = None,
-                 url_key: str = "url", kind_key: str = "kind", name_key: str | None = None, http: dict | None = None,
+                 follow: dict[str, str] | None = None, url_key: str = "url", kind_key: str = "kind", name_key: str | None = None, http: dict | None = None,
                  http_policy: str | None = None, reuse_folder: DataFolderLike | None = None, max_items: int | None = None,
                  reuse_from: list[str] | tuple[str, ...] | None = None,
                  paths_file: DataFileLike | None = None, glob_pattern: str = "**/*.parquet", recursive: bool = True,
@@ -192,6 +205,10 @@ class ResourceReader(Contracted, BaseDiskReader):
         if max_items is not None and max_items < 1:
             raise PipelineConfigError("max_items must be at least 1")
         self.item_key, self.templates = item_key, dict(templates or {})
+        self.follow = {str(kind): str(path) for kind, path in (follow or {}).items()}
+        for kind, path in self.follow.items():
+            if not path.strip("."):
+                raise PipelineConfigError(f"follow: {kind!r} needs the JSON path of the next page's URL")
         self.url_key, self.kind_key, self.name_key = url_key, kind_key, name_key
         from linecaster.net.policy import Fetchers
 
@@ -317,10 +334,15 @@ class ResourceReader(Contracted, BaseDiskReader):
             return None
         return Earlier(folder, record, data)
 
-    def _submit(self, entry):
+    def _submit(self, entry, fresh: bool = False):
+        """``(entry, future, fetcher)``: the resource's copy in OUT or an earlier folder's when there is one (never
+        with ``fresh``), else its fetch."""
         from concurrent.futures import Future
 
         item, kind, name, url = entry
+        if fresh:
+            fetcher = self._fetcher(url)
+            return entry, fetcher.submit(url, expect=expected_format(kind, url)), fetcher
         copy = self._copy(item, kind, name)
         if copy is not None:                         # its copy is there: read back, not fetched
             done: Future = Future()
@@ -364,13 +386,15 @@ class ResourceReader(Contracted, BaseDiskReader):
                     continue
                 if self.limit != -1 and i - self.skip >= self.limit:
                     return
+                if entry[1] in self.follow:              # the first page of a paged answer
+                    entry = (entry[0], entry[1], page_name(entry[2], 1), entry[3])
                 yield entry
 
-        for entry, future, fetcher in prefetched(selected(), self._submit, lambda s: s[1].cancel(),
-                                                 future=lambda s: s[1], fetcher=lambda: self._last, ordered=False):
+        def done(entry, future, fetcher, extra: dict | None = None):
+            """The resource's document, counted; and whether it failed."""
             budget.page()
             with self.track_time():
-                doc, error = self._document(entry, future, fetcher)
+                doc, error = self._document(entry, future, fetcher, extra)
             if error is not None:
                 self.stat_update("resource_errors")
                 budget.failed(doc, record_error(doc, error_entry(self, error, field="resource", raw_value=entry[3])),
@@ -380,10 +404,69 @@ class ResourceReader(Contracted, BaseDiskReader):
                 how = "reused" if record["reused"] else "reused_from" if record.get("reused_from") else "fetched"
                 self.stat_update("resources", how)
                 self.update_media_stats(doc.media[0])
-            yield doc
+            return doc, error
 
-    def _document(self, entry, future, fetcher):
-        """The resource's document, and the error that failed it (None)."""
+        for entry, future, fetcher in prefetched(selected(), self._submit, lambda s: s[1].cancel(),
+                                                 future=lambda s: s[1], fetcher=lambda: self._last, ordered=False):
+            if entry[1] in self.follow:
+                yield from self._pages(entry, future, fetcher, done)
+            else:
+                yield done(entry, future, fetcher)[0]
+
+    def _pages(self, first, future, fetcher, done):
+        """The pages of a paged answer, from its first page (``first``, already submitted): each page's document,
+        then the page it names, one after the other, until a page names none or fails. When a page fetched from a
+        link that a copy in OUT named fails (the server's cursor has run out), the answer starts again from its first
+        page, once, fetching every page."""
+        item, kind, name, url = first
+        base, path = name.rsplit("_", 1)[0], self.follow[kind]
+        entry, number, seen, previous, fresh, restarted = first, 1, {url}, None, False, False
+        from_copy = False                       # the page before this one was read back, not fetched
+        while True:
+            doc, error = done(entry, future, fetcher, {"page": number, **({"followed_from": previous} if previous else {})})
+            if error is not None:
+                if from_copy and not restarted:     # the link came from a copy: the cursor may have run out
+                    logger.warning("{item} {kind}: page {n} could not be fetched from the link its copy named ({error}); "
+                                   "fetching the answer again from its first page", item=item, kind=kind, n=number,
+                                   error=f"{type(error).__name__}: {error}")
+                    self.stat_update("paged_answers", "restarted")
+                    restarted = fresh = True
+                    entry, number, seen, previous, from_copy = first, 1, {url}, None, False
+                    _, future, fetcher = self._submit(entry, fresh=True)
+                    continue
+                yield doc
+                return
+            yield doc
+            record = doc.metadata[RESOURCE_KEY]
+            from_copy = bool(record.get("reused") or record.get("reused_from"))
+            try:
+                following = next_url(doc.media[0].media_bytes, path, record.get("final_uri") or entry[3])
+            except ValueError as e:
+                yield self._broken(item, kind, page_name(base, number + 1), entry[3], number + 1, str(e), budget_of=done)
+                return
+            if following is None:
+                self.stat_update("paged_answers", "complete")
+                return
+            if following in seen:
+                yield self._broken(item, kind, page_name(base, number + 1), following, number + 1,
+                                   f"page {number} names a page already fetched as the next one: {following}",
+                                   budget_of=done)
+                return
+            seen.add(following)
+            previous, number = entry[3], number + 1
+            entry = (item, kind, page_name(base, number), following)
+            _, future, fetcher = self._submit(entry, fresh=fresh)
+
+    def _broken(self, item: str, kind: str, name: str, url: str, number: int, problem: str, budget_of):
+        """The document of a page that cannot be fetched because the page before it does not lead to it."""
+        from concurrent.futures import Future
+
+        failed: Future = Future()
+        failed.set_exception(ValueError(problem))
+        return budget_of((item, kind, name, url), failed, None, {"page": number})[0]
+
+    def _document(self, entry, future, fetcher, extra: dict | None = None):
+        """The resource's document, and the error that failed it (None); ``extra`` goes into its record."""
         from datatrove.data import Document, Media, MediaType
 
         from linecaster.net.http import StopRequests, UnexpectedHTML, failed_fetch, fetch_record
@@ -391,7 +474,7 @@ class ResourceReader(Contracted, BaseDiskReader):
         item, kind, name, url = entry
         expected = expected_format(kind, url)
         record = {"item": item, "kind": kind, "name": name, "source_uri": url, "reused": False,
-                  "fetched": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+                  "fetched": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), **(extra or {})}
         doc = Document(text="", id=f"{item}/{kind}/{name}", media=[], metadata={RESOURCE_KEY: record})
         try:
             raw = future.result()
@@ -435,6 +518,37 @@ class ResourceReader(Contracted, BaseDiskReader):
                 record["attempts"] = fetch.get("attempts")
             record["error"] = f"{type(e).__name__}: {e}"
             return doc, e
+
+
+def page_name(name: str, number: int) -> str:
+    """The copy's name of page ``number`` of a paged answer: ``<name>_00001``."""
+    return f"{name}_{number:05d}"
+
+
+def next_url(data: bytes, path: str, page_url: str) -> str | None:
+    """The URL of the next page that a page (``data``, JSON) names at ``path`` (dotted keys; a number picks a
+    list's item), absolute (joined to ``page_url`` when relative); None when the page names none (a key that is
+    missing, null or empty). ``ValueError`` when the page is no JSON or the value is no text."""
+    from urllib.parse import urljoin
+
+    try:
+        value = json.loads(data)
+    except ValueError as e:
+        raise ValueError(f"the page is no JSON, so it names no next page: {e}") from e
+    for key in path.strip(".").split("."):
+        if isinstance(value, dict):
+            value = value.get(key)
+        elif isinstance(value, list) and key.isdigit():
+            value = value[int(key)] if int(key) < len(value) else None
+        else:
+            value = None
+        if value is None:
+            return None
+    if value == "":
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{path} is not a URL but {type(value).__name__}")
+    return urljoin(page_url, value)
 
 
 #: what a record read from an earlier harvest keeps of that fetch (the same bytes from that request)
