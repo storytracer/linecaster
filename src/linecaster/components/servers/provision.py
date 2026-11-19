@@ -16,6 +16,8 @@ that has the server already (HF Jobs) uses its own (``--server-env path``).
   (``[nvcc,cccl,cudart]``, so every part is one release), laid out as a toolkit (``lib64``, the libraries' linker
   names); the server gets it as ``CUDA_HOME`` (``cuda_home``), and the environment's CUDA libraries on
   ``LD_LIBRARY_PATH`` (``ld_library_path``).
+* **A preset's setup script** (``serve_setup``: a plugin installed into the server's Python as the server starts)
+  makes the environment that preset's own, so the packages it installs or replaces reach no other preset.
 * **Where**: ``LINECASTER_SERVER_ENVS``, else ``~/.cache/linecaster/servers``; one folder per server, release,
   packages and Python, ready once it holds ``.ready``. Tasks on one machine build it once: the others wait on its
   lock.
@@ -70,10 +72,12 @@ def resolved_at(package: str, version: str) -> str:
     return (first.date() + dt.timedelta(days=1)).isoformat() + "T00:00:00Z"
 
 
-def env_name(server: str, version: str, packages: list[list[str]] = (), python: str = PYTHON) -> str:
-    """The environment's folder name: server, release and a hash of everything that goes in."""
+def env_name(server: str, version: str, packages: list[list[str]] = (), python: str = PYTHON,
+             setup: str | None = None) -> str:
+    """The environment's folder name: server, release and a hash of everything that goes in, a preset's setup
+    script included (it installs into the environment, which is then that script's alone)."""
     key = json.dumps([server, release_of(version), [list(p) for p in packages], python]
-                     + (["toolkit"] if server in TOOLKIT else []))
+                     + (["toolkit"] if server in TOOLKIT else []) + ([{"setup": setup}] if setup else []))
     return f"{server}-{release_of(version)}-{hashlib.sha256(key.encode()).hexdigest()[:12]}"
 
 
@@ -90,16 +94,18 @@ def install_commands(server: str, version: str, packages: list[list[str]], folde
 
 
 def server_env(server: str, version: str, packages: list[list[str]] = (), python: str = PYTHON,
-               uv: str = "uv") -> Path:
+               uv: str = "uv", setup: str | None = None) -> Path:
     """The environment with ``server`` at ``version`` (and ``packages``), built here unless it is already; its
-    folder (the server's commands in ``bin``)."""
+    folder (the server's commands in ``bin``). A preset whose server runs a ``setup`` script before it starts gets
+    an environment of its own: the script installs into it, and no other preset's server may find its packages
+    changed."""
     if server not in PACKAGES:
         raise ServerError(f"no server environment for {server!r} (vllm or sglang)")
     if not version:
         raise ServerError(f"{server}: the preset names no version to install")
     root = envs_root()
     root.mkdir(parents=True, exist_ok=True)
-    folder = root / env_name(server, version, packages, python)
+    folder = root / env_name(server, version, packages, python, setup)
     if (folder / ".ready").exists():
         return folder
     with open(root / f"{folder.name}.lock", "w") as lock:
@@ -155,10 +161,73 @@ def library_path(folder: str | Path) -> list[str]:
 
 
 def ld_library_path(folder: str | Path, current: str | None) -> str | None:
-    """``LD_LIBRARY_PATH`` for a server in ``folder``'s environment: the current one first (the machine's own, e.g.
-    CUDA's compatibility libraries), then the environment's CUDA libraries; ``None`` when neither has any."""
-    parts = [p for p in (current or "").split(os.pathsep) if p] + library_path(folder)
+    """``LD_LIBRARY_PATH`` for a server in ``folder``'s environment: the folder that hides the machine's cuDNN
+    (``cudnn_shield``), then the current path (the machine's own, e.g. CUDA's compatibility libraries), then the
+    environment's CUDA libraries; ``None`` when there is none of them."""
+    shield = cudnn_shield(folder)
+    parts = ([shield] if shield else []) + [p for p in (current or "").split(os.pathsep) if p] + library_path(folder)
     return os.pathsep.join(dict.fromkeys(parts)) or None
+
+
+_CUDNN = re.compile(r"libcudnn\w*\.so\.\d+")
+
+
+def machine_cudnn() -> set[str]:
+    """The cuDNN libraries the machine's linker knows (``ldconfig -p``), by name (``libcudnn_cnn.so.9``)."""
+    try:
+        r = subprocess.run(["ldconfig", "-p"], capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return set()
+    return set(_CUDNN.findall(r.stdout or ""))
+
+
+def cudnn_shield(folder: str | Path, machine: set[str] | None = None) -> str | None:
+    """A folder that keeps the machine's cuDNN out of a server environment, ``None`` when nothing needs hiding.
+
+    cuDNN opens its parts by name. A part the environment's cuDNN does not ship (a newer cuDNN on the machine has
+    more of them) is then found among the machine's, and cuDNN refuses the mix at the first convolution
+    (``CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH``). The folder holds an empty file under each such name; first on
+    the server's ``LD_LIBRARY_PATH``, it makes the part absent, as it is in the environment. Only this server
+    gets the folder: other processes of the run may use the machine's cuDNN."""
+    folder = Path(folder)
+    own = {so.name for lib in folder.glob("lib/python3*/site-packages/nvidia/cudnn/lib") for so in lib.iterdir()}
+    if not own:
+        return None
+    majors = {name.rsplit(".so.", 1)[1] for name in own if ".so." in name}
+    hide = sorted(name for name in (machine_cudnn() if machine is None else machine)
+                  if name not in own and name.rsplit(".so.", 1)[1] in majors)
+    if not hide:
+        return None
+    shield = folder / "cudnn-shield"
+    try:
+        shield.mkdir(exist_ok=True)
+        for old in shield.iterdir():
+            if old.name not in hide:
+                old.unlink()
+        for name in hide:
+            (shield / name).touch()
+    except OSError:
+        return None
+    return str(shield)
+
+
+#: memory one CUDA compiler may take while it builds a kernel (FlashInfer's took 8 to 9 GB each, NOTES.md)
+COMPILER_GB = 10
+
+
+def compile_jobs(available_gb: float | None = None, cores: int | None = None) -> int | None:
+    """How many compilers a server may run at once as it builds kernels: one per ``COMPILER_GB`` of free memory,
+    at least one, at most one per core; ``None`` when the free memory is not known (no ``/proc/meminfo``)."""
+    if available_gb is None:
+        try:
+            for line in Path("/proc/meminfo").read_text().splitlines():
+                if line.startswith("MemAvailable:"):
+                    available_gb = int(line.split()[1]) / 1024 ** 2
+        except (OSError, ValueError, IndexError):
+            pass
+    if available_gb is None:
+        return None
+    return max(1, min(cores or os.cpu_count() or 1, int(available_gb // COMPILER_GB)))
 
 
 def cuda_home(folder: str | Path) -> str | None:

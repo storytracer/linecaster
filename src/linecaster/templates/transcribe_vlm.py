@@ -30,7 +30,7 @@ environment (``outside_venv``), so neither the image's Python nor its CUDA libra
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, linecaster's default; SGLang: the preset's own
 share); with --layout the layout server loads into the rest after vLLM's memory profiling. The server listens on port
 8000 in every run: two runs on one machine need a GPU each (``CUDA_VISIBLE_DEVICES``) and cannot both start their own
-server; on a machine without a CUDA toolkit vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` (``VLMServer``).
+server; vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` on every machine (``VLMServer``).
 
 --set STEP.OPTION=VALUE sets an option over the preset's: for --recognition the chat engine's ``max_tokens``,
 ``temperature``, ``top_p``, ``repair_max_tokens``, ``repair_temperature`` and ``repetition_detection``

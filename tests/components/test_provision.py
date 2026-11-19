@@ -58,6 +58,8 @@ def test_an_environment_is_built_once(monkeypatch, tmp_path):
     assert provision.cuda_home(a) == str(a / "cuda")
     assert provision.server_env("vllm", "0.30.0") == a and len(ran) == 2          # ready: nothing runs again
     assert provision.server_env("vllm", "0.30.0", [["fastokens==0.3.2"]]) != a     # other packages, other folder
+    own = provision.server_env("vllm", "0.30.0", setup="uv pip install a-plugin")   # a setup script installs into
+    assert own != a and provision.server_env("vllm", "0.30.0", setup="uv pip install a-plugin") == own  # its own
 
 
 def test_a_failed_build_says_why(monkeypatch, tmp_path):
@@ -100,3 +102,17 @@ def test_found_release_reads_the_server_s_own_version(monkeypatch, tmp_path):
     exe.chmod(0o755)
     assert provision.found_release("vllm", str(tmp_path)) == "0.30.0"
     assert provision.found_release("vllm", str(tmp_path / "none")) is None
+
+
+def test_a_server_environment_does_not_see_the_machines_cudnn(tmp_path, monkeypatch):
+    lib = tmp_path / "lib" / "python3.12" / "site-packages" / "nvidia" / "cudnn" / "lib"
+    lib.mkdir(parents=True)
+    for name in ("libcudnn.so.9", "libcudnn_cnn.so.9"):
+        (lib / name).touch()
+    machine = {"libcudnn.so.9", "libcudnn_cnn.so.9", "libcudnn_engines_tensor_ir.so.9", "libcudnn.so.8"}
+    shield = provision.cudnn_shield(tmp_path, machine)             # the part only the machine has, same major
+    assert sorted(p.name for p in Path(shield).iterdir()) == ["libcudnn_engines_tensor_ir.so.9"]
+    assert provision.cudnn_shield(tmp_path, {"libcudnn.so.9"}) is None          # nothing to hide
+    assert provision.cudnn_shield(tmp_path / "none", machine) is None           # no cuDNN of its own
+    monkeypatch.setattr(provision, "machine_cudnn", lambda: machine)
+    assert provision.ld_library_path(tmp_path, "/compat").split(":")[:2] == [shield, "/compat"]

@@ -14,6 +14,35 @@ the tags; the first is `v0.1.0`.
 - The tutorials follow the same order: [Run a vision-language model](docs/start/vlm.md) comes first and stands on
   its own, and "Your first pipeline" is [Combine models step by step](docs/start/first-run.md).
 
+### Changed outputs
+
+- vLLM starts with `VLLM_USE_FLASHINFER_SAMPLER=0` on every machine (before: only where there was no CUDA
+  toolkit). FlashInfer's sampler draws tokens differently from vLLM's own, so a preset with a temperature above 0
+  (the LightOnOCR presets, `dots-mocr`, `glm-ocr`, `olmocr-2-7b-1025-fp8`, `minicpm-ocr-1.0`) could read a page
+  differently on a machine with a toolkit, and with a toolkit older than FlashInfer needs the server did not start.
+  Texts from a machine that used FlashInfer's sampler may differ from those it writes now. Setting the variable
+  yourself still wins.
+- `deepseek-ocr`, `deepseek-ocr-2` and `unlimited-ocr` run on vLLM 0.29.0 (was linecaster's 0.30.0, on which their
+  server does not start: vLLM's DeepEncoder kernel fails in Triton from 0.30.0 on). Not measured on ground truth
+  against the earlier runs.
+- `minicpm-ocr-1.0` runs on vLLM 0.34.0 (was 0.33.0, on which a server built from PyPI could not load the model:
+  it requires a transformers older than the one that knows the model type). Not measured on ground truth.
+
+### Fixed
+
+- A preset whose server runs a setup script (`nemotron-3.5-parse`, which installs NVIDIA's vLLM plugin under NVIDIA's
+  constraints) gets a server environment of its own when uv builds it. Before, the script installed into the
+  environment every vLLM preset of that release shares and replaced torch, transformers and the CUDA libraries in
+  it for all of them. An environment it changed is not repaired: delete `~/.cache/linecaster/servers/vllm-0.30.0-*`
+  once, and the next run builds it again.
+- A vLLM or SGLang server that uv built no longer picks up parts of a cuDNN installed on the machine: a newer one
+  there stopped the first convolution (`CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH`, met with `paddleocr-vl-1.6`).
+- A server that compiles kernels as it starts (FlashInfer's, for the DeepSeek-OCR models) runs as many compilers
+  at once as the machine's free memory allows (`MAX_JOBS`, one per 10 GB), not one per core, which could take all
+  of a machine's memory. Setting `MAX_JOBS` yourself still wins.
+- A recipe's server started by a task loaded each model twice: the recipe's models were added to those the task
+  named. This affected `--backend served` runs of a recipe script, and Ray runs of one.
+
 ## 0.13.1 (2026-11-17)
 
 The README and the tutorials start from combining models, on the command line and in Python; recipes come after.

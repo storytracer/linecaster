@@ -213,7 +213,8 @@ def test_serve_component_outside_venv(monkeypatch):
     import sys
 
     own = os.path.join(sys.prefix, "bin")
-    monkeypatch.setenv("CUDA_HOME", "/usr/local/cuda")       # a CUDA toolkit: no FlashInfer variable
+    monkeypatch.setenv(FLASHINFER_SAMPLER, "1")              # both set already: nothing added for them
+    monkeypatch.setenv("MAX_JOBS", "2")
     monkeypatch.setenv("PATH", os.pathsep.join([own, "/usr/local/bin", "/usr/bin"]))
     monkeypatch.setenv("VIRTUAL_ENV", sys.prefix)
     component = VLMServer(chat_model("lightonocr-2-1b"), port=8123, outside_venv=True)
@@ -273,67 +274,34 @@ def test_region_recognizer_declares_the_lines_it_replaces():
     assert plan.problems == []
 
 
-# ------------------------------------------------------------------------------------ FlashInfer's sampler
-@pytest.fixture()
-def no_toolkit(monkeypatch, tmp_path):
-    for var in ("CUDA_HOME", "CUDA_PATH", FLASHINFER_SAMPLER):
-        monkeypatch.delenv(var, raising=False)
-    empty = tmp_path / "bin"
-    empty.mkdir()
-    monkeypatch.setenv("PATH", str(empty))
-    return empty
-
-
-def test_vllm_starts_without_flashinfers_sampler_where_there_is_no_cuda_toolkit(no_toolkit, monkeypatch):
+# ------------------------------------------------------------------------------------ the server's environment
+def test_vllm_starts_without_flashinfers_sampler_on_every_machine(monkeypatch, tmp_path):
+    monkeypatch.delenv(FLASHINFER_SAMPLER, raising=False)
+    monkeypatch.setenv("MAX_JOBS", "3")                             # set already: no compile_env
     component = VLMServer(chat_model("lightonocr-2-1b"))
     assert component.flashinfer_env() == {FLASHINFER_SAMPLER: "0"}
     cmd = component.launch_command()
     assert cmd[0] == "env" and f"{FLASHINFER_SAMPLER}=0" in cmd and cmd[cmd.index("vllm"):] == component.command()
-    nvcc = no_toolkit / "nvcc"                                      # a fake nvcc on PATH: a toolkit
+    nvcc = tmp_path / "nvcc"                                        # a CUDA toolkit here changes nothing
     nvcc.write_text("#!/bin/sh\n")
     nvcc.chmod(0o755)
-    assert component.flashinfer_env() == {} and component.launch_command() == component.command()
-    nvcc.unlink()
+    monkeypatch.setenv("PATH", str(tmp_path))
     monkeypatch.setenv("CUDA_HOME", "/opt/cuda")
-    assert component.flashinfer_env() == {}
-    monkeypatch.delenv("CUDA_HOME")
-    monkeypatch.setenv("CUDA_PATH", "/opt/cuda")
-    assert component.flashinfer_env() == {}
-    monkeypatch.delenv("CUDA_PATH")
+    assert component.flashinfer_env() == {FLASHINFER_SAMPLER: "0"}
     monkeypatch.setenv(FLASHINFER_SAMPLER, "1")                    # set already: left as it is
-    assert component.flashinfer_env() == {} and f"{FLASHINFER_SAMPLER}=0" not in component.launch_command()
+    assert component.flashinfer_env() == {} and component.launch_command() == component.command()
     monkeypatch.delenv(FLASHINFER_SAMPLER)
     assert VLMServer(chat_model("unlimited-ocr-2")).flashinfer_env() == {}     # SGLang: not vLLM's variable
 
 
-def test_the_flashinfer_rule_is_logged_once(no_toolkit, monkeypatch):
-    import saturate
-    from loguru import logger
+def test_a_server_compiles_with_as_many_compilers_as_the_memory_allows(monkeypatch):
+    from linecaster.components.servers import provision
 
-    from linecaster.components.servers import serve
-
-    started = []
-
-    class FakeEngine:
-        def __init__(self, model, engine, port, boot_timeout, cmd):
-            started.append(cmd)
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-    monkeypatch.setattr(saturate, "Engine", FakeEngine)
-    monkeypatch.setattr(serve, "_flashinfer_logged", False)
-    seen = []
-    sink = logger.add(lambda m: seen.append(m.record["message"]), level="INFO")
-    try:
-        for _ in range(2):
-            component = VLMServer(chat_model("lightonocr-2-1b"))
-            component.warm_up()
-            serve._stop(component)
-    finally:
-        logger.remove(sink)
-    assert len(started) == 2 and all(f"{FLASHINFER_SAMPLER}=0" in cmd for cmd in started)
-    assert sum(FLASHINFER_SAMPLER in m for m in seen) == 1
+    assert provision.compile_jobs(115, cores=20) == 11 and provision.compile_jobs(500, cores=20) == 20
+    assert provision.compile_jobs(4, cores=20) == 1
+    monkeypatch.delenv("MAX_JOBS", raising=False)
+    monkeypatch.setattr(provision, "compile_jobs", lambda: 4)
+    component = VLMServer(chat_model("lightonocr-2-1b"))
+    assert component.compile_env() == {"MAX_JOBS": "4"} and "MAX_JOBS=4" in component.launch_command()
+    monkeypatch.setenv("MAX_JOBS", "2")
+    assert component.compile_env() == {}

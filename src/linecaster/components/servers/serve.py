@@ -14,12 +14,12 @@ from loguru import logger
 from linecaster.errors import CatalogError, PipelineConfigError, ServerError
 from linecaster.core.contract import Contracted
 
-#: vLLM's switch for its FlashInfer sampler, which compiles its kernels when it is first used (JIT) and so needs a
-#: CUDA toolkit (``nvcc``); without one vLLM fails at its first request ("Could not find nvcc")
+#: vLLM's switch for its FlashInfer sampler. linecaster turns it off on every machine: it draws tokens differently
+#: from vLLM's own sampler, and it compiles its kernels when it is first used, so which of the two ran (or whether
+#: the server started at all) would depend on the machine's CUDA toolkit
 FLASHINFER_SAMPLER = "VLLM_USE_FLASHINFER_SAMPLER"
-#: variables that name a CUDA toolkit
-CUDA_TOOLKIT_VARS = ("CUDA_HOME", "CUDA_PATH")
-_flashinfer_logged = False
+#: the variable FlashInfer (and torch's builds) read for the number of compilers run at once
+COMPILE_JOBS = "MAX_JOBS"
 
 
 class EngineServer(Contracted, PipelineStep):
@@ -98,10 +98,11 @@ class VLMServer(Contracted, PipelineStep):
     ``revision_flag: false`` (the server cannot be given ``--revision`` and loads the default branch) the component
     refuses to start unless the default branch's files equal the pinned revision's (``check_default_branch``); the
     preset's ``server_env`` goes into the server's environment. With OTLP configured, vLLM traces too
-    (``tracing_args``). On a machine without a CUDA toolkit (no ``nvcc`` on the server's ``PATH``, neither
-    ``CUDA_HOME`` nor ``CUDA_PATH`` set) vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` (``flashinfer_env``),
-    unless that variable is set already: FlashInfer's sampler compiles its kernels at first use and fails without
-    ``nvcc``. A server that does not start fails the task (``ServerError``).
+    (``tracing_args``). vLLM starts with ``VLLM_USE_FLASHINFER_SAMPLER=0`` on every machine (``flashinfer_env``),
+    unless that variable is set already: a preset's tokens are then drawn by the same sampler wherever it runs. A
+    server may compile kernels as it starts (FlashInfer's, for some models), one compiler per core unless told
+    otherwise; it gets ``MAX_JOBS`` sized to the machine's free memory (``compile_env``). A server that does not
+    start fails the task (``ServerError``).
 
     The server listens on ``port`` (8000 for ``Chat`` by default), so two runs on one machine collide unless each
     gets its own port and its own GPU (``CUDA_VISIBLE_DEVICES``): a second vLLM on a GPU that one already uses does
@@ -211,23 +212,32 @@ class VLMServer(Contracted, PipelineStep):
         return ["--otlp-traces-endpoint", endpoint], {"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": protocol}
 
     def flashinfer_env(self) -> dict[str, str]:
-        """``{"VLLM_USE_FLASHINFER_SAMPLER": "0"}`` for vLLM on a machine without a CUDA toolkit: no ``nvcc`` on the
-        server's ``PATH`` and neither ``CUDA_HOME`` nor ``CUDA_PATH`` set, unless the variable is set already (in
-        this environment or the preset's ``server_env``); else nothing."""
+        """``{"VLLM_USE_FLASHINFER_SAMPLER": "0"}`` for vLLM, on every machine, unless the variable is set already
+        (in this environment or the preset's ``server_env``); else nothing."""
         import os
-        import shutil
 
         if self.server != "vllm" or FLASHINFER_SAMPLER in os.environ:
             return {}
         if FLASHINFER_SAMPLER in (getattr(self.spec, "server_env", None) or {}):
             return {}
-        if any(os.environ.get(v) for v in CUDA_TOOLKIT_VARS) or shutil.which("nvcc", path=self.server_path()):
-            return {}
         return {FLASHINFER_SAMPLER: "0"}
+
+    def compile_env(self) -> dict[str, str]:
+        """``{"MAX_JOBS": n}``: how many compilers a server may run at once when it builds kernels as it starts,
+        by the machine's free memory (``provision.compile_jobs``); nothing when the variable is set already or
+        the memory is not known."""
+        import os
+
+        from linecaster.components.servers.provision import compile_jobs
+
+        if COMPILE_JOBS in os.environ or COMPILE_JOBS in (getattr(self.spec, "server_env", None) or {}):
+            return {}
+        jobs = compile_jobs()
+        return {COMPILE_JOBS: str(jobs)} if jobs else {}
 
     def launch_command(self, python: str | None = None) -> list[str]:
         """``command()``, behind ``env [-u VIRTUAL_ENV PATH=...] [spec.server_env...]`` when either applies; with
-        vLLM's tracing arguments (``tracing_args``) when OTLP is configured, and ``flashinfer_env()``."""
+        vLLM's tracing arguments (``tracing_args``) when OTLP is configured, ``flashinfer_env()`` and ``compile_env()``."""
         cmd = self.command(python)
         args, trace_env = self.tracing_args()
         if args:
@@ -244,7 +254,7 @@ class VLMServer(Contracted, PipelineStep):
             libs = ld_library_path(self._env_dir, os.environ.get("LD_LIBRARY_PATH"))
             toolkit = {**({"CUDA_HOME": home} if home else {}), **({"LD_LIBRARY_PATH": libs} if libs else {})}
         env = [f"{k}={v}" for k, v in {**toolkit, **(getattr(self.spec, "server_env", None) or {}), **trace_env,
-                                       **self.flashinfer_env()}.items()]
+                                       **self.flashinfer_env(), **self.compile_env()}.items()]
         if self.outside_venv:
             env = ["-u", "VIRTUAL_ENV", f"PATH={self.server_path()}", *env]
         return ["env", *env, *cmd] if env else cmd
@@ -316,7 +326,9 @@ class VLMServer(Contracted, PipelineStep):
 
             self.outside_venv = True
 
-            folder = server_env(self.server, getattr(spec, "server_version", None), spec.server_packages())
+            setup = getattr(spec, "serve_setup", lambda: None)() if self.server == "vllm" else None
+            folder = server_env(self.server, getattr(spec, "server_version", None), spec.server_packages(),
+                                setup=setup)
             self._env_dir = str(folder)
             if self.server == "vllm":
                 self.vllm = str(folder / "bin" / "vllm")
@@ -338,11 +350,6 @@ class VLMServer(Contracted, PipelineStep):
         from saturate import Engine
 
         python = self.prepare()
-        global _flashinfer_logged
-        if self.flashinfer_env() and not _flashinfer_logged:
-            logger.info("no CUDA toolkit here (no nvcc on PATH, no CUDA_HOME or CUDA_PATH): vLLM starts with "
-                        "{var}=0, since FlashInfer's sampler would compile its kernels with nvcc", var=FLASHINFER_SAMPLER)
-            _flashinfer_logged = True
         server = Engine(self.spec.model, engine=self.server, port=self.port, boot_timeout=self.boot_timeout,
                         cmd=self.launch_command(python))
         try:
