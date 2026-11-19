@@ -327,6 +327,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../start/vlm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a vision-language model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../start/first-run/" class="md-nav__link">
         
   
@@ -334,7 +361,7 @@
   <span class="md-ellipsis">
     
   
-  Your first pipeline
+  Combine models step by step
 
     
   </span>
@@ -362,33 +389,6 @@
     
   
   A pipeline in Python
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-                
-              
-                
-                  
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../start/vlm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Run a vision-language model
 
     
   </span>
@@ -1414,7 +1414,7 @@ environment (<code>outside_venv</code>), so neither the image's Python nor its C
 packages. vLLM takes --gpu-memory-utilization of the GPU (0.8, linecaster's default; SGLang: the preset's own
 share); with --layout the layout server loads into the rest after vLLM's memory profiling. The server listens on port
 8000 in every run: two runs on one machine need a GPU each (<code>CUDA_VISIBLE_DEVICES</code>) and cannot both start their own
-server; on a machine without a CUDA toolkit vLLM starts with <code>VLLM_USE_FLASHINFER_SAMPLER=0</code> (<code>VLMServer</code>).</p>
+server; vLLM starts with <code>VLLM_USE_FLASHINFER_SAMPLER=0</code> on every machine (<code>VLMServer</code>).</p>
 <p>--set STEP.OPTION=VALUE sets an option over the preset's: for --recognition the chat engine's <code>max_tokens</code>,
 <code>temperature</code>, <code>top_p</code>, <code>repair_max_tokens</code>, <code>repair_temperature</code> and <code>repetition_detection</code>
 (<code>linecaster.engines.chat.ChatAdapter</code>), for --layout the layout engine's options. They go into the run record and

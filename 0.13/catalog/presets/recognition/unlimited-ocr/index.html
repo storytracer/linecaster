@@ -327,6 +327,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../../start/vlm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a vision-language model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../../start/first-run/" class="md-nav__link">
         
   
@@ -334,7 +361,7 @@
   <span class="md-ellipsis">
     
   
-  Your first pipeline
+  Combine models step by step
 
     
   </span>
@@ -362,33 +389,6 @@
     
   
   A pipeline in Python
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-                
-              
-                
-                  
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../start/vlm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Run a vision-language model
 
     
   </span>
@@ -1396,6 +1396,10 @@
 <li>Serve flags: <code>--max-model-len 32768 --trust-remote-code</code>, no prefix caching, no multimodal processor cache,
   one image per prompt. linecaster's vLLM (validated on 0.26.0): the card's dedicated <code>vllm/vllm-openai:unlimited-ocr</code> image is obsolete,
   the architecture is registered.</li>
+<li>vLLM 0.29.0, not linecaster's 0.30.0: from 0.30.0 on, vLLM's DeepEncoder attention kernel reads a constant
+  Triton refuses ("Cannot access global variable LOG2E"), and the server does not start (2026-11-19; unchanged
+  in 0.33.0). The recipe this preset follows names 0.29.0 for the same reason. Back to linecaster's version
+  once a vLLM release loads the encoder.</li>
 <li>The completion (grounded output, <code>&lt;|det|&gt;type [bbox]&lt;|/det|&gt;</code> headers) is stored verbatim. A response without content is an error, not an empty page.</li>
 </ul>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>unlimited-ocr<span class="w"> </span>IMAGES<span class="w"> </span>OUT
@@ -1430,11 +1434,11 @@
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.30.0</td>
+<td>vllm 0.29.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.30.0</code></td>
+<td><code>vllm/vllm-openai:v0.29.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

@@ -7,9 +7,9 @@ Every model configuration is a catalog preset at a pinned revision; tested combi
 ## Start
 
 - [README](https://raw.githubusercontent.com/storytracer/linecaster/main/README.md): what it does, quick start, combining models, a pipeline in Python, input and output, running anywhere
-- [Your first pipeline](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/first-run.md): This tutorial transcribes a folder of page images.
-- [A pipeline in Python](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/python.md): This tutorial builds the pipeline of Your first pipeline in Python.
 - [Run a vision-language model](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/vlm.md): A vision-language model (VLM) reads a whole page in one request and returns its text, often with layout and tables.
+- [Combine models step by step](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/first-run.md): This tutorial transcribes a folder of page images with the modular pipeline.
+- [A pipeline in Python](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/python.md): This tutorial builds the pipeline of Combine models step by step in Python.
 - [Score a run against ground truth](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/start/score.md): This tutorial measures how well a run read its pages.
 - [Overview](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/overview.md): Linecaster turns page images into text.
 - [Components and pipelines](https://raw.githubusercontent.com/storytracer/linecaster/main/docs/concepts/pipelines.md): A component does one thing to a page.

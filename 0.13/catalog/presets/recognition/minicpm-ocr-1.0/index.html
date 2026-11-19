@@ -327,6 +327,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../../start/vlm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a vision-language model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../../start/first-run/" class="md-nav__link">
         
   
@@ -334,7 +361,7 @@
   <span class="md-ellipsis">
     
   
-  Your first pipeline
+  Combine models step by step
 
     
   </span>
@@ -362,33 +389,6 @@
     
   
   A pipeline in Python
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-                
-              
-                
-                  
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../start/vlm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Run a vision-language model
 
     
   </span>
@@ -1401,10 +1401,12 @@ region type. Here the layout comes from linecaster's layout step and <code>Regio
   PaddleX's <code>CropByBoxes</code> does, pixels outside the region's polygon white.</li>
 <li>Serve flags from OpenBMB's SDK tutorial, served as <code>minicpm-ocr</code>; DSpark speculative decoding with the matching
   draft model (<code>minicpm-ocr-1.0-dspark</code>, 15 speculative tokens; <code>--no-speculative</code> in the recipe turns it off).</li>
-<li>vLLM 0.33.0, not linecaster's 0.30.0, which has no <code>--trust-request-mm-kwargs</code> (2026-11-16, the top-15 run on
-  an A40); 0.33.0 is the first release after the nightly the preset was validated on, 5d35ce3
-  (<code>0.32.1rc1.dev602+g5d35ce393</code>, with transformers at OpenBMB's pin, in the image
-  <code>cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3</code>), which is not on PyPI. <code>ninja</code> must be on PATH or the engine fails at startup.</li>
+<li>vLLM 0.34.0, not linecaster's 0.30.0, which has no <code>--trust-request-mm-kwargs</code> (2026-11-16, the top-15 run on
+  an A40). 0.34.0 is the first release that loads the model as PyPI installs it: 0.33.0 has the model's class but
+  requires a transformers older than the one that knows the model type (5.21), and fails against a newer one
+  (2026-11-19). The preset was validated on the nightly 5d35ce3 (<code>0.32.1rc1.dev602+g5d35ce393</code>, with transformers
+  at OpenBMB's pin, in the image <code>cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3</code>), which is not on PyPI; on
+  0.34.0 it started and read pages, and was not measured on ground truth. <code>ninja</code> must be on PATH or the engine fails at startup.</li>
 <li><code>linecaster.engines.chat.minicpm_ocr.assemble_markdown</code> assembles the page with the SDK's own code (extra
   <code>linecaster[minicpm-ocr]</code>), keeping <code>footnote</code> and <code>aside_text</code>.</li>
 </ul>
@@ -1441,11 +1443,11 @@ with its own containment suppression. Experimental.</p>
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.33.0</td>
+<td>vllm 0.34.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.33.0</code></td>
+<td><code>vllm/vllm-openai:v0.34.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

@@ -327,6 +327,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../../start/vlm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a vision-language model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../../start/first-run/" class="md-nav__link">
         
   
@@ -334,7 +361,7 @@
   <span class="md-ellipsis">
     
   
-  Your first pipeline
+  Combine models step by step
 
     
   </span>
@@ -362,33 +389,6 @@
     
   
   A pipeline in Python
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-                
-              
-                
-                  
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../start/vlm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Run a vision-language model
 
     
   </span>
@@ -1401,6 +1401,10 @@ DeepSeek-OCR and DeepSeek-OCR-2 presets differ only in the checkpoint).</p>
   is not verified).</li>
 <li>Serve flags: <code>--max-model-len 8192</code> (the native context), <code>--trust-remote-code</code>, no prefix caching, no
   multimodal processor cache, one image per prompt.</li>
+<li>vLLM 0.29.0, not linecaster's 0.30.0: from 0.30.0 on, vLLM's DeepEncoder attention kernel reads a constant
+  Triton refuses ("Cannot access global variable LOG2E"), and the server does not start (2026-11-19; unchanged
+  in 0.33.0). The recipe this preset follows names 0.29.0 for the same reason. Back to linecaster's version
+  once a vLLM release loads the encoder.</li>
 <li>The completion is stored verbatim, grounding markup included; <code>linecaster.engines.chat.deepseek_ocr.strip_grounding</code>
   removes it for whoever wants the text alone. <code>--gpu-memory-utilization</code> is the deployment's choice.</li>
 </ul>
@@ -1436,11 +1440,11 @@ DeepSeek-OCR and DeepSeek-OCR-2 presets differ only in the checkpoint).</p>
 </tr>
 <tr>
 <td>Server</td>
-<td>vllm 0.30.0</td>
+<td>vllm 0.29.0</td>
 </tr>
 <tr>
 <td>Image</td>
-<td><code>vllm/vllm-openai:v0.30.0</code></td>
+<td><code>vllm/vllm-openai:v0.29.0</code></td>
 </tr>
 <tr>
 <td>Produces</td>

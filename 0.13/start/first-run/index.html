@@ -14,7 +14,7 @@
       
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../vlm/">
       
       
         <link rel="next" href="../python/">
@@ -28,7 +28,7 @@
     
     
       
-        <title>Your first pipeline - Linecaster</title>
+        <title>Combine models step by step - Linecaster</title>
       
     
     
@@ -124,7 +124,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Your first pipeline
+              Combine models step by step
             
           </span>
         </div>
@@ -330,6 +330,33 @@
                   
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../vlm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Run a vision-language model
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
     
   
   
@@ -349,7 +376,7 @@
   <span class="md-ellipsis">
     
   
-  Your first pipeline
+  Combine models step by step
 
     
   </span>
@@ -366,7 +393,7 @@
   <span class="md-ellipsis">
     
   
-  Your first pipeline
+  Combine models step by step
 
     
   </span>
@@ -514,33 +541,6 @@
     
   
   A pipeline in Python
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-                
-              
-                
-                  
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../vlm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Run a vision-language model
 
     
   </span>
@@ -1610,9 +1610,9 @@
   
 
 
-<h1 id="your-first-pipeline">Your first pipeline<a class="headerlink" href="#your-first-pipeline" title="Permanent link">&para;</a></h1>
-<p>This tutorial transcribes a folder of page images. You choose a model for each step on the command line, then
-swap one of them for another.</p>
+<h1 id="combine-models-step-by-step">Combine models step by step<a class="headerlink" href="#combine-models-step-by-step" title="Permanent link">&para;</a></h1>
+<p>This tutorial transcribes a folder of page images with the modular pipeline. You choose a model for each step on
+the command line, then swap one of them for another.</p>
 <h2 id="what-you-need">What you need<a class="headerlink" href="#what-you-need" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Python 3.12 and <a href="https://docs.astral.sh/uv/">uv</a> 0.13.6 or newer</li>
@@ -1623,7 +1623,8 @@ swap one of them for another.</p>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/storytracer/linecaster
 <span class="nb">cd</span><span class="w"> </span>linecaster
 </code></pre></div>
-<p>There is nothing to install: every pipeline is a uv script that brings its own environment on its first run.</p>
+<p>There is nothing to install: every pipeline is a uv script that brings its own environment on its first run.
+If you followed <a href="../vlm/">Run a vision-language model</a>, you have it already.</p>
 <h2 id="2-see-what-you-can-combine">2. See what you can combine<a class="headerlink" href="#2-see-what-you-can-combine" title="Permanent link">&para;</a></h2>
 <p>The modular pipeline works in <strong>steps</strong>: a layout model finds the regions of a page, a line detector finds the
 lines, and a line recognizer reads each line. For every step you pick a <strong>preset</strong>: a model with its settings.</p>
@@ -1664,29 +1665,31 @@ exactly what ran.</p>
 </tr>
 </tbody>
 </table>
-<p>To get files you can open, name a folder and the formats:</p>
+<p>To get files you can open, add the document step, a folder and the formats:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>scans/<span class="w"> </span>out/<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--layout<span class="w"> </span>pp-doclayoutv3<span class="w"> </span>--lines<span class="w"> </span>pp-ocrv6-medium-det<span class="w"> </span>--recognition<span class="w"> </span>paddlex-ppocrv6-medium<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--files<span class="w"> </span>out/files<span class="w"> </span>--formats<span class="w"> </span>txt,alto
+<span class="w">  </span>--document<span class="w"> </span>linked-document<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--files<span class="w"> </span>out/files<span class="w"> </span>--formats<span class="w"> </span>md,html
 </code></pre></div>
-<p>The run resumes: pages that are already done are not read again.</p>
+<p>This writes a Markdown and an HTML file for each page. The run resumes: pages that are already done are not read
+again.</p>
 <h2 id="5-swap-one-model">5. Swap one model<a class="headerlink" href="#5-swap-one-model" title="Permanent link">&para;</a></h2>
 <p>Every step is independent of the others. This run keeps the layout and the lines and reads the text with
 Tesseract instead:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>scans/<span class="w"> </span>out-tesseract/<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--layout<span class="w"> </span>pp-doclayoutv3<span class="w"> </span>--lines<span class="w"> </span>pp-ocrv6-medium-det<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--recognition<span class="w"> </span>tesseract-best-latin<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--files<span class="w"> </span>out-tesseract/files<span class="w"> </span>--formats<span class="w"> </span>txt,alto
+<span class="w">  </span>--document<span class="w"> </span>linked-document<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--files<span class="w"> </span>out-tesseract/files<span class="w"> </span>--formats<span class="w"> </span>md,html
 </code></pre></div>
-<p>Compare the two folders of text files to see what the change did.</p>
+<p>Compare the two folders of Markdown files to see what the change did.</p>
 <h2 id="6-add-steps">6. Add steps<a class="headerlink" href="#6-add-steps" title="Permanent link">&para;</a></h2>
-<p>More steps are more options. This run also reads tables, finds the headings, joins the lines into paragraphs and
-builds a document, which the Markdown is written from:</p>
+<p>More steps are more options. This run also reads tables, finds the headings and joins the lines into paragraphs:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pipelines/transcribe_modular.py<span class="w"> </span>scans/<span class="w"> </span>out-full/<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--layout<span class="w"> </span>pp-doclayoutv3<span class="w"> </span>--lines<span class="w"> </span>pp-ocrv6-medium-det<span class="w"> </span>--recognition<span class="w"> </span>paddlex-ppocrv6-medium<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--tables<span class="w"> </span>slanet-plus<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--hierarchy<span class="w"> </span>ratios<span class="w"> </span>--paragraphs<span class="w"> </span>unicode-paragraphs<span class="w"> </span>--document<span class="w"> </span>linked-document<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--files<span class="w"> </span>out-full/files<span class="w"> </span>--formats<span class="w"> </span>md,alto
+<span class="w">  </span>--files<span class="w"> </span>out-full/files<span class="w"> </span>--formats<span class="w"> </span>md,html
 </code></pre></div>
 <p>Two more options are useful while you try things out:</p>
 <table>
@@ -1719,7 +1722,6 @@ model that needs torch, which <code>transcribe_modular.py</code> does not instal
 <h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../python/">Build the same pipeline in Python</a>.</li>
-<li><a href="../vlm/">Run a vision-language model</a> instead of the modular pipeline.</li>
 <li>Read the <a href="../../concepts/overview/">overview</a> to see how the parts fit together.</li>
 </ul>
 
