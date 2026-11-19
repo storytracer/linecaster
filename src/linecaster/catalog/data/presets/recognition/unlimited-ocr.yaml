@@ -20,6 +20,7 @@ settings:
   logits_processor: vllm.model_executor.models.unlimited_ocr:NGramPerReqLogitsProcessor
 serve:
   server: vllm
+  version: 0.29.0
   flags:
   - --max-model-len
   - '32768'

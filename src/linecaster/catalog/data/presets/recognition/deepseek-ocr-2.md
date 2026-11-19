@@ -15,5 +15,9 @@ DeepSeek-OCR and DeepSeek-OCR-2 presets differ only in the checkpoint).
   is not verified).
 - Serve flags: `--max-model-len 8192` (the native context), `--trust-remote-code`, no prefix caching, no
   multimodal processor cache, one image per prompt.
+- vLLM 0.29.0, not linecaster's 0.30.0: from 0.30.0 on, vLLM's DeepEncoder attention kernel reads a constant
+  Triton refuses ("Cannot access global variable LOG2E"), and the server does not start (2026-11-19; unchanged
+  in 0.33.0). The recipe this preset follows names 0.29.0 for the same reason. Back to linecaster's version
+  once a vLLM release loads the encoder.
 - The completion is stored verbatim, grounding markup included; `linecaster.engines.chat.deepseek_ocr.strip_grounding`
   removes it for whoever wants the text alone. `--gpu-memory-utilization` is the deployment's choice.

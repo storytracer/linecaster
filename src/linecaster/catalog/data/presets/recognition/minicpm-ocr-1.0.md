@@ -15,10 +15,12 @@ region type. Here the layout comes from linecaster's layout step and `RegionReco
   PaddleX's `CropByBoxes` does, pixels outside the region's polygon white.
 - Serve flags from OpenBMB's SDK tutorial, served as `minicpm-ocr`; DSpark speculative decoding with the matching
   draft model (`minicpm-ocr-1.0-dspark`, 15 speculative tokens; `--no-speculative` in the recipe turns it off).
-- vLLM 0.33.0, not linecaster's 0.30.0, which has no `--trust-request-mm-kwargs` (2026-11-16, the top-15 run on
-  an A40); 0.33.0 is the first release after the nightly the preset was validated on, 5d35ce3
-  (`0.32.1rc1.dev602+g5d35ce393`, with transformers at OpenBMB's pin, in the image
-  `cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3`), which is not on PyPI. `ninja` must be on PATH or the engine fails at startup.
+- vLLM 0.34.0, not linecaster's 0.30.0, which has no `--trust-request-mm-kwargs` (2026-11-16, the top-15 run on
+  an A40). 0.34.0 is the first release that loads the model as PyPI installs it: 0.33.0 has the model's class but
+  requires a transformers older than the one that knows the model type (5.21), and fails against a newer one
+  (2026-11-19). The preset was validated on the nightly 5d35ce3 (`0.32.1rc1.dev602+g5d35ce393`, with transformers
+  at OpenBMB's pin, in the image `cr.hf.co/davanstrien/minicpm-ocr:1.0-vllm-5d35ce3`), which is not on PyPI; on
+  0.34.0 it started and read pages, and was not measured on ground truth. `ninja` must be on PATH or the engine fails at startup.
 - `linecaster.engines.chat.minicpm_ocr.assemble_markdown` assembles the page with the SDK's own code (extra
   `linecaster[minicpm-ocr]`), keeping `footnote` and `aside_text`.
 
