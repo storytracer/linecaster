@@ -6,6 +6,13 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+## 0.13.2 (2026-11-19)
+
+Fixes for the servers of vision-language models, found by starting every vLLM preset on one machine: five did not
+start, and one changed the server environment of the others. Nothing to change in code that runs on 0.13.1. On a
+machine where `nemotron-3.5-parse` ran with a server built by uv, delete `~/.cache/linecaster/servers/vllm-0.30.0-*`
+once (see Fixed).
+
 ### Changed
 
 - The README states the problem linecaster solves, lists what it does from harvest to scoring, and gives its
