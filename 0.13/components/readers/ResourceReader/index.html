@@ -1473,6 +1473,12 @@
 <td>kind -&gt; URL template with <code>{item}</code>; default: the table names its resources (<code>url_key</code>).</td>
 </tr>
 <tr>
+<td><code>follow</code></td>
+<td><code>dict[str, str] &#124; None</code></td>
+<td><code>None</code></td>
+<td>kind -&gt; the JSON path (dotted keys, a number for a list's item) at which a page of that kind names the next page's URL; such a resource is fetched page after page (module docstring, Paged answers).</td>
+</tr>
+<tr>
 <td><code>url_key</code></td>
 <td><code>str</code></td>
 <td><code>'url'</code></td>

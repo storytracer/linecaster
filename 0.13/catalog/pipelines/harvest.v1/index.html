@@ -1379,7 +1379,9 @@ table (--parquet), downloaded once into item folders, with page records that kee
 engine or GPU is needed; the transcribe stage then reads the page records without waiting on the libraries' servers.
 With --items it fetches items' other remote files (resources: catalogue records, API JSON, manifests) as served,
 from URL templates (--resource KIND=URL with {item}) or a resource table, into OUT/<kind>/<item>/<name>.<ext> with a
-record each in OUT/resources/<rank>.jsonl.gz; --http-policy gives settings for every host and overrides per host
+record each in OUT/resources/<rank>.jsonl.gz; a resource that comes in pages, each naming the next (a search API's
+answer), is followed page after page with --follow KIND=PATH, the JSON path of the next page's URL, and every page
+kept as served (OUT/<kind>/<item>/<name>_00001.json, ...); --http-policy gives settings for every host and overrides per host
 (rate limits, proxies or direct, retries, statuses that stop the run). --reuse-from DIR (repeatable) takes the files
 earlier harvests into other folders already hold: a resource whose source URL one of them fetched (by DIR's records,
 the newest successful one per URL across the folders, its copy checked by sha256) is read from there and written
@@ -1393,6 +1395,7 @@ there, and a page read from an earlier copy says <code>image.extra.reused_from</
     --rate-limit 5/1 --existing-ocr
 uv run pipelines/harvest.py --items pages.parquet --item-key lccn OUT --http-policy http-policy.yaml \
     --resource marcxml=https://catalog.example.org/{item}/marcxml
+uv run pipelines/harvest.py --items searches.parquet --item-key query OUT --follow search=_links.next.href
 uv run pipelines/harvest.py --items files-v2.parquet --item-key item OUT2 --reuse-from OUT --reuse-from TOPUP
 uv run pipelines/harvest.py --parquet pages.parquet --item-key book --sequence-key page --image-key url OUT \
     --rate-limit 150/60 --rate-limit 3/1
