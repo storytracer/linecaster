@@ -6,7 +6,7 @@
 on; ``Page`` and ``Transcription`` are the page record and what a source said about a page. They are loaded when
 first used, so importing ``linecaster`` stays light. The catalog is ``linecaster.catalog.catalog()``.
 """
-__version__ = "0.13.2"
+__version__ = "0.13.3"
 
 _EXPORTS = {"Pipeline": "linecaster.pipeline", "Component": "linecaster.core.component", "Page": "linecaster.data",
             "Transcription": "linecaster.data"}

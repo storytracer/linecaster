@@ -6,6 +6,11 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+## 0.13.3 (2026-11-23)
+
+Paged answers in a resource harvest, and two settings of an HTTP policy for hosts that ask for one request at a
+time. Nothing to change in code that runs on 0.13.2.
+
 ### Added
 
 - Paged answers in a resource harvest: `pipelines/harvest.py --items ... --follow KIND=PATH` (`ResourceReader`'s
