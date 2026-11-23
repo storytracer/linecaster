@@ -6,6 +6,13 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+### Fixed
+
+- A resource served with a content type that ends in `+json` or `+xml` (`application/hal+json`,
+  `application/problem+json`, `application/atom+xml`) is kept with the extension `.json` or `.xml`. It was kept as
+  `.bin` unless its kind or URL named the format, so the pages of a paged answer (`--follow`) from a HAL API were
+  `<name>_00001.bin`. Its record's `ext` says the same; copies already written keep their names.
+
 ## 0.13.3 (2026-11-23)
 
 Paged answers in a resource harvest, and two settings of an HTTP policy for hosts that ask for one request at a

@@ -18,7 +18,7 @@ import pytest
 from loguru import logger
 from PIL import Image
 
-from linecaster.components.readers.resources import ResourceReader, check, expected_format
+from linecaster.components.readers.resources import ResourceReader, check, expected_format, extension
 from linecaster.components.writers.resources import ResourceFilesWriter, ResourceRecordWriter
 from linecaster.errors import PipelineConfigError, ServerError
 from linecaster.net.policy import HTTPPolicy
@@ -107,6 +107,20 @@ def run_all(reader, out, tasks=None):
 
 def records(out):
     return [json.loads(line) for p in sorted((out / "resources").iterdir()) for line in gzip.open(p, "rt")]
+
+
+@pytest.mark.parametrize("content_type, url, expected, ext", [
+    ("application/json", "https://library.test/items", None, "json"),
+    ("application/hal+json", "https://library.test/items?page=2", None, "json"),         # a HAL API's answer
+    ("application/problem+json; charset=utf-8", "https://library.test/items", None, "json"),
+    ("application/atom+xml", "https://library.test/feed", None, "xml"),
+    ("application/marcxml+xml", "https://library.test/b1/marcxml", "xml", "xml"),
+    ("application/octet-stream", "https://library.test/b1/file.djvu", None, "djvu"),      # the URL's own
+    ("application/octet-stream", "https://library.test/b1/record", "xml", "xml"),         # the expected format's
+    ("application/octet-stream", "https://library.test/b1/record", None, "bin"),
+])
+def test_a_copys_extension_is_its_content_types_then_the_urls_then_the_expected_formats(content_type, url, expected, ext):
+    assert extension(content_type, url, expected) == ext
 
 
 def test_templates_fetch_each_items_files_one_item_per_task(server, tmp_path):

@@ -136,9 +136,14 @@ def inspect(data: bytes, content_type: str, expected: str | None) -> tuple[str |
 
 
 def extension(content_type: str, url: str, expected: str | None) -> str:
+    """A copy's file extension: by its content type (``EXTENSIONS``, then a structured syntax suffix: ``+json`` and
+    ``+xml`` say the format whatever the type before them, RFC 6839), else the URL's own, else the expected format's,
+    else ``bin``."""
     ctype = (content_type or "").split(";")[0].strip().lower()
     if ctype in EXTENSIONS:
         return EXTENSIONS[ctype]
+    if ctype.endswith(("+json", "+xml")):
+        return ctype.rsplit("+", 1)[1]
     ext = posixpath.splitext(url.split("?")[0])[1].lstrip(".").lower()
     if ext and len(ext) <= 5:
         return ext
