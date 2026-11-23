@@ -6,6 +6,11 @@ the tags; the first is `v0.1.0`.
 
 ## Unreleased
 
+## 0.13.4 (2026-11-23)
+
+A fix for resource harvests from APIs that label their answers with a `+json` or `+xml` content type. Nothing to
+change in code that runs on 0.13.3.
+
 ### Fixed
 
 - A resource served with a content type that ends in `+json` or `+xml` (`application/hal+json`,
